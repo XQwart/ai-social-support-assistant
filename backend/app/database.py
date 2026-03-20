@@ -1,6 +1,5 @@
 # app/database.py
 from sqlalchemy.ext.asyncio import (
-    AsyncEngine,
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
@@ -15,8 +14,6 @@ class Base(DeclarativeBase):
 
 
 class Database:
-    _engine: AsyncEngine
-    _session_factory: 
     def __init__(self, url: str = DATABASE_URL) -> None:
         self._engine = create_async_engine(url, echo=True)
         self._session_factory = async_sessionmaker(

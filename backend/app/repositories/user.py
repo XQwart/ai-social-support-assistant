@@ -10,22 +10,22 @@ class UserRepository:
         self._session = session
 
     async def get_by_id(self, user_id: int) -> User | None:
-        return await self.session.get(User, user_id)
+        return await self._session.get(User, user_id)
 
     async def get_by_bank_id(self, bank_id: str) -> User | None:
         stmt = select(User).where(User.bank_id == bank_id)
-        result = await self.session.execute(stmt)
+        result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def create(self, bank_id: str, first_name: str, second_name: str) -> User:
         user = User(bank_id=bank_id, first_name=first_name, second_name=second_name)
-        self.session.add(user)
-        await self.session.commit()
-        await self.session.refresh(user)
+        self._session.add(user)
+        await self._session.commit()
+        await self._session.refresh(user)
         return user
 
     async def delete(self, user_id: int) -> bool:
         stmt = delete(User).where(User.id == user_id)
-        result = await self.session.execute(stmt)
-        await self.session.commit()
+        result = await self._session.execute(stmt)
+        await self._session.commit()
         return result.rowcount > 0
