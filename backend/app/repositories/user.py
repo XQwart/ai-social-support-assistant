@@ -1,0 +1,31 @@
+from sqlalchemy import select, delete
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.models.user import User
+
+
+class UserRepository:
+    _session: AsyncSession
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def get_by_id(self, user_id: int) -> User | None:
+        return await self.session.get(User, user_id)
+
+    async def get_by_bank_id(self, bank_id: str) -> User | None:
+        stmt = select(User).where(User.bank_id == bank_id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def create(self, bank_id: str, first_name: str, second_name: str) -> User:
+        user = User(bank_id=bank_id, first_name=first_name, second_name=second_name)
+        self.session.add(user)
+        await self.session.commit()
+        await self.session.refresh(user)
+        return user
+
+    async def delete(self, user_id: int) -> bool:
+        stmt = delete(User).where(User.id == user_id)
+        result = await self.session.execute(stmt)
+        await self.session.commit()
+        return result.rowcount > 0
