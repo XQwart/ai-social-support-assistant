@@ -51,11 +51,11 @@ class AuthService:
     async def exchange_code_for_token(self, code: str) -> SberTokenData:
         async with httpx.AsyncClient() as client:
             token_res = await client.post(
-                self._config.redirect_uri,
+                self._config.sber_redirect_uri,
                 data={
                     "grant_type": "authorization_code",
                     "code": code,
-                    "redirect_uri": self._config.redirect_uri,
+                    "redirect_uri": self._config.sber_redirect_uri,
                     "client_id": self._config.client_id,
                     "client_secret": self._config.client_secret,
                 },
@@ -74,7 +74,7 @@ class AuthService:
     async def login_user(self, bank_access_token: str) -> str:
         async with httpx.AsyncClient() as client:
             userinfo_res = await client.get(
-                self._config.userinfo_url,
+                self._config.sber_userinfo_url,
                 headers={"Authorization": f"Bearer {bank_access_token}"},
             )
             user_data = SberUserInfo(**userinfo_res.json())

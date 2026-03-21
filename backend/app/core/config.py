@@ -26,8 +26,8 @@ class Config(BaseSettings):
     def redis_url(self) -> str:
         return f"redis://{self.redis_host}:{self.redis_port}/0"
 
-    redirect_uri: str
-    userinfo_url: str
+    sber_redirect_uri: str
+    sber_userinfo_url: str
     client_id: str
     client_secret: str
     token_endpoint_auth_method: str = "client_secret_post"

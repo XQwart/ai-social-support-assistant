@@ -16,7 +16,7 @@ async def get_params(auth_service: AuthServiceDep, config: ConfigDep):
     return JSONResponse(
         {
             "client_id": config.client_id,
-            "redirect_uri": config.redirect_uri,
+            "redirect_uri": config.sber_redirect_uri,
             "scopes": "openid name",
             "response_type": "code",
             **params,
