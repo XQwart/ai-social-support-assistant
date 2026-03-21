@@ -7,24 +7,39 @@ import httpx
 import jose.jwt
 
 from app.dependencies.config import ConfigDep
+from app.dependencies.repositories import UserRepoDep, TokenRedisRepoDep, OauthRepoDep
 from app.schemas.auth import SberTokenData, SberUserInfo
 
 if TYPE_CHECKING:
     from app.core.config import Config
+    from app.repositories.oauth import OauthRepository
+    from app.repositories.user import UserRepository
+    from app.repositories.token import TokenRedisRepository
 
 
 class AuthService:
     _config: Config
+    _oauth_rep: OauthRepository
+    _token_rep: TokenRedisRepository
+    _user_rep: UserRepository
 
-    def __init__(self, config: ConfigDep):  # TODO: Принимать репозиторий с oauth и auth
+    def __init__(
+        self,
+        config: ConfigDep,
+        ouath_rep: OauthRepoDep,
+        token_rep: TokenRedisRepoDep,
+        user_rep: UserRepoDep,
+    ):
         self._config = config
+        self._oauth_rep = ouath_rep
+        self._token_rep = token_rep
+        self._user_rep = user_rep
 
     async def get_and_save_oauth_params(self) -> dict[str, str]:
         state = secrets.token_urlsafe(32)
         nonce = secrets.token_urlsafe(32)
 
-        # TODO: Добавить сохранение в редис
-
+        self._oauth_rep.save_params(state=state, nonce=nonce)
         return {"state": state, "nonce": nonce}
 
     async def validate_oauth_params(self, code: str, state: str) -> None:
