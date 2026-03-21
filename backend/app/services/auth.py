@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 import secrets
+import uuid
 
 from fastapi import HTTPException
 import httpx
@@ -37,7 +38,7 @@ class AuthService:
         state = secrets.token_urlsafe(32)
         nonce = secrets.token_urlsafe(32)
 
-        self._oauth_rep.save_params(state=state, nonce=nonce)
+        await self._oauth_rep.save_params(state=state, nonce=nonce)
 
         return {"state": state, "nonce": nonce}
 
@@ -49,9 +50,11 @@ class AuthService:
         return nonce
 
     async def exchange_code_for_token(self, code: str) -> SberTokenData:
+        rquid = uuid.uuid4().hex
+
         async with httpx.AsyncClient(verify=self._config.sber_ca_path) as client:
             token_res = await client.post(
-                self._config.sber_redirect_uri,
+                self._config.sber_token_url,
                 data={
                     "grant_type": "authorization_code",
                     "code": code,
@@ -59,9 +62,15 @@ class AuthService:
                     "client_id": self._config.client_id,
                     "client_secret": self._config.client_secret,
                 },
+                headers={
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "Accept": "application/json",
+                    "rquid": rquid,
+                },
             )
 
             if token_res.status_code != 200:
+                print(token_res.content)
                 raise HTTPException(400, detail="Token exchange failed")
 
             return SberTokenData(**token_res.json())
@@ -72,10 +81,15 @@ class AuthService:
             raise HTTPException(400, "Invalid nonce")
 
     async def login_user(self, bank_access_token: str) -> str:
+        rquid = uuid.uuid4().hex
+
         async with httpx.AsyncClient(verify=self._config.sber_ca_path) as client:
             userinfo_res = await client.get(
                 self._config.sber_userinfo_url,
-                headers={"Authorization": f"Bearer {bank_access_token}"},
+                headers={
+                    "Authorization": f"Bearer {bank_access_token}",
+                    "x-introspect-rquid": rquid,
+                },
             )
             user_data = SberUserInfo(**userinfo_res.json())
 

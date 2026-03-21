@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from app.dependencies.services import AuthServiceDep
 from app.dependencies.config import ConfigDep
 
-router = APIRouter("/auth")
+router = APIRouter(prefix="/auth")
 
 
 @router.get("/sber/params")
@@ -38,4 +38,4 @@ async def sber_callback(
 
     code = await auth_service.login_user(token_data.access_token)
 
-    return RedirectResponse(url=f"{config.frontend_succes_login_url}?code={code}")
+    return RedirectResponse(url=f"{config.frontend_success_login_url}?code={code}")

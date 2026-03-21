@@ -16,7 +16,7 @@ class OauthRepository:
     async def get_params(self, state: str) -> str | None:
         key = f"oauth_state:{state}"
         nonce = await self._redis.getdel(key)
-        return nonce.decode() if nonce else None
+        return nonce if nonce else None
 
     async def save_code(self, user_id: int, sber_id: str, code: str) -> str:
         await self._redis.setex(

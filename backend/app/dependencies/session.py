@@ -7,10 +7,10 @@ from sqlalchemy.ext.asyncio import (
 )
 
 
-async def get_db_session(req: Request) -> AsyncGenerator[AsyncSession]:
+async def get_db_session(req: Request) -> AsyncGenerator[AsyncSession, None]:
     session_maker: async_sessionmaker[AsyncSession] = req.app.state.session_maker
 
-    with session_maker() as session:
+    async with session_maker() as session:
         yield session
 
 

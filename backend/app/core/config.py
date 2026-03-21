@@ -5,7 +5,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Config(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=Path(__file__).resolve().parents[3] / ".env",
+        extra="ignore",
+    )
 
     postgres_host: str
     postgres_user: str
@@ -27,6 +30,7 @@ class Config(BaseSettings):
     def redis_url(self) -> str:
         return f"redis://{self.redis_host}:{self.redis_port}/0"
 
+    sber_token_url: str
     sber_redirect_uri: str
     sber_userinfo_url: str
     client_id: str
