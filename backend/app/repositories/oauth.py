@@ -1,4 +1,3 @@
-from datetime import timedelta
 from redis.asyncio import Redis
 from app.core.config import Config
 from app.dependencies.config import ConfigDep
@@ -12,9 +11,8 @@ class OauthRepository:
         self._redis = redis
         self._config = config
 
-    async def save_params(self, state: str, nonce: str):
-        await self._redis.setex(f"oauth_state:{state}", timedelta(minutes=10), nonce)
-        return {"state": state, "nonce": nonce}
+    async def save_params(self, state: str, nonce: str) -> None:
+        await self._redis.setex(f"oauth_state:{state}", self._config.oauth_ttl, nonce)
 
     async def get_params(self, state: str) -> str | None:
         key = f"oauth_state:{state}"
@@ -23,7 +21,7 @@ class OauthRepository:
 
     async def save_code(self, user_id: int, sber_id: str, code: str) -> str:
         await self._redis.setex(
-            f"auth_code:{code}", timedelta(seconds=30), f"{user_id}:{sber_id}"
+            f"auth_code:{code}", self._config.code_ttl, f"{user_id}:{sber_id}"
         )
         return code
 
