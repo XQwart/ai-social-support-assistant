@@ -70,15 +70,26 @@ class AuthService:
             )
 
             if token_res.status_code != 200:
-                print(token_res.content)
-                raise HTTPException(400, detail="Token exchange failed")
+                print("❌ Sber Token Error:")
+                print(f"Status: {token_res.status_code}")
+                print(f"Body: {token_res.text}")
+                print(f"Headers: {dict(token_res.headers)}")
+
+                raise HTTPException(
+                    status_code=token_res.status_code,
+                    detail=f"Sber error: {token_res.text}",
+                )
 
             return SberTokenData(**token_res.json())
 
-    def validate_nonce(self, id_token: str, nonce: str) -> None:
+    async def validate_id_token(
+        self, id_token: str, nonce: str, client_id: str
+    ) -> None:
         claims = jose.jwt.get_unverified_claims(id_token)
         if claims.get("nonce") != nonce:
             raise HTTPException(400, "Invalid nonce")
+        if claims.get("aud") != client_id:
+            raise HTTPException(400, "Invalid aud")
 
     async def login_user(self, bank_access_token: str) -> str:
         rquid = uuid.uuid4().hex
@@ -93,11 +104,14 @@ class AuthService:
             )
             user_data = SberUserInfo(**userinfo_res.json())
 
-        user = await self._user_rep.create(
-            bank_id=user_data.sub,
-            first_name=user_data.given_name,
-            second_name=user_data.family_name,
-        )
+        user = await self._user_rep.get_by_bank_id(user_data.sub)
+
+        if user is None:
+            user = await self._user_rep.create(
+                bank_id=user_data.sub,
+                first_name=user_data.given_name,
+                second_name=user_data.family_name,
+            )
 
         code = secrets.token_urlsafe(32)
         await self._oauth_rep.save_code(user.id, user.bank_id, code)

@@ -34,7 +34,7 @@ async def sber_callback(
     nonce = await auth_service.validate_state(state)
 
     token_data = await auth_service.exchange_code_for_token(code)
-    await auth_service.validate_nonce(token_data.id_token, nonce)
+    await auth_service.validate_id_token(token_data.id_token, nonce, config.client_id)
 
     code = await auth_service.login_user(token_data.access_token)
 
