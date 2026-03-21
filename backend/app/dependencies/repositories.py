@@ -9,8 +9,8 @@ from app.dependencies.redis import RedisDep
 from app.dependencies.session import DBSessionDep
 
 
-def get_user_repo(config: ConfigDep, session: DBSessionDep) -> UserRepository:
-    return UserRepository(config, session)
+def get_user_repo(session: DBSessionDep) -> UserRepository:
+    return UserRepository(session)
 
 
 def get_token_redis_repo(config: ConfigDep, redis: RedisDep) -> TokenRedisRepository:
