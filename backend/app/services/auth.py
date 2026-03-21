@@ -6,7 +6,7 @@ import uuid
 from fastapi import HTTPException
 import httpx
 import jose.jwt
-
+import logging
 from app.schemas.auth import SberTokenData, SberUserInfo
 
 if TYPE_CHECKING:
@@ -14,6 +14,8 @@ if TYPE_CHECKING:
     from app.repositories.oauth import OauthRepository
     from app.repositories.user import UserRepository
     from app.repositories.token import TokenRedisRepository
+
+logger = logging.getLogger(__name__)
 
 
 class AuthService:
@@ -70,16 +72,18 @@ class AuthService:
             )
 
             if token_res.status_code != 200:
-                print("❌ Sber Token Error:")
-                print(f"Status: {token_res.status_code}")
-                print(f"Body: {token_res.text}")
-                print(f"Headers: {dict(token_res.headers)}")
-
+                logger.error(
+                    "Sber token exchange failed | rquid=%s | status=%s | body=%s",
+                    rquid,
+                    token_res.status_code,
+                    token_res.text,
+                )
                 raise HTTPException(
                     status_code=token_res.status_code,
                     detail=f"Sber error: {token_res.text}",
                 )
 
+            logger.info("Sber token exchange success")
             return SberTokenData(**token_res.json())
 
     async def validate_id_token(
@@ -90,6 +94,7 @@ class AuthService:
             raise HTTPException(400, "Invalid nonce")
         if claims.get("aud") != client_id:
             raise HTTPException(400, "Invalid aud")
+        logger.debug("id_token validated successfully")
 
     async def login_user(self, bank_access_token: str) -> str:
         rquid = uuid.uuid4().hex
@@ -115,5 +120,5 @@ class AuthService:
 
         code = secrets.token_urlsafe(32)
         await self._oauth_rep.save_code(user.id, user.bank_id, code)
-
+        logger.debug("Auth code saved for user")
         return code

@@ -10,6 +10,8 @@ class Config(BaseSettings):
         extra="ignore",
     )
 
+    log_level: str = "INFO"
+
     postgres_host: str
     postgres_user: str
     postgres_password: str
