@@ -49,7 +49,7 @@ class AuthService:
         return nonce
 
     async def exchange_code_for_token(self, code: str) -> SberTokenData:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(verify=self._config.sber_ca_path) as client:
             token_res = await client.post(
                 self._config.sber_redirect_uri,
                 data={
@@ -72,7 +72,7 @@ class AuthService:
             raise HTTPException(400, "Invalid nonce")
 
     async def login_user(self, bank_access_token: str) -> str:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(verify=self._config.sber_ca_path) as client:
             userinfo_res = await client.get(
                 self._config.sber_userinfo_url,
                 headers={"Authorization": f"Bearer {bank_access_token}"},

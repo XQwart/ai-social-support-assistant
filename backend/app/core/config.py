@@ -1,5 +1,6 @@
-from functools import lru_cache
 from datetime import timedelta
+from functools import lru_cache
+from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -19,8 +20,8 @@ class Config(BaseSettings):
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
 
-    redis_port: int
     redis_host: str
+    redis_port: int
 
     @property
     def redis_url(self) -> str:
@@ -31,6 +32,12 @@ class Config(BaseSettings):
     client_id: str
     client_secret: str
     token_endpoint_auth_method: str = "client_secret_post"
+
+    sber_ca_path: str = str(
+        Path(__file__).resolve().parents[2] / "cert" / "sber_ift_ca.pem"
+    )
+
+    frontend_success_login_url: str
 
     jwt_access_secret: str
     jwt_refresh_secret: str

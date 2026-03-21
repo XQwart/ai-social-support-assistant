@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Query
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from app.dependencies.services import AuthServiceDep
 from app.dependencies.config import ConfigDep
@@ -26,8 +26,11 @@ async def get_params(auth_service: AuthServiceDep, config: ConfigDep):
 
 @router.get("/sber/callback")
 async def sber_callback(
-    auth_service: AuthServiceDep, code: str = Query(...), state: str = Query(...)
-):
+    auth_service: AuthServiceDep,
+    config: ConfigDep,
+    code: str = Query(...),
+    state: str = Query(...),
+) -> RedirectResponse:
     nonce = await auth_service.validate_state(state)
 
     token_data = await auth_service.exchange_code_for_token(code)
@@ -35,4 +38,4 @@ async def sber_callback(
 
     code = await auth_service.login_user(token_data.access_token)
 
-    # TODO: Добавить редирект на клиент
+    return RedirectResponse(url=f"{config.frontend_succes_login_url}?code={code}")
