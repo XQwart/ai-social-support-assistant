@@ -12,7 +12,7 @@ class OauthRepository:
         self._redis = redis
         self._config = config
 
-    async def save_params(self, state: str, nonce: str) -> dict:
+    async def save_params(self, state: str, nonce: str):
         await self._redis.setex(f"oauth_state:{state}", timedelta(minutes=10), nonce)
         return {"state": state, "nonce": nonce}
 
