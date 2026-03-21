@@ -1,12 +1,16 @@
 from datetime import timedelta
 from redis.asyncio import Redis
+from app.core.config import Config
+from app.dependencies.config import ConfigDep
 
 
 class OauthRepository:
     _redis: Redis
+    _config: Config
 
-    def __init__(self, redis: Redis):
+    def __init__(self, config: ConfigDep, redis: Redis):
         self._redis = redis
+        self._config = config
 
     async def save_params(self, state: str, nonce: str) -> dict:
         await self._redis.setex(f"oauth_state:{state}", timedelta(minutes=10), nonce)
