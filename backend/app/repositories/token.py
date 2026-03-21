@@ -1,13 +1,12 @@
 from redis.asyncio import Redis
 from app.core.config import Config
-from app.dependencies.config import ConfigDep
 
 
 class TokenRedisRepository:
     _config: Config
     _redis: Redis
 
-    def __init__(self, config: ConfigDep, redis_client: Redis) -> None:
+    def __init__(self, config: Config, redis_client: Redis) -> None:
         self._config = config
         self._redis = redis_client
 

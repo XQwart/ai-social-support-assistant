@@ -6,8 +6,6 @@ from fastapi import HTTPException
 import httpx
 import jose.jwt
 
-from app.dependencies.config import ConfigDep
-from app.dependencies.repositories import UserRepoDep, TokenRedisRepoDep, OauthRepoDep
 from app.schemas.auth import SberTokenData, SberUserInfo
 
 if TYPE_CHECKING:
@@ -25,10 +23,10 @@ class AuthService:
 
     def __init__(
         self,
-        config: ConfigDep,
-        ouath_rep: OauthRepoDep,
-        token_rep: TokenRedisRepoDep,
-        user_rep: UserRepoDep,
+        config: Config,
+        ouath_rep: OauthRepository,
+        token_rep: TokenRedisRepository,
+        user_rep: UserRepository,
     ):
         self._config = config
         self._oauth_rep = ouath_rep

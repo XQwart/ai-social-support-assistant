@@ -1,13 +1,12 @@
 from redis.asyncio import Redis
 from app.core.config import Config
-from app.dependencies.config import ConfigDep
 
 
 class OauthRepository:
     _redis: Redis
     _config: Config
 
-    def __init__(self, config: ConfigDep, redis: Redis):
+    def __init__(self, config: Config, redis: Redis):
         self._redis = redis
         self._config = config
 
