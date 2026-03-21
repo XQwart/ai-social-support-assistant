@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-
+from redis.asyncio import Redis
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
@@ -23,8 +23,16 @@ async def lifespan(app: FastAPI):
     app.state.db_engine = engine
     app.state.session_maker = session_maker
 
+    redis = Redis.from_url(
+        config.redis_url,
+        decode_responses=True,
+    )
+
+    app.state.redis = redis
+
     yield
 
+    redis.aclose()
     engine.dispose()
 
 

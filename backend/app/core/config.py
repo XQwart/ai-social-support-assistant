@@ -20,6 +20,11 @@ class Config(BaseSettings):
         )
 
     redis_port: int
+    redis_host: str
+
+    @property
+    def redis_url(self) -> str:
+        return f"redis://{self.redis_host}:{self.redis_port}/0"
 
     redirect_uri: str
     userinfo_url: str
