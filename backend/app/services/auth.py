@@ -33,15 +33,20 @@ class AuthService:
         self._token_rep = token_rep
         self._user_rep = user_rep
 
-    async def get_and_save_oauth_params(self) -> dict[str, str]:
+    async def get_and_save_state_and_nonce(self) -> dict[str, str]:
         state = secrets.token_urlsafe(32)
         nonce = secrets.token_urlsafe(32)
 
         self._oauth_rep.save_params(state=state, nonce=nonce)
+
         return {"state": state, "nonce": nonce}
 
-    async def validate_oauth_params(self, code: str, state: str) -> None:
-        pass
+    async def validate_state(self, state: str) -> str:
+        nonce = await self._oauth_rep.get_params(state)
+        if nonce is None:
+            raise HTTPException(400, "Invalid or expired state")
+
+        return nonce
 
     async def exchange_code_for_token(self, code: str) -> SberTokenData:
         async with httpx.AsyncClient() as client:
@@ -61,22 +66,26 @@ class AuthService:
 
             return SberTokenData(**token_res.json())
 
-    async def validate_nonce(self, id_token: str, nonce: str) -> None:
+    def validate_nonce(self, id_token: str, nonce: str) -> None:
         claims = jose.jwt.get_unverified_claims(id_token)
         if claims.get("nonce") != nonce:
             raise HTTPException(400, "Invalid nonce")
 
-    async def login_user(self, sber_access_token: str) -> str:
+    async def login_user(self, bank_access_token: str) -> str:
         async with httpx.AsyncClient() as client:
             userinfo_res = await client.get(
                 self._config.userinfo_url,
-                headers={"Authorization": f"Bearer {sber_access_token}"},
+                headers={"Authorization": f"Bearer {bank_access_token}"},
             )
             user_data = SberUserInfo(**userinfo_res.json())
 
-        # TODO: Сохранение пользователя в бд
+        user = await self._user_rep.create(
+            bank_id=user_data.sub,
+            first_name=user_data.given_name,
+            second_name=user_data.family_name,
+        )
 
         code = secrets.token_urlsafe(32)
-        # TODO: Сохранить код
+        await self._oauth_rep.save_code(user.id, user.bank_id, code)
 
         return code
