@@ -31,6 +31,10 @@ class Config(BaseSettings):
     client_id: str
     client_secret: str
     token_endpoint_auth_method: str = "client_secret_post"
+
+    jwt_access_secret: str
+    jwt_refresh_secret: str
+    jwt_access_token_expire: timedelta = timedelta(minutes=10)
     jwt_refresh_token_expire: timedelta = timedelta(days=7)
     code_ttl: timedelta = timedelta(seconds=30)
     oauth_ttl: timedelta = timedelta(minutes=10)
