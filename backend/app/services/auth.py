@@ -1,11 +1,12 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 import secrets
+import uuid
 
 from fastapi import HTTPException
 import httpx
 import jose.jwt
-
+import logging
 from app.schemas.auth import SberTokenData, SberUserInfo
 
 if TYPE_CHECKING:
@@ -13,6 +14,8 @@ if TYPE_CHECKING:
     from app.repositories.oauth import OauthRepository
     from app.repositories.user import UserRepository
     from app.repositories.token import TokenRedisRepository
+
+logger = logging.getLogger(__name__)
 
 
 class AuthService:
@@ -37,7 +40,7 @@ class AuthService:
         state = secrets.token_urlsafe(32)
         nonce = secrets.token_urlsafe(32)
 
-        self._oauth_rep.save_params(state=state, nonce=nonce)
+        await self._oauth_rep.save_params(state=state, nonce=nonce)
 
         return {"state": state, "nonce": nonce}
 
@@ -49,43 +52,73 @@ class AuthService:
         return nonce
 
     async def exchange_code_for_token(self, code: str) -> SberTokenData:
-        async with httpx.AsyncClient() as client:
+        rquid = uuid.uuid4().hex
+
+        async with httpx.AsyncClient(verify=self._config.sber_ca_path) as client:
             token_res = await client.post(
-                self._config.redirect_uri,
+                self._config.sber_token_url,
                 data={
                     "grant_type": "authorization_code",
                     "code": code,
-                    "redirect_uri": self._config.redirect_uri,
+                    "redirect_uri": self._config.sber_redirect_uri,
                     "client_id": self._config.client_id,
                     "client_secret": self._config.client_secret,
+                },
+                headers={
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "Accept": "application/json",
+                    "rquid": rquid,
                 },
             )
 
             if token_res.status_code != 200:
-                raise HTTPException(400, detail="Token exchange failed")
+                logger.error(
+                    "Sber token exchange failed | rquid=%s | status=%s | body=%s",
+                    rquid,
+                    token_res.status_code,
+                    token_res.text,
+                )
+                raise HTTPException(
+                    status_code=token_res.status_code,
+                    detail=f"Sber error: {token_res.text}",
+                )
 
+            logger.info("Sber token exchange success")
             return SberTokenData(**token_res.json())
 
-    def validate_nonce(self, id_token: str, nonce: str) -> None:
+    async def validate_id_token(
+        self, id_token: str, nonce: str, client_id: str
+    ) -> None:
         claims = jose.jwt.get_unverified_claims(id_token)
         if claims.get("nonce") != nonce:
             raise HTTPException(400, "Invalid nonce")
+        if claims.get("aud") != client_id:
+            raise HTTPException(400, "Invalid aud")
+        logger.debug("id_token validated successfully")
 
     async def login_user(self, bank_access_token: str) -> str:
-        async with httpx.AsyncClient() as client:
+        rquid = uuid.uuid4().hex
+
+        async with httpx.AsyncClient(verify=self._config.sber_ca_path) as client:
             userinfo_res = await client.get(
-                self._config.userinfo_url,
-                headers={"Authorization": f"Bearer {bank_access_token}"},
+                self._config.sber_userinfo_url,
+                headers={
+                    "Authorization": f"Bearer {bank_access_token}",
+                    "x-introspect-rquid": rquid,
+                },
             )
             user_data = SberUserInfo(**userinfo_res.json())
 
-        user = await self._user_rep.create(
-            bank_id=user_data.sub,
-            first_name=user_data.given_name,
-            second_name=user_data.family_name,
-        )
+        user = await self._user_rep.get_by_bank_id(user_data.sub)
+
+        if user is None:
+            user = await self._user_rep.create(
+                bank_id=user_data.sub,
+                first_name=user_data.given_name,
+                second_name=user_data.family_name,
+            )
 
         code = secrets.token_urlsafe(32)
         await self._oauth_rep.save_code(user.id, user.bank_id, code)
-
+        logger.debug("Auth code saved for user")
         return code
