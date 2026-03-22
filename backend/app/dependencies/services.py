@@ -28,13 +28,10 @@ def get_message_service(message_repo: MessageRepoDep) -> MessageService:
     return MessageService(message_repo)
 
 
-AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
-MessageServiceDep = Annotated[MessageService, Depends(get_message_service)]
-def get_chat_service(
-    chat_rep: ChatRepoDep,
-) -> ChatService:
+def get_chat_service(chat_rep: ChatRepoDep) -> ChatService:
     return ChatService(chat_rep)
 
 
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 ChatServiceDep = Annotated[ChatService, Depends(get_chat_service)]
+MessageServiceDep = Annotated[MessageService, Depends(get_message_service)]
