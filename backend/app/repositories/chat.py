@@ -38,6 +38,20 @@ class ChatRepository:
         )
         return list(result.scalars().all())
 
+    async def update(self, chat_id: int, title: str | None = None) -> Chat | None:
+        chat = await self._session.get(Chat, chat_id)
+
+        if not chat:
+            return None
+
+        if title is not None:
+            chat.title = title[:255]
+
+        await self._session.commit()
+        await self._session.refresh(chat)
+
+        return chat
+
     async def delete(self, chat_id: int) -> bool:
         chat = await self.get_by_id(chat_id)
         if chat is None:
