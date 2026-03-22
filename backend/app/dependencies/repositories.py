@@ -4,6 +4,8 @@ from fastapi import Depends
 from app.repositories.user import UserRepository
 from app.repositories.oauth import OauthRepository
 from app.repositories.token import TokenRedisRepository
+from app.repositories.chat import ChatRepository
+from app.repositories.message import MessageRepository
 from app.dependencies.config import ConfigDep
 from app.dependencies.redis import RedisDep
 from app.dependencies.session import DBSessionDep
@@ -21,6 +23,16 @@ def get_auth_redis_repo(config: ConfigDep, redis: RedisDep) -> OauthRepository:
     return OauthRepository(config, redis)
 
 
+def get_chat_repo(session: DBSessionDep) -> ChatRepository:
+    return ChatRepository(session=session)
+
+
+def get_message_repo(session: DBSessionDep) -> MessageRepository:
+    return MessageRepository(session=session)
+
+
 UserRepoDep = Annotated[UserRepository, Depends(get_user_repo)]
 TokenRedisRepoDep = Annotated[TokenRedisRepository, Depends(get_token_redis_repo)]
 OauthRepoDep = Annotated[OauthRepository, Depends(get_auth_redis_repo)]
+ChatRepoDep = Annotated[ChatRepository, Depends(get_chat_repo)]
+MessageRepoDep = Annotated[MessageRepository, Depends(get_message_repo)]

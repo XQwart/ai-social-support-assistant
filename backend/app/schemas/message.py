@@ -8,10 +8,19 @@ class MessageCreate(BaseModel):
     content: str = Field(..., min_length=1)
 
 
-class MessageResponse(BaseModel):
+class MessageOut(BaseModel):
     id: int
-    chat_id: int
     role: MessageRole
     content: str
     created_at: datetime
+
     model_config = ConfigDict(from_attributes=True)
+
+
+class MessageWithChatIdOut(MessageOut):
+    chat_id: int
+
+
+class ChatMessageResponse(BaseModel):
+    chat_id: int
+    messages: list[MessageOut]
