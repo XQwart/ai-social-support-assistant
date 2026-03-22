@@ -13,3 +13,7 @@ class SberUserInfo(BaseModel):
     sub: str
     given_name: str | None = None
     family_name: str | None = None
+
+
+class TokenDataOut(BaseModel):
+    user_id: int
