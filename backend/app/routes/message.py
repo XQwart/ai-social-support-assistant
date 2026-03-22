@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Query, status
 
 from app.dependencies.chat import OwnerChatDep
-from app.dependencies.services import MessageServiceDep
+from app.dependencies.services import MessageServiceDep, ChatServiceDep
 from app.schemas.message import ChatMessageResponse, MessageCreate, MessageWithChatIdOut
 
 router = APIRouter(prefix="/chats")
@@ -23,12 +23,15 @@ async def get_all_chat_messages(
 
 @router.post("/{chat_id}/messages", status_code=status.HTTP_201_CREATED)
 async def send_message(
-    chat: OwnerChatDep, message_service: MessageServiceDep, message: MessageCreate
+    chat: OwnerChatDep,
+    message_service: MessageServiceDep,
+    chat_service: ChatServiceDep,
+    message: MessageCreate,
 ) -> MessageWithChatIdOut:
     new_message = await message_service.send_message(
         chat_id=chat.id, message=message.content
     )
 
-    # TODO: Добавить обновление поля updated_at в чате
+    await chat_service.update_chat(chat.id)
 
     return MessageWithChatIdOut(new_message)
