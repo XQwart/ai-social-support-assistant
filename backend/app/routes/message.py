@@ -31,7 +31,7 @@ async def send_message(
     message: MessageCreate,
 ) -> MessageWithChatIdOut:
     new_message = await message_service.send_message(
-        chat_id=chat.id, message=message.content, role=MessageRole.ASSISTANT
+        chat_id=chat.id, message=message.content, role=MessageRole.USER
     )
 
     await chat_service.update_chat(chat.id)
