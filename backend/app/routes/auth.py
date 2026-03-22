@@ -6,6 +6,10 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from app.dependencies.services import AuthServiceDep
 from app.dependencies.config import ConfigDep
 
+# Временно
+from app.dependencies.repositories import UserRepoDep, TokenRedisRepoDep
+from app.dependencies.jwt import AccessTokenDep, RefreshTokenDep
+
 router = APIRouter(prefix="/auth")
 
 
@@ -39,3 +43,43 @@ async def sber_callback(
     code = await auth_service.login_user(token_data.access_token)
 
     return RedirectResponse(url=f"{config.frontend_success_login_url}?code={code}")
+
+
+@router.post("/login")
+async def login(
+    user_repo: UserRepoDep,
+    token_repo: TokenRedisRepoDep,
+    access_token_util: AccessTokenDep,
+    refresh_token_util: RefreshTokenDep,
+) -> JSONResponse:  # Затычка
+    bank_id = "wythdgsraferi4538trfhsa7837hfas"
+    name = "Ivan"
+    last_name = "Ivanov"
+
+    user = await user_repo.get_by_bank_id(bank_id=bank_id)
+    if user is None:
+        user = await user_repo.create(
+            bank_id=bank_id, first_name=name, second_name=last_name
+        )
+
+    refresh_jti = refresh_token_util.generate_jti()
+
+    access_token = access_token_util.generate(user_id=user.id)
+    refresh_token = refresh_token_util.generate(
+        user_id=user.id, extra={"jti": refresh_jti}
+    )
+
+    await token_repo.save(user_id=user.id, jti=refresh_jti)
+
+    response = JSONResponse(
+        content={"message": "Успешная авторизация", "token": access_token}
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        max_age=10 * 365 * 24 * 60 * 60,
+        expires=10 * 365 * 24 * 60 * 60,
+    )
+
+    return response

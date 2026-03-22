@@ -9,14 +9,14 @@ from app.dependencies.config import ConfigDep
 
 def get_access_token_util(config: ConfigDep) -> JWTTokenUtil:
     return JWTTokenUtil(
-        ttl=timedelta(minutes=config.jwt_access_token_expire),
+        ttl=config.jwt_access_token_expire,
         secret=config.jwt_access_secret,
     )
 
 
 def get_refresh_token_util(config: ConfigDep) -> JWTTokenUtil:
     return JWTTokenUtil(
-        ttl=timedelta(days=config.jwt_refresh_token_expire),
+        ttl=config.jwt_refresh_token_expire,
         secret=config.jwt_refresh_secret,
     )
 
