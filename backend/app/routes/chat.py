@@ -51,7 +51,7 @@ async def delete_chat(
     chat: OwnerChatDep,
     chat_service: ChatServiceDep,
 ):
-    success = chat_service.delete_chat(chat_id=chat.id)
+    success = await chat_service.delete_chat(chat_id=chat.id)
 
     if not success:
         raise HTTPException(status_code=404, detail="Chat not found")
