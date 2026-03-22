@@ -7,6 +7,8 @@ interface ChatInputProps {
   placeholder?: string;
   mode?: "hero" | "dock";
   autoFocus?: boolean;
+  isAuthenticated?: boolean;
+  onAuthRequired?: () => void;
 }
 
 export default function ChatInput({
@@ -15,6 +17,8 @@ export default function ChatInput({
   placeholder = "Введите ваш вопрос",
   mode = "dock",
   autoFocus = false,
+  isAuthenticated = true,
+  onAuthRequired,
 }: ChatInputProps) {
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -37,8 +41,11 @@ export default function ChatInput({
 
   const submit = () => {
     const trimmed = value.trim();
+    if (!trimmed || isLoading) return;
 
-    if (!trimmed || isLoading) {
+    // Если не авторизован — перенаправляем на авторизацию
+    if (!isAuthenticated) {
+      onAuthRequired?.();
       return;
     }
 

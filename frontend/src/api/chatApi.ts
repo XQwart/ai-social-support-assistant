@@ -1,109 +1,212 @@
-import { v4 as uuidv4 } from "uuid";
 import type { Chat, Message } from "@/types";
+import { UnauthorizedError } from "@/api/errors";
 
-function sleep(ms: number, signal?: AbortSignal): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const onAbort = () => {
-      clearTimeout(timeoutId);
-      reject(new DOMException("Request aborted", "AbortError"));
-    };
+const API_BASE = import.meta.env.VITE_API_URL || "";
+const AUTH_TOKEN_KEY = "ai-social-support.auth.token";
 
-    const timeoutId = window.setTimeout(() => {
-      signal?.removeEventListener("abort", onAbort);
-      resolve();
-    }, ms);
+function getAuthHeaders(): Record<string, string> {
+  const token = localStorage.getItem(AUTH_TOKEN_KEY);
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
 
-    if (signal) {
-      if (signal.aborted) {
-        onAbort();
-        return;
-      }
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
 
-      signal.addEventListener("abort", onAbort, { once: true });
-    }
-  });
+  return headers;
 }
 
-function buildDemoResponse(message: string): string {
-  const text = message.toLowerCase();
-
-  if (text.includes("льгот")) {
-    return "Чтобы проверить, какие льготы вам доступны, обычно учитываются ваш статус, состав семьи, доход, инвалидность, возраст и регион проживания. Подготовьте паспорт, СНИЛС и документы, подтверждающие право на меру поддержки.";
-  }
-
-  if (text.includes("жкх") || text.includes("субсид")) {
-    return "Субсидия на оплату ЖКХ предоставляется, если расходы семьи на коммунальные услуги превышают установленную долю от совокупного дохода. Обычно заявление подают через МФЦ, соцзащиту или портал Госуслуг.";
-  }
-
-  if (
-    text.includes("ребён") ||
-    text.includes("ребен") ||
-    text.includes("рождении")
-  ) {
-    return "При рождении ребёнка могут быть доступны единовременное пособие, ежемесячные выплаты, материнский капитал и региональные меры поддержки. Точный список зависит от дохода семьи и региона.";
-  }
-
-  if (text.includes("малоимущ")) {
-    return "Для признания семьи малоимущей обычно сравнивают среднедушевой доход с региональным прожиточным минимумом. Понадобятся документы о составе семьи, доходах, паспорта и заявление.";
-  }
-
-  if (text.includes("инвалид")) {
-    return "Для оформления инвалидности потребуется направление на медико-социальную экспертизу, медицинские документы и заключения врачей. После установления группы можно оформить пенсию и дополнительные льготы.";
-  }
-
-  if (text.includes("безработ")) {
-    return "Для назначения пособия по безработице нужно встать на учёт через центр занятости или Госуслуги. Обычно требуются паспорт, документы об образовании и сведения о трудовой деятельности.";
-  }
-
-  return "Я могу помочь с вопросами по льготам, пособиям, субсидиям, статусу малоимущей семьи, инвалидности и другим мерам социальной поддержки. Если хотите, опишите вашу ситуацию подробнее.";
+function ts(dateStr: string): number {
+  return new Date(dateStr).getTime();
 }
 
-/**
- * Временная заглушка под будущий backend.
- * Потом можно заменить на реальный fetch:
- *
- * const res = await fetch('/api/chat', {
- *   method: 'POST',
- *   headers: { 'Content-Type': 'application/json' },
- *   body: JSON.stringify({ chatId, message }),
- *   signal,
- * });
- * return await res.json();
- */
-export async function sendMessage(
-  chatId: string,
-  message: string,
+async function getErrorMessage(
+  res: Response,
+  fallback: string
+): Promise<string> {
+  const body = await res.json().catch(() => null);
+  return body?.detail ?? fallback;
+}
+
+async function ensureOk(res: Response, fallback: string): Promise<void> {
+  if (res.status === 401) {
+    throw new UnauthorizedError();
+  }
+
+  if (!res.ok) {
+    throw new Error(await getErrorMessage(res, fallback));
+  }
+}
+
+// ==================== ЧАТЫ ====================
+
+export async function createChat(
+  content: string,
   signal?: AbortSignal
-): Promise<Message> {
-  void chatId;
+): Promise<Chat> {
+  const res = await fetch(`${API_BASE}/chats/`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ content }),
+    signal,
+    credentials: "include",
+  });
 
-  await sleep(900 + Math.random() * 1100, signal);
+  await ensureOk(res, "Не удалось создать чат");
+
+  const data = await res.json();
 
   return {
-    id: uuidv4(),
-    role: "assistant",
-    content: buildDemoResponse(message),
-    timestamp: Date.now(),
+    id: String(data.id),
+    title: data.title,
+    createdAt: ts(data.created_at),
+    updatedAt: ts(data.updated_at),
+    messages: [],
   };
 }
 
-/**
- * Заглушка под будущую загрузку истории.
- */
-export async function fetchChatHistory(
+export async function fetchChats(
+  limit = 100,
+  offset = 0,
   signal?: AbortSignal
 ): Promise<Chat[]> {
-  await sleep(120, signal);
-  return [];
+  const res = await fetch(`${API_BASE}/chats/?limit=${limit}&offset=${offset}`, {
+    headers: getAuthHeaders(),
+    signal,
+    credentials: "include",
+  });
+
+  await ensureOk(res, "Не удалось загрузить список чатов");
+
+  const data = await res.json();
+
+  return (data.items || []).map(
+    (c: {
+      id: number;
+      user_id: number;
+      title: string;
+      created_at: string;
+      updated_at: string;
+    }) => ({
+      id: String(c.id),
+      title: c.title,
+      createdAt: ts(c.created_at),
+      updatedAt: ts(c.updated_at),
+      messages: [],
+    })
+  );
 }
 
-/**
- * Заглушка под удаление чата на сервере.
- */
+export async function fetchMessages(
+  chatId: string,
+  signal?: AbortSignal
+): Promise<Message[]> {
+  const res = await fetch(`${API_BASE}/chats/${chatId}/messages`, {
+    headers: getAuthHeaders(),
+    signal,
+    credentials: "include",
+  });
+
+  await ensureOk(res, "Не удалось загрузить сообщения");
+
+  const data = await res.json();
+
+  return (data.messages || []).map(
+    (m: { id: number; role: string; content: string; created_at: string }) => ({
+      id: String(m.id),
+      role: m.role as "user" | "assistant" | "system",
+      content: m.content,
+      timestamp: ts(m.created_at),
+    })
+  );
+}
+
+export async function sendMessageToChat(
+  chatId: string,
+  content: string,
+  signal?: AbortSignal
+): Promise<{ userMsg: Message; assistantMsg: Message }> {
+  // 1. Send user message
+  const userRes = await fetch(`${API_BASE}/chats/${chatId}/messages`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ content, role: "user" }),
+    signal,
+    credentials: "include",
+  });
+
+  await ensureOk(userRes, "Не удалось отправить сообщение");
+
+  const userData = await userRes.json();
+  const userMsg: Message = {
+    id: String(userData.id),
+    role: "user",
+    content: userData.content,
+    timestamp: ts(userData.created_at),
+  };
+
+  // 2. Generate assistant response
+  const assistantText = generateResponse(content);
+
+  // 3. Save assistant message to backend
+  const asstRes = await fetch(`${API_BASE}/chats/${chatId}/messages`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ content: assistantText, role: "assistant" }),
+    signal,
+    credentials: "include",
+  });
+
+  await ensureOk(asstRes, "Не удалось сохранить ответ ассистента");
+
+  const aData = await asstRes.json();
+  const assistantMsg: Message = {
+    id: String(aData.id),
+    role: "assistant",
+    content: aData.content,
+    timestamp: ts(aData.created_at),
+  };
+
+  return { userMsg, assistantMsg };
+}
+
 export async function deleteChat(
   chatId: string,
   signal?: AbortSignal
 ): Promise<void> {
-  void chatId;
-  await sleep(120, signal);
+  const res = await fetch(`${API_BASE}/chats/${chatId}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+    signal,
+    credentials: "include",
+  });
+
+  await ensureOk(res, "Не удалось удалить чат");
+}
+
+// ==================== ЗАГЛУШКА ИИ ====================
+
+function generateResponse(message: string): string {
+  const t = message.toLowerCase();
+
+  if (t.includes("льгот"))
+    return "Чтобы проверить, какие льготы вам доступны, обычно учитываются ваш статус, состав семьи, доход, инвалидность, возраст и регион проживания. Подготовьте паспорт, СНИЛС и документы, подтверждающие право на меру поддержки.";
+
+  if (t.includes("жкх") || t.includes("субсид"))
+    return "Субсидия на оплату ЖКХ предоставляется, если расходы семьи на коммунальные услуги превышают установленную долю от совокупного дохода. Обычно заявление подают через МФЦ, соцзащиту или портал Госуслуг.";
+
+  if (t.includes("ребён") || t.includes("ребен") || t.includes("рождении"))
+    return "При рождении ребёнка могут быть доступны единовременное пособие, ежемесячные выплаты, материнский капитал и региональные меры поддержки. Точный список зависит от дохода семьи и региона.";
+
+  if (t.includes("малоимущ"))
+    return "Для признания семьи малоимущей обычно сравнивают среднедушевой доход с региональным прожиточным минимумом. Понадобятся документы о составе семьи, доходах, паспорта и заявление.";
+
+  if (t.includes("инвалид"))
+    return "Для оформления инвалидности потребуется направление на медико-социальную экспертизу, медицинские документы и заключения врачей. После установления группы можно оформить пенсию и дополнительные льготы.";
+
+  if (t.includes("безработ"))
+    return "Для назначения пособия по безработице нужно встать на учёт через центр занятости или Госуслуги. Обычно требуются паспорт, документы об образовании и сведения о трудовой деятельности.";
+
+  return "Я могу помочь с вопросами по льготам, пособиям, субсидиям, статусу малоимущей семьи, инвалидности и другим мерам социальной поддержки. Опишите вашу ситуацию подробнее.";
 }

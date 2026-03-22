@@ -1,132 +1,81 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { v4 as uuidv4 } from "uuid";
-import { deleteChat as deleteChatApi, sendMessage } from "@/api/chatApi";
+import {
+  createChat,
+  deleteChat as deleteChatApi,
+  fetchChats,
+  fetchMessages,
+  sendMessageToChat,
+} from "@/api/chatApi";
 import AppDisclaimer from "@/components/AppDisclaimer";
+import AuthModal from "@/components/AuthModal";
 import ChatInput from "@/components/ChatInput";
 import ChatView from "@/components/ChatView";
 import HomePage from "@/components/HomePage";
+import SettingsModal from "@/components/SettingsModal";
 import Sidebar from "@/components/Sidebar";
 import TopBar from "@/components/TopBar";
-import type { Chat, Message, MessageRole } from "@/types";
+import type { Chat, Message } from "@/types";
+import { UnauthorizedError } from "@/api/errors";
 
-const STORAGE_KEY = "ai-social-support.chats.v1";
+const AUTH_TOKEN_KEY = "ai-social-support.auth.token";
+const AUTH_USER_KEY = "ai-social-support.auth.user";
 
-function isValidRole(value: unknown): value is MessageRole {
-  return value === "user" || value === "assistant" || value === "system";
-}
-
-function normalizeChats(data: unknown): Chat[] {
-  if (!Array.isArray(data)) {
-    return [];
-  }
-
-  const now = Date.now();
-
-  const chats: Chat[] = data
-    .map((item) => {
-      if (!item || typeof item !== "object") {
-        return null;
-      }
-
-      const rawChat = item as Partial<Chat> & { messages?: unknown[] };
-
-      if (typeof rawChat.id !== "string" || !Array.isArray(rawChat.messages)) {
-        return null;
-      }
-
-      const createdAt =
-        typeof rawChat.createdAt === "number" ? rawChat.createdAt : now;
-      const updatedAt =
-        typeof rawChat.updatedAt === "number" ? rawChat.updatedAt : createdAt;
-
-      const messages: Message[] = rawChat.messages
-        .map((message) => {
-          if (!message || typeof message !== "object") {
-            return null;
-          }
-
-          const rawMessage = message as Partial<Message>;
-
-          if (
-            typeof rawMessage.id !== "string" ||
-            typeof rawMessage.content !== "string"
-          ) {
-            return null;
-          }
-
-          return {
-            id: rawMessage.id,
-            role: isValidRole(rawMessage.role) ? rawMessage.role : "assistant",
-            content: rawMessage.content,
-            timestamp:
-              typeof rawMessage.timestamp === "number"
-                ? rawMessage.timestamp
-                : now,
-            error: rawMessage.error === true,
-          } satisfies Message;
-        })
-        .filter((message): message is Message => message !== null);
-
-      return {
-        id: rawChat.id,
-        title:
-          typeof rawChat.title === "string" && rawChat.title.trim()
-            ? rawChat.title
-            : "Новый диалог",
-        createdAt,
-        updatedAt,
-        messages,
-      } satisfies Chat;
-    })
-    .filter((chat): chat is Chat => chat !== null);
-
-  return sortChats(chats);
-}
-
-function readStoredChats(): Chat[] {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
+function decodeJwtPayload(token: string): { exp?: number } | null {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return [];
-    }
+    const base64Url = token.split(".")[1];
+    if (!base64Url) return null;
 
-    return normalizeChats(JSON.parse(raw));
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(
+      base64.length + ((4 - (base64.length % 4)) % 4),
+      "="
+    );
+
+    return JSON.parse(window.atob(padded)) as { exp?: number };
   } catch {
-    return [];
+    return null;
   }
 }
 
-function sortChats(chats: Chat[]): Chat[] {
-  return [...chats].sort((a, b) => b.updatedAt - a.updatedAt);
+function isTokenExpired(token: string): boolean {
+  const payload = decodeJwtPayload(token);
+  if (!payload?.exp) return true;
+  return payload.exp * 1000 <= Date.now();
 }
 
-function buildChatTitle(text: string): string {
-  const normalized = text.replace(/\s+/g, " ").trim();
-  if (!normalized) {
-    return "Новый диалог";
+function readAuthState(): { token: string | null; userName: string | null } {
+  if (typeof window === "undefined") return { token: null, userName: null };
+
+  const token = window.localStorage.getItem(AUTH_TOKEN_KEY);
+  const userName = window.localStorage.getItem(AUTH_USER_KEY);
+
+  if (!token || isTokenExpired(token)) {
+    window.localStorage.removeItem(AUTH_TOKEN_KEY);
+    window.localStorage.removeItem(AUTH_USER_KEY);
+    return { token: null, userName: null };
   }
 
-  return normalized.length > 54 ? `${normalized.slice(0, 54)}…` : normalized;
+  return {
+    token,
+    userName,
+  };
 }
 
-function isAbortError(error: unknown): boolean {
-  return error instanceof DOMException && error.name === "AbortError";
-}
+function mergeUniqueMessages(
+  current: Message[],
+  incoming: Message[]
+): Message[] {
+  const map = new Map<string, Message>();
 
-function addLoadingChat(list: string[], chatId: string): string[] {
-  return list.includes(chatId) ? list : [...list, chatId];
-}
+  [...current, ...incoming].forEach((msg) => {
+    map.set(msg.id, msg);
+  });
 
-function removeLoadingChat(list: string[], chatId: string): string[] {
-  return list.filter((id) => id !== chatId);
+  return Array.from(map.values()).sort((a, b) => a.timestamp - b.timestamp);
 }
 
 export default function App() {
-  const [chats, setChats] = useState<Chat[]>(() => readStoredChats());
+  const [chats, setChats] = useState<Chat[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [loadingChatIds, setLoadingChatIds] = useState<string[]>([]);
@@ -134,130 +83,210 @@ export default function App() {
     null
   );
 
+  const [authToken, setAuthToken] = useState<string | null>(
+    () => readAuthState().token
+  );
+  const [userName, setUserName] = useState<string>(
+    () => readAuthState().userName || ""
+  );
+
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+
   const controllersRef = useRef<Map<string, AbortController>>(new Map());
 
-  const userFullName = "Петров Павел Игоревич";
+  const isAuthenticated = !!authToken;
+  const userFullName = userName || "Пользователь";
   const userInitial = userFullName.trim().charAt(0).toUpperCase() || "П";
 
   const activeChat = useMemo(
-    () => chats.find((chat) => chat.id === activeChatId) ?? null,
+    () => chats.find((c) => c.id === activeChatId) ?? null,
     [chats, activeChatId]
   );
 
   const showHome = !activeChat || activeChat.messages.length === 0;
 
   const isCurrentChatLoading = useMemo(() => {
-    if (!activeChatId) {
-      return false;
-    }
+    if (!activeChatId) return false;
     return loadingChatIds.includes(activeChatId);
   }, [activeChatId, loadingChatIds]);
 
+  const handleSessionExpired = useCallback(() => {
+    controllersRef.current.forEach((c) => c.abort());
+    controllersRef.current.clear();
+
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(AUTH_TOKEN_KEY);
+      window.localStorage.removeItem(AUTH_USER_KEY);
+    }
+
+    setAuthToken(null);
+    setUserName("");
+    setChats([]);
+    setActiveChatId(null);
+    setLoadingChatIds([]);
+    setAnimatedMessageId(null);
+    setIsSidebarOpen(false);
+    setIsSettingsModalOpen(false);
+    setIsAuthModalOpen(true);
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(AUTH_TOKEN_KEY);
+      window.localStorage.removeItem(AUTH_USER_KEY);
+    }
+
+    setAuthToken(null);
+    setUserName("");
+    setChats([]);
+    setActiveChatId(null);
+    setLoadingChatIds([]);
+    setAnimatedMessageId(null);
+    setIsSettingsModalOpen(false);
+  }, []);
+
+  // ===== Загрузить список чатов с бэка =====
   useEffect(() => {
-    if (typeof window === "undefined") {
+    if (!authToken) {
+      setChats([]);
       return;
     }
 
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
-  }, [chats]);
+    const ctrl = new AbortController();
 
+    fetchChats(100, 0, ctrl.signal)
+      .then((list) => setChats(list.sort((a, b) => b.updatedAt - a.updatedAt)))
+      .catch((error: unknown) => {
+        if (error instanceof UnauthorizedError) {
+          handleSessionExpired();
+        }
+      });
+
+    return () => ctrl.abort();
+  }, [authToken, handleSessionExpired]);
+
+  // ===== Загрузить сообщения при выборе чата =====
+  useEffect(() => {
+    if (!activeChatId || !authToken) return;
+
+    const chat = chats.find((c) => c.id === activeChatId);
+    if (chat && chat.messages.length > 0) return;
+
+    // Важно: пока в этот чат идёт отправка первого сообщения,
+    // не подгружаем сообщения отдельно, иначе получаем дубли
+    if (loadingChatIds.includes(activeChatId)) return;
+
+    const ctrl = new AbortController();
+
+    fetchMessages(activeChatId, ctrl.signal)
+      .then((msgs) => {
+        setChats((prev) =>
+          prev.map((c) =>
+            c.id === activeChatId
+              ? { ...c, messages: mergeUniqueMessages(c.messages, msgs) }
+              : c
+          )
+        );
+      })
+      .catch((error: unknown) => {
+        if (error instanceof UnauthorizedError) {
+          handleSessionExpired();
+        }
+      });
+
+    return () => ctrl.abort();
+  }, [
+    activeChatId,
+    authToken,
+    chats,
+    loadingChatIds,
+    handleSessionExpired,
+  ]);
+
+  // ===== Cleanup =====
   useEffect(() => {
     return () => {
-      controllersRef.current.forEach((controller) => controller.abort());
+      controllersRef.current.forEach((c) => c.abort());
       controllersRef.current.clear();
     };
   }, []);
 
+  const handleAuthSuccess = useCallback((token: string, name: string) => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(AUTH_TOKEN_KEY, token);
+      window.localStorage.setItem(AUTH_USER_KEY, name);
+    }
+
+    setAuthToken(token);
+    setUserName(name);
+    setIsAuthModalOpen(false);
+  }, []);
+
+  const handleOpenAuth = useCallback(() => setIsAuthModalOpen(true), []);
+
+  // ===== Отправка сообщения =====
   const handleSend = useCallback(
     async (rawText: string) => {
       const text = rawText.trim();
-      if (!text) {
+      if (!text) return;
+
+      if (!authToken) {
+        setIsAuthModalOpen(true);
         return;
       }
 
-      const now = Date.now();
-      const targetChatId = activeChatId ?? uuidv4();
-
-      const userMessage: Message = {
-        id: uuidv4(),
-        role: "user",
-        content: text,
-        timestamp: now,
-      };
-
       setAnimatedMessageId(null);
-      setActiveChatId(targetChatId);
-
-      setChats((prevChats) => {
-        const existingChat = prevChats.find((chat) => chat.id === targetChatId);
-
-        if (existingChat) {
-          const nextChats = prevChats.map((chat) => {
-            if (chat.id !== targetChatId) {
-              return chat;
-            }
-
-            return {
-              ...chat,
-              title:
-                chat.messages.length === 0 ? buildChatTitle(text) : chat.title,
-              updatedAt: now,
-              messages: [...chat.messages, userMessage],
-            };
-          });
-
-          return sortChats(nextChats);
-        }
-
-        const newChat: Chat = {
-          id: targetChatId,
-          title: buildChatTitle(text),
-          createdAt: now,
-          updatedAt: now,
-          messages: [userMessage],
-        };
-
-        return sortChats([newChat, ...prevChats]);
-      });
-
-      setLoadingChatIds((prev) => addLoadingChat(prev, targetChatId));
-
-      const previousController = controllersRef.current.get(targetChatId);
-      if (previousController) {
-        previousController.abort();
-      }
 
       const controller = new AbortController();
-      controllersRef.current.set(targetChatId, controller);
+      let targetChatId = activeChatId;
 
       try {
-        const assistantMessage = await sendMessage(
+        // Если нет активного чата — создаём на бэке
+        if (!targetChatId) {
+          const newChat = await createChat(text, controller.signal);
+          targetChatId = newChat.id;
+          setChats((prev) =>
+            [newChat, ...prev].sort((a, b) => b.updatedAt - a.updatedAt)
+          );
+          setActiveChatId(targetChatId);
+        }
+
+        controllersRef.current.set(targetChatId, controller);
+        setLoadingChatIds((prev) =>
+          prev.includes(targetChatId!) ? prev : [...prev, targetChatId!]
+        );
+
+        const { userMsg, assistantMsg } = await sendMessageToChat(
           targetChatId,
           text,
           controller.signal
         );
 
-        setChats((prevChats) => {
-          const nextChats = prevChats.map((chat) => {
-            if (chat.id !== targetChatId) {
-              return chat;
-            }
+        const finalChatId = targetChatId;
+        setChats((prev) =>
+          prev
+            .map((c) => {
+              if (c.id !== finalChatId) return c;
+              return {
+                ...c,
+                updatedAt: assistantMsg.timestamp,
+                messages: mergeUniqueMessages(c.messages, [userMsg, assistantMsg]),
+              };
+            })
+            .sort((a, b) => b.updatedAt - a.updatedAt)
+        );
 
-            return {
-              ...chat,
-              updatedAt: assistantMessage.timestamp,
-              messages: [...chat.messages, assistantMessage],
-            };
-          });
-
-          return sortChats(nextChats);
-        });
-
-        setAnimatedMessageId(assistantMessage.id);
+        setAnimatedMessageId(assistantMsg.id);
       } catch (error) {
-        if (!isAbortError(error)) {
-          const fallbackMessage: Message = {
-            id: uuidv4(),
+        if (error instanceof UnauthorizedError) {
+          handleSessionExpired();
+          return;
+        }
+
+        if (!(error instanceof DOMException && error.name === "AbortError")) {
+          const fallback: Message = {
+            id: `error-${Date.now()}`,
             role: "assistant",
             content:
               "Не удалось получить ответ. Проверьте соединение и попробуйте ещё раз.",
@@ -265,33 +294,31 @@ export default function App() {
             error: true,
           };
 
-          setChats((prevChats) => {
-            const nextChats = prevChats.map((chat) => {
-              if (chat.id !== targetChatId) {
-                return chat;
-              }
-
-              return {
-                ...chat,
-                updatedAt: fallbackMessage.timestamp,
-                messages: [...chat.messages, fallbackMessage],
-              };
-            });
-
-            return sortChats(nextChats);
-          });
-
-          setAnimatedMessageId(fallbackMessage.id);
+          if (targetChatId) {
+            const errChatId = targetChatId;
+            setChats((prev) =>
+              prev.map((c) => {
+                if (c.id !== errChatId) return c;
+                return {
+                  ...c,
+                  updatedAt: fallback.timestamp,
+                  messages: [...c.messages, fallback],
+                };
+              })
+            );
+            setAnimatedMessageId(fallback.id);
+          }
         }
       } finally {
-        if (controllersRef.current.get(targetChatId) === controller) {
+        if (targetChatId) {
           controllersRef.current.delete(targetChatId);
+          setLoadingChatIds((prev) =>
+            prev.filter((id) => id !== targetChatId)
+          );
         }
-
-        setLoadingChatIds((prev) => removeLoadingChat(prev, targetChatId));
       }
     },
-    [activeChatId]
+    [activeChatId, authToken, handleSessionExpired]
   );
 
   const handleSelectChat = useCallback((chatId: string) => {
@@ -304,44 +331,37 @@ export default function App() {
     setAnimatedMessageId(null);
   }, []);
 
-  const handleDeleteChat = useCallback(async (chatId: string) => {
-    const shouldDelete = window.confirm("Удалить этот чат?");
-    if (!shouldDelete) {
-      return;
-    }
+  const handleDeleteChat = useCallback(
+    async (chatId: string) => {
+      const shouldDelete = window.confirm("Удалить этот чат?");
+      if (!shouldDelete) return;
 
-    const controller = controllersRef.current.get(chatId);
-    if (controller) {
-      controller.abort();
-      controllersRef.current.delete(chatId);
-    }
+      const ctrl = controllersRef.current.get(chatId);
+      if (ctrl) {
+        ctrl.abort();
+        controllersRef.current.delete(chatId);
+      }
 
-    setChats((prevChats) => prevChats.filter((chat) => chat.id !== chatId));
-    setLoadingChatIds((prev) => removeLoadingChat(prev, chatId));
-    setActiveChatId((prevId) => (prevId === chatId ? null : prevId));
+      setChats((prev) => prev.filter((c) => c.id !== chatId));
+      setLoadingChatIds((prev) => prev.filter((id) => id !== chatId));
+      setActiveChatId((prev) => (prev === chatId ? null : prev));
 
-    try {
-      await deleteChatApi(chatId);
-    } catch {
-      // Заглушка под будущие уведомления
-    }
-  }, []);
+      try {
+        await deleteChatApi(chatId);
+      } catch (error) {
+        if (error instanceof UnauthorizedError) {
+          handleSessionExpired();
+        }
+      }
+    },
+    [handleSessionExpired]
+  );
 
-  const handleToggleSidebar = useCallback(() => {
-    setIsSidebarOpen((prev) => !prev);
-  }, []);
-
-  const handleCloseSidebar = useCallback(() => {
-    setIsSidebarOpen(false);
-  }, []);
-
-  const handleSettingsClick = useCallback(() => {
-    // Оставлено под будущую реализацию
-  }, []);
-
-  const handleProfileClick = useCallback(() => {
-    // Оставлено под будущую реализацию
-  }, []);
+  const handleToggleSidebar = useCallback(
+    () => setIsSidebarOpen((p) => !p),
+    []
+  );
+  const handleCloseSidebar = useCallback(() => setIsSidebarOpen(false), []);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[var(--app-bg)] text-slate-900">
@@ -360,18 +380,27 @@ export default function App() {
         onNewChat={handleNewChat}
         onDeleteChat={handleDeleteChat}
         userFullName={userFullName}
+        isAuthenticated={isAuthenticated}
+        onLoginClick={handleOpenAuth}
       />
 
       <TopBar
         onToggleSidebar={handleToggleSidebar}
-        onSettingsClick={handleSettingsClick}
-        onProfileClick={handleProfileClick}
+        onSettingsClick={() => setIsSettingsModalOpen(true)}
+        onProfileClick={() => setIsSettingsModalOpen(true)}
+        onLoginClick={handleOpenAuth}
+        isAuthenticated={isAuthenticated}
         userInitial={userInitial}
       />
 
       <div className="relative z-10 flex min-h-screen flex-col">
         {showHome ? (
-          <HomePage onSend={handleSend} isLoading={false} />
+          <HomePage
+            onSend={handleSend}
+            isLoading={false}
+            isAuthenticated={isAuthenticated}
+            onAuthRequired={handleOpenAuth}
+          />
         ) : (
           <>
             {activeChat && (
@@ -381,19 +410,33 @@ export default function App() {
                 animatedMessageId={animatedMessageId}
               />
             )}
-
             <div className="sticky bottom-0 z-20 border-t border-white/35 bg-[linear-gradient(180deg,rgba(239,248,243,0.2),rgba(239,248,243,0.88))] backdrop-blur-2xl">
               <ChatInput
                 onSend={handleSend}
                 isLoading={isCurrentChatLoading}
                 placeholder="Опишите ситуацию или задайте вопрос"
                 mode="dock"
+                isAuthenticated={isAuthenticated}
+                onAuthRequired={handleOpenAuth}
               />
               <AppDisclaimer className="px-4 pb-4" />
             </div>
           </>
         )}
       </div>
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onAuthSuccess={handleAuthSuccess}
+      />
+
+      <SettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        userName={userFullName}
+        onLogout={handleLogout}
+      />
     </div>
   );
 }

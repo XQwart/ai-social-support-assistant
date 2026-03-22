@@ -4,6 +4,8 @@ import ChatInput from "@/components/ChatInput";
 interface HomePageProps {
   onSend: (message: string) => void;
   isLoading: boolean;
+  isAuthenticated: boolean;
+  onAuthRequired: () => void;
 }
 
 const POPULAR_QUESTIONS = [
@@ -14,7 +16,19 @@ const POPULAR_QUESTIONS = [
   "Как оформить пенсию по инвалидности?",
 ];
 
-export default function HomePage({ onSend, isLoading }: HomePageProps) {
+export default function HomePage({
+  onSend,
+  isLoading,
+  isAuthenticated,
+  onAuthRequired,
+}: HomePageProps) {
+  const handleQuestionClick = (question: string) => {
+    if (!isAuthenticated) {
+      onAuthRequired();
+      return;
+    }
+    onSend(question);
+  };
   return (
     <div className="relative flex flex-1 flex-col overflow-hidden px-4 pt-28">
       <div className="hero-aurora-wrap" aria-hidden="true">
@@ -48,6 +62,8 @@ export default function HomePage({ onSend, isLoading }: HomePageProps) {
           placeholder="Например: какие пособия мне доступны?"
           mode="hero"
           autoFocus
+          isAuthenticated={isAuthenticated}
+          onAuthRequired={onAuthRequired}
         />
 
         <div className="mt-14 flex max-w-3xl flex-wrap justify-center gap-2.5">
@@ -55,7 +71,7 @@ export default function HomePage({ onSend, isLoading }: HomePageProps) {
             <button
               key={question}
               type="button"
-              onClick={() => onSend(question)}
+              onClick={() => handleQuestionClick(question)}
               className="cursor-pointer rounded-full border border-white/78 bg-white/64 px-4 py-2.5 text-[13px] font-medium text-slate-700 shadow-[0_4px_18px_rgba(15,23,42,0.035)] backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:bg-white/82 hover:text-slate-900 active:translate-y-0"
             >
               {question}
