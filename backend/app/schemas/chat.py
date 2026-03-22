@@ -9,3 +9,10 @@ class ChatResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)
+
+
+class ChatsPageResponse(BaseModel):
+    items: list[ChatResponse]
+    total: int
+    limit: int
+    offset: int

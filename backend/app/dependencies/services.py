@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import Depends
 
+from app.services.chat import ChatService
 from app.services.auth import AuthService
 from app.services.message import MessageService
 from app.dependencies.config import ConfigDep
@@ -10,6 +11,7 @@ from app.dependencies.repositories import (
     TokenRedisRepoDep,
     OauthRepoDep,
     MessageRepoDep,
+    ChatRepoDep,
 )
 
 
@@ -28,3 +30,11 @@ def get_message_service(message_repo: MessageRepoDep) -> MessageService:
 
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 MessageServiceDep = Annotated[MessageService, Depends(get_message_service)]
+def get_chat_service(
+    chat_rep: ChatRepoDep,
+) -> ChatService:
+    return ChatService(chat_rep)
+
+
+AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
+ChatServiceDep = Annotated[ChatService, Depends(get_chat_service)]
