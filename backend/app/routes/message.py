@@ -34,4 +34,4 @@ async def send_message(
 
     await chat_service.update_chat(chat.id)
 
-    return MessageWithChatIdOut(new_message)
+    return new_message

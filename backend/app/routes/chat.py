@@ -12,27 +12,27 @@ router = APIRouter(prefix="/chats")
 @router.post("/")
 async def create_chat(
     token_data: AuthDep, chat_service: ChatServiceDep, message: MessageCreate
-):
+) -> ChatResponse:
     chat = await chat_service.create_chat(token_data.user_id, message=message.content)
 
-    return ChatResponse(**chat)
+    return chat
 
 
 @router.get("/")
 async def get_chats(
-    chat: OwnerChatDep,
+    token_data: AuthDep,
     chat_service: ChatServiceDep,
     limit: int = Query(100),
     offset: int = Query(0),
 ):
     chats, total = await chat_service.get_chats(
-        user_id=chat.user_id,
+        user_id=token_data.user_id,
         limit=limit,
         offset=offset,
     )
 
     return ChatsPageResponse(
-        items=[ChatResponse(**c) for c in chats],
+        items=chats,
         total=total,
         limit=limit,
         offset=offset,
@@ -42,8 +42,8 @@ async def get_chats(
 @router.get("/{chat_id}")
 async def get_chat_info(
     chat: OwnerChatDep,
-):
-    return ChatResponse(**chat)
+) -> ChatResponse:
+    return chat
 
 
 @router.delete("/{chat_id}")

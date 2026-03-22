@@ -2,13 +2,15 @@ from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 
-from app.routes import auth
+from app.routes import auth, message, chat
 from app.core.lifespan import lifespan
 
 
 app = FastAPI(lifespan=lifespan)
 
 app.include_router(auth.router)
+app.include_router(message.router)
+app.include_router(chat.router)
 
 app.add_middleware(
     CORSMiddleware,

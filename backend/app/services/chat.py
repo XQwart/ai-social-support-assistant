@@ -24,7 +24,9 @@ class ChatService:
 
         return await self._chat_rep.create(user_id=user_id, title=title)
 
-    async def get_chats(self, user_id: int) -> tuple[list[Chat], int]:
+    async def get_chats(
+        self, user_id: int, limit: int, offset: int
+    ) -> tuple[list[Chat], int]:
         chats = await self._chat_rep.get_all_by_user(user_id=user_id)
 
         return chats, len(chats)

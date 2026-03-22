@@ -17,10 +17,11 @@ async def validate_token(
     token = creds.credentials
 
     payload = access_token_util.validate(token)
+    print(payload)
     if not payload:
         raise HTTPException(401, "Unauthorized")
 
-    return TokenDataOut(**payload)
+    return TokenDataOut(user_id=payload["sub"])
 
 
 AuthDep = Annotated[TokenDataOut, Depends(validate_token)]
