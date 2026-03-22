@@ -1,11 +1,10 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from app.models.message import MessageRole
 
 if TYPE_CHECKING:
     from app.repositories.message import MessageRepository
-    from app.models.message import Message
+    from app.models.message import Message, MessageRole
 
 
 class MessageService:
@@ -21,7 +20,9 @@ class MessageService:
 
         return messages
 
-    async def send_message(self, chat_id: int, message: str) -> Message:
+    async def send_message(
+        self, chat_id: int, message: str, role: MessageRole
+    ) -> Message:
         return await self._message_repo.create(
-            chat_id=chat_id, role=MessageRole.USER, content=message
+            chat_id=chat_id, role=role, content=message
         )

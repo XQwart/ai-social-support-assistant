@@ -3,6 +3,8 @@ from fastapi import APIRouter, Query, status
 from app.dependencies.chat import OwnerChatDep
 from app.dependencies.services import MessageServiceDep, ChatServiceDep
 from app.schemas.message import ChatMessageResponse, MessageCreate, MessageWithChatIdOut
+from app.models.message import MessageRole
+
 
 router = APIRouter(prefix="/chats")
 
@@ -29,7 +31,7 @@ async def send_message(
     message: MessageCreate,
 ) -> MessageWithChatIdOut:
     new_message = await message_service.send_message(
-        chat_id=chat.id, message=message.content
+        chat_id=chat.id, message=message.content, role=MessageRole.ASSISTANT
     )
 
     await chat_service.update_chat(chat.id)
