@@ -165,6 +165,6 @@ class AuthService:
         user_id = payload["sub"]
         refresh_jti = payload["jti"]
 
-        await self._token_rep.remove(user_id=user_id, refresh_jti=refresh_jti)
+        await self._token_rep.remove(user_id=user_id, jti=refresh_jti)
 
         return
