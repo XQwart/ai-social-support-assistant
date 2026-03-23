@@ -58,7 +58,7 @@ async def refresh(
         refresh_token=refresh_token
     )
 
-    response = JSONResponse(content={"token": access_token}, status_code=)
+    response = JSONResponse(content={"token": access_token}, status_code=200)
     set_refresh_cookie(response=response, refresh_token=new_refresh_token)
 
     return response
