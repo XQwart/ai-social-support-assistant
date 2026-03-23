@@ -21,6 +21,10 @@ class TokenRedisRepository:
         key = self._key(user_id, jti)
         return await self._redis.exists(key) > 0
 
+    async def remove(self, user_id: int, jti: str) -> bool:
+        key = self._key(user_id, jti)
+        return await self._redis.delete(key) > 0
+
     async def remove_all(self, user_id: int) -> int:
         pattern = f"refresh:{user_id}:*"
         keys = []

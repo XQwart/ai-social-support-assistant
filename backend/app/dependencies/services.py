@@ -13,6 +13,7 @@ from app.dependencies.repositories import (
     MessageRepoDep,
     ChatRepoDep,
 )
+from app.dependencies.jwt import AccessTokenDep, RefreshTokenDep
 
 
 def get_auth_service(
@@ -20,8 +21,12 @@ def get_auth_service(
     oauth_rep: OauthRepoDep,
     token_rep: TokenRedisRepoDep,
     user_rep: UserRepoDep,
+    access_token_util: AccessTokenDep,
+    refresh_token_util: RefreshTokenDep,
 ) -> AuthService:
-    return AuthService(config, oauth_rep, token_rep, user_rep)
+    return AuthService(
+        config, oauth_rep, token_rep, user_rep, access_token_util, refresh_token_util
+    )
 
 
 def get_message_service(message_repo: MessageRepoDep) -> MessageService:

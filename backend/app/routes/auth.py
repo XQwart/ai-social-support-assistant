@@ -1,10 +1,13 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Query
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi import APIRouter, Query, Cookie, HTTPException
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 
+from app.dependencies.auth import AuthDep
 from app.dependencies.services import AuthServiceDep
 from app.dependencies.config import ConfigDep
+
+from app.utils.auth import set_refresh_cookie, clear_refresh_cookie
 
 # Временно
 from app.dependencies.repositories import UserRepoDep, TokenRedisRepoDep
@@ -40,9 +43,38 @@ async def sber_callback(
     token_data = await auth_service.exchange_code_for_token(code)
     await auth_service.validate_id_token(token_data.id_token, nonce, config.client_id)
 
-    code = await auth_service.login_user(token_data.access_token)
+    code = await auth_service.login(token_data.access_token)
 
     return RedirectResponse(url=f"{config.frontend_success_login_url}?code={code}")
+
+
+@router.post("/refresh")
+async def refresh(
+    token_data: AuthDep,
+    auth_service: AuthServiceDep,
+    refresh_token: str | None = Cookie(default=None),
+):
+    access_token, new_refresh_token = await auth_service.refresh(
+        refresh_token=refresh_token
+    )
+
+    response = JSONResponse(content={"token": access_token}, status_code=200)
+    set_refresh_cookie(response=response, refresh_token=new_refresh_token)
+
+    return response
+
+
+@router.post("/logout")
+async def logout(
+    auth_service: AuthServiceDep,
+    refresh_token: str | None = Cookie(default=None),
+) -> Response:
+    await auth_service.logout(refresh_token=refresh_token)
+
+    response = Response(status_code=204)
+    clear_refresh_cookie(response)
+
+    return response
 
 
 @router.post("/login")
@@ -74,12 +106,6 @@ async def login(
     response = JSONResponse(
         content={"message": "Успешная авторизация", "token": access_token}
     )
-    response.set_cookie(
-        key="refresh_token",
-        value=refresh_token,
-        httponly=True,
-        max_age=10 * 365 * 24 * 60 * 60,
-        expires=10 * 365 * 24 * 60 * 60,
-    )
+    set_refresh_cookie(response, refresh_token)
 
     return response
