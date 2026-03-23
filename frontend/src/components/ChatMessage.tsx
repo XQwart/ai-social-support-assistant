@@ -19,7 +19,34 @@ export default function ChatMessage({
   shouldAnimate,
 }: ChatMessageProps) {
   const isUser = message.role === "user";
+  const isSystem = message.role === "system";
   const isError = message.error === true;
+
+  // Системное сообщение (сжатие контекста и т.д.) — центрированный информационный блок
+  if (isSystem) {
+    return (
+      <div className="fade-in-up flex w-full justify-center py-1">
+        <div className="inline-flex max-w-[90%] items-center gap-2 rounded-full border border-slate-200/60 bg-white/50 px-4 py-2 text-[12px] text-slate-500 shadow-[0_2px_8px_rgba(15,23,42,0.03)] backdrop-blur-xl">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="shrink-0 text-slate-400"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 16v-4" />
+            <path d="M12 8h.01" />
+          </svg>
+          <span>{message.content}</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

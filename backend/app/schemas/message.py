@@ -24,3 +24,9 @@ class MessageWithChatIdOut(MessageOut):
 class ChatMessageResponse(BaseModel):
     chat_id: int
     messages: list[MessageOut]
+
+
+class SendMessageResponse(BaseModel):
+    user_message: MessageWithChatIdOut
+    assistant_message: MessageWithChatIdOut
+    context_compressed: bool = False

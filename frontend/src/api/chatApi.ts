@@ -126,49 +126,39 @@ export async function sendMessageToChat(
   chatId: string,
   content: string,
   signal?: AbortSignal
-): Promise<{ userMsg: Message; assistantMsg: Message }> {
-  // 1. Send user message
-  const userRes = await fetch(`${API_BASE}/chats/${chatId}/messages`, {
+): Promise<{ userMsg: Message; assistantMsg: Message; contextCompressed: boolean }> {
+  // Один POST — бэкенд сам генерирует AI-ответ и возвращает оба сообщения
+  const res = await fetch(`${API_BASE}/chats/${chatId}/messages`, {
     method: "POST",
     headers: getAuthHeaders(),
-    body: JSON.stringify({ content, role: "user" }),
+    body: JSON.stringify({ content }),
     signal,
     credentials: "include",
   });
 
-  await ensureOk(userRes, "Не удалось отправить сообщение");
+  await ensureOk(res, "Не удалось отправить сообщение");
 
-  const userData = await userRes.json();
+  const data = await res.json();
+
   const userMsg: Message = {
-    id: String(userData.id),
+    id: String(data.user_message.id),
     role: "user",
-    content: userData.content,
-    timestamp: ts(userData.created_at),
+    content: data.user_message.content,
+    timestamp: ts(data.user_message.created_at),
   };
 
-  // 2. Generate assistant response
-  const assistantText = generateResponse(content);
-
-  // 3. Save assistant message to backend
-  const asstRes = await fetch(`${API_BASE}/chats/${chatId}/messages`, {
-    method: "POST",
-    headers: getAuthHeaders(),
-    body: JSON.stringify({ content: assistantText, role: "assistant" }),
-    signal,
-    credentials: "include",
-  });
-
-  await ensureOk(asstRes, "Не удалось сохранить ответ ассистента");
-
-  const aData = await asstRes.json();
   const assistantMsg: Message = {
-    id: String(aData.id),
+    id: String(data.assistant_message.id),
     role: "assistant",
-    content: aData.content,
-    timestamp: ts(aData.created_at),
+    content: data.assistant_message.content,
+    timestamp: ts(data.assistant_message.created_at),
   };
 
-  return { userMsg, assistantMsg };
+  return {
+    userMsg,
+    assistantMsg,
+    contextCompressed: data.context_compressed ?? false,
+  };
 }
 
 export async function deleteChat(
@@ -183,30 +173,4 @@ export async function deleteChat(
   });
 
   await ensureOk(res, "Не удалось удалить чат");
-}
-
-// ==================== ЗАГЛУШКА ИИ ====================
-
-function generateResponse(message: string): string {
-  const t = message.toLowerCase();
-
-  if (t.includes("льгот"))
-    return "Чтобы проверить, какие льготы вам доступны, обычно учитываются ваш статус, состав семьи, доход, инвалидность, возраст и регион проживания. Подготовьте паспорт, СНИЛС и документы, подтверждающие право на меру поддержки.";
-
-  if (t.includes("жкх") || t.includes("субсид"))
-    return "Субсидия на оплату ЖКХ предоставляется, если расходы семьи на коммунальные услуги превышают установленную долю от совокупного дохода. Обычно заявление подают через МФЦ, соцзащиту или портал Госуслуг.";
-
-  if (t.includes("ребён") || t.includes("ребен") || t.includes("рождении"))
-    return "При рождении ребёнка могут быть доступны единовременное пособие, ежемесячные выплаты, материнский капитал и региональные меры поддержки. Точный список зависит от дохода семьи и региона.";
-
-  if (t.includes("малоимущ"))
-    return "Для признания семьи малоимущей обычно сравнивают среднедушевой доход с региональным прожиточным минимумом. Понадобятся документы о составе семьи, доходах, паспорта и заявление.";
-
-  if (t.includes("инвалид"))
-    return "Для оформления инвалидности потребуется направление на медико-социальную экспертизу, медицинские документы и заключения врачей. После установления группы можно оформить пенсию и дополнительные льготы.";
-
-  if (t.includes("безработ"))
-    return "Для назначения пособия по безработице нужно встать на учёт через центр занятости или Госуслуги. Обычно требуются паспорт, документы об образовании и сведения о трудовой деятельности.";
-
-  return "Я могу помочь с вопросами по льготам, пособиям, субсидиям, статусу малоимущей семьи, инвалидности и другим мерам социальной поддержки. Опишите вашу ситуацию подробнее.";
 }

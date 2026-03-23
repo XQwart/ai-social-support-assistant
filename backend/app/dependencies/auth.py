@@ -17,7 +17,6 @@ async def validate_token(
     token = creds.credentials
 
     payload = access_token_util.validate(token)
-    print(payload)
     if not payload:
         raise HTTPException(401, "Unauthorized")
 
