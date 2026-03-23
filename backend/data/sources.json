@@ -1,0 +1,642 @@
+[
+  {
+    "id": "gosuslugi_social_navigator",
+    "name": "Госуслуги — Навигатор мер соцподдержки",
+    "url": "https://www.gosuslugi.ru/social-navigator",
+    "region": "federal",
+    "region_code": "00",
+    "tier": 3,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "gosuslugi_egisso_vypisky",
+    "name": "Госуслуги — Выписка из ЕГИССО",
+    "url": "https://www.gosuslugi.ru/600321/1",
+    "region": "federal",
+    "region_code": "00",
+    "tier": 3,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "gosuslugi_universal_benefits",
+    "name": "Госуслуги — Единое пособие на детей",
+    "url": "https://www.gosuslugi.ru/universal_benefits",
+    "region": "federal",
+    "region_code": "00",
+    "tier": 3,
+    "category": "семьи_с_детьми",
+    "enabled": true
+  },
+  {
+    "id": "gosuslugi_social_help",
+    "name": "Госуслуги — Госсоцпомощь отдельным категориям",
+    "url": "https://www.gosuslugi.ru/600238/1",
+    "region": "federal",
+    "region_code": "00",
+    "tier": 3,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "gosuslugi_proactive_payments",
+    "name": "Госуслуги — Проактивные выплаты",
+    "url": "https://www.gosuslugi.ru/proactive_payments",
+    "region": "federal",
+    "region_code": "00",
+    "tier": 3,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "gosuslugi_maloimuschie",
+    "name": "Госуслуги — Пособия и льготы малоимущим",
+    "url": "https://www.gosuslugi.ru/newsearch/posobiya-i-lgoty-dlya-maloimuschih",
+    "region": "federal",
+    "region_code": "00",
+    "tier": 3,
+    "category": "малоимущие",
+    "enabled": true
+  },
+  {
+    "id": "gosuslugi_sockontrakt",
+    "name": "Госуслуги — Соцконтракт",
+    "url": "https://www.gosuslugi.ru/newsearch/sockontrakt",
+    "region": "federal",
+    "region_code": "00",
+    "tier": 3,
+    "category": "малоимущие",
+    "enabled": true
+  },
+  {
+    "id": "gosuslugi_egisso_info",
+    "name": "Госуслуги — Льготы и выплаты (ЕГИССО)",
+    "url": "https://www.gosuslugi.ru/newsearch/egisso",
+    "region": "federal",
+    "region_code": "00",
+    "tier": 3,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "mintrud_main",
+    "name": "Минтруд России — Главная",
+    "url": "https://mintrud.gov.ru/",
+    "region": "federal",
+    "region_code": "00",
+    "tier": 3,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "mintrud_social",
+    "name": "Минтруд — Социальная защита",
+    "url": "https://mintrud.gov.ru/social",
+    "region": "federal",
+    "region_code": "00",
+    "tier": 3,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "mintrud_social_region",
+    "name": "Минтруд — Соцзащита в моём регионе",
+    "url": "https://mintrud.gov.ru/social/default/index",
+    "region": "federal",
+    "region_code": "00",
+    "tier": 3,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "mintrud_gp_social",
+    "name": "Минтруд — Госпрограмма «Социальная поддержка граждан»",
+    "url": "https://mintrud.gov.ru/ministry/programms/3/2",
+    "region": "federal",
+    "region_code": "00",
+    "tier": 3,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "mintrud_programms",
+    "name": "Минтруд — Деятельность и программы",
+    "url": "https://mintrud.gov.ru/ministry/programms",
+    "region": "federal",
+    "region_code": "00",
+    "tier": 3,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "mintrud_measures_info",
+    "name": "Минтруд — Информация о назначенных мерах",
+    "url": "https://mintrud.gov.ru/social/318",
+    "region": "federal",
+    "region_code": "00",
+    "tier": 3,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "sfr_main",
+    "name": "СФР — Главная",
+    "url": "https://sfr.gov.ru/",
+    "region": "federal",
+    "region_code": "00",
+    "tier": 3,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "sfr_social_support",
+    "name": "СФР — Социальные выплаты и меры поддержки",
+    "url": "https://sfr.gov.ru/grazhdanam/social_support/",
+    "region": "federal",
+    "region_code": "00",
+    "tier": 3,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "sfr_families",
+    "name": "СФР — Семьям с детьми",
+    "url": "https://sfr.gov.ru/grazhdanam/semyam_s_detmi/",
+    "region": "federal",
+    "region_code": "00",
+    "tier": 3,
+    "category": "семьи_с_детьми",
+    "enabled": true
+  },
+  {
+    "id": "sfr_pensioners",
+    "name": "СФР — Пенсионерам",
+    "url": "https://sfr.gov.ru/grazhdanam/pensioneram/",
+    "region": "federal",
+    "region_code": "00",
+    "tier": 3,
+    "category": "пенсионеры",
+    "enabled": true
+  },
+  {
+    "id": "sfr_disabled",
+    "name": "СФР — Людям с инвалидностью",
+    "url": "https://sfr.gov.ru/grazhdanam/invalidam/",
+    "region": "federal",
+    "region_code": "00",
+    "tier": 3,
+    "category": "инвалиды",
+    "enabled": true
+  },
+  {
+    "id": "sfr_insurance",
+    "name": "СФР — Страховые выплаты",
+    "url": "https://sfr.gov.ru/grazhdanam/eln/posobiya",
+    "region": "federal",
+    "region_code": "00",
+    "tier": 3,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "egisso_main",
+    "name": "ЕГИССО — Главная",
+    "url": "https://egisso.ru/",
+    "region": "federal",
+    "region_code": "00",
+    "tier": 3,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "government_measures",
+    "name": "Правительство РФ — Меры поддержки",
+    "url": "http://government.ru/sanctions_measures/wizard/",
+    "region": "federal",
+    "region_code": "00",
+    "tier": 3,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "obyasnyaem_navigator",
+    "name": "Объясняем.рф — Навигатор",
+    "url": "https://объясняем.рф/measures/wizard/",
+    "region": "federal",
+    "region_code": "00",
+    "tier": 3,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "consultant_social",
+    "name": "КонсультантПлюс — Меры соцподдержки",
+    "url": "https://www.consultant.ru/document/cons_doc_LAW_218822/",
+    "region": "federal",
+    "region_code": "00",
+    "tier": 3,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "garant_posobiya",
+    "name": "ГАРАНТ — Социальные пособия",
+    "url": "https://www.garant.ru/actual/posobiya/",
+    "region": "federal",
+    "region_code": "00",
+    "tier": 3,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "moscow_dszn_main",
+    "name": "ДТСЗН Москвы — Главная",
+    "url": "https://dszn.ru/",
+    "region": "Москва",
+    "region_code": "77",
+    "tier": 2,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "moscow_dszn_vyplaty",
+    "name": "ДТСЗН — Социальные выплаты и пособия",
+    "url": "https://dszn.ru/deyatelnost/Socialnye-vyplaty-i-posobiya",
+    "region": "Москва",
+    "region_code": "77",
+    "tier": 2,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "moscow_dszn_lgoty",
+    "name": "ДТСЗН — Льготы и адресная помощь",
+    "url": "https://dszn.ru/deyatelnost/Lgoty-Adresnaya-pomoshch",
+    "region": "Москва",
+    "region_code": "77",
+    "tier": 2,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "moscow_dszn_families",
+    "name": "ДТСЗН — Поддержка семей с детьми",
+    "url": "https://dszn.ru/deyatelnost/Podderzhka-semey-s-detmi",
+    "region": "Москва",
+    "region_code": "77",
+    "tier": 2,
+    "category": "семьи_с_детьми",
+    "enabled": true
+  },
+  {
+    "id": "moscow_dszn_zhku",
+    "name": "ДТСЗН — Субсидии и льготы на ЖКУ",
+    "url": "https://dszn.ru/deyatelnost/Subsidii-i-lgoty-na-oplatu-zhilishchno-kommunalnyh-uslug/Predostavlenie-mer-socialnoy-podderzhki-na-oplatu-zhilogo-pomeshcheniya-i-kommunalnyh-uslug",
+    "region": "Москва",
+    "region_code": "77",
+    "tier": 2,
+    "category": "жку",
+    "enabled": true
+  },
+  {
+    "id": "moscow_dszn_navigator",
+    "name": "ДТСЗН — Социальный навигатор",
+    "url": "https://dszn.ru/navigator",
+    "region": "Москва",
+    "region_code": "77",
+    "tier": 2,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "moscow_mosru_services",
+    "name": "ДТСЗН на mos.ru — Услуги",
+    "url": "https://www.mos.ru/dszn/services/",
+    "region": "Москва",
+    "region_code": "77",
+    "tier": 2,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "spb_gov_social",
+    "name": "Администрация СПб — Социальная поддержка",
+    "url": "https://www.gov.spb.ru/gov/otrasl/trud/socialnye-voprosy/soc_vet/socialnaya-podderzhka/",
+    "region": "Санкт-Петербург",
+    "region_code": "78",
+    "tier": 1,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "spb_gov_address",
+    "name": "Администрация СПб — Адресная социальная поддержка",
+    "url": "https://www.gov.spb.ru/gov/otrasl/trud/socialnye-voprosy/adresnaya-socialnaya-podderzhka-naseleniya/",
+    "region": "Санкт-Петербург",
+    "region_code": "78",
+    "tier": 1,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "spb_gu_social",
+    "name": "Портал госуслуг СПб — Социальная поддержка",
+    "url": "https://gu.spb.ru/services/individual/sotsialnaya-podderzhka/",
+    "region": "Санкт-Петербург",
+    "region_code": "78",
+    "tier": 1,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "spb_gu_zhku",
+    "name": "Портал госуслуг СПб — Компенсация расходов ЖКУ",
+    "url": "https://gu.spb.ru/188209/",
+    "region": "Санкт-Петербург",
+    "region_code": "78",
+    "tier": 1,
+    "category": "жку",
+    "enabled": true
+  },
+  {
+    "id": "spb_ktsz_info",
+    "name": "КЦСЗ СПб — Информационная система",
+    "url": "https://iss.ktsz.spb.ru/ISS/esrn/main/desc.htm?id=1261@webNews",
+    "region": "Санкт-Петербург",
+    "region_code": "78",
+    "tier": 1,
+    "category": "семьи_с_детьми",
+    "enabled": true
+  },
+  {
+    "id": "mosreg_msr_main",
+    "name": "Минсоцразвития МО — Главная",
+    "url": "https://www.msr.mosreg.ru/",
+    "region": "Московская область",
+    "region_code": "50",
+    "tier": 2,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "mosreg_social_docs",
+    "name": "Портал соцзащиты МО — Документы",
+    "url": "https://social.mosreg.ru/docs/index",
+    "region": "Московская область",
+    "region_code": "50",
+    "tier": 2,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "mosreg_social_portal",
+    "name": "Портал соцзащиты МО — Главная",
+    "url": "https://social.mosreg.ru/",
+    "region": "Московская область",
+    "region_code": "50",
+    "tier": 2,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "krasnodar_szn_activity",
+    "name": "Минтруд Краснодарского края — Меры соцподдержки",
+    "url": "https://szn.krasnodar.ru/activity",
+    "region": "Краснодарский край",
+    "region_code": "23",
+    "tier": 1,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "krasnodar_szn_lgotniki",
+    "name": "Минтруд Краснодара — Региональным льготникам",
+    "url": "https://szn.krasnodar.ru/activity/mery-sotsialnoy-podderzhki/regionalnym-lgotnikam",
+    "region": "Краснодарский край",
+    "region_code": "23",
+    "tier": 1,
+    "category": "ветераны",
+    "enabled": true
+  },
+  {
+    "id": "krasnodar_szn_sockontrakt",
+    "name": "Минтруд Краснодара — Соцконтракт",
+    "url": "https://szn.krasnodar.ru/activity/mery-sotsialnoy-podderzhki/inym-kategoriyam-grazhdan/63805",
+    "region": "Краснодарский край",
+    "region_code": "23",
+    "tier": 1,
+    "category": "малоимущие",
+    "enabled": true
+  },
+  {
+    "id": "krasnodar_sznkuban",
+    "name": "Интерактивный портал соцзащиты Кубани",
+    "url": "https://sznkuban.ru/",
+    "region": "Краснодарский край",
+    "region_code": "23",
+    "tier": 1,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "sverdlovsk_msp_measures",
+    "name": "Минсоцполитики Свердловской обл. — Меры соцподдержки",
+    "url": "https://msp.midural.ru/deyatelnost/mery-socpodder-ki.html",
+    "region": "Свердловская область",
+    "region_code": "66",
+    "tier": 2,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "sverdlovsk_socialcluster",
+    "name": "Навигатор мер соцподдержки Свердловской обл.",
+    "url": "https://socialcluster.ru/",
+    "region": "Свердловская область",
+    "region_code": "66",
+    "tier": 2,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "tatarstan_mtsz_main",
+    "name": "Минтруд Татарстана — Главная",
+    "url": "https://mtsz.tatarstan.ru/",
+    "region": "Республика Татарстан",
+    "region_code": "16",
+    "tier": 1,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "tatarstan_mtsz_measures",
+    "name": "Минтруд Татарстана — Меры социальной поддержки",
+    "url": "https://mtsz.tatarstan.ru/meri-sotsialnoy-podderzhki-7904529.htm",
+    "region": "Республика Татарстан",
+    "region_code": "16",
+    "tier": 1,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "tatarstan_mtsz_services",
+    "name": "Минтруд Татарстана — Перечень госуслуг",
+    "url": "https://mtsz.tatarstan.ru/tsel-i-predmet-deyatelnosti-rtsmp.htm",
+    "region": "Республика Татарстан",
+    "region_code": "16",
+    "tier": 1,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "tatarstan_uslugi",
+    "name": "Госуслуги РТ — Социальная защита",
+    "url": "https://uslugi.tatarstan.ru/mintrud/service",
+    "region": "Республика Татарстан",
+    "region_code": "16",
+    "tier": 1,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "novosibirsk_mtsr_main",
+    "name": "Минтруд Новосибирской обл. — Главная",
+    "url": "https://mtsr.nso.ru/",
+    "region": "Новосибирская область",
+    "region_code": "54",
+    "tier": 1,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "novosibirsk_mtsr_table",
+    "name": "Минтруд НСО — Сводная таблица мер поддержки",
+    "url": "https://mtsr.nso.ru/page/14119",
+    "region": "Новосибирская область",
+    "region_code": "54",
+    "tier": 1,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "novosibirsk_mtsr_help",
+    "name": "Минтруд НСО — Социальная помощь",
+    "url": "https://mtsr.nso.ru/page/1323",
+    "region": "Новосибирская область",
+    "region_code": "54",
+    "tier": 1,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "novosibirsk_mtsr_payments",
+    "name": "Минтруд НСО — Выплаты и пособия",
+    "url": "https://mtsr.nso.ru/page/1343",
+    "region": "Новосибирская область",
+    "region_code": "54",
+    "tier": 1,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "nnovgorod_minsocium",
+    "name": "Минсоциум Нижегородской обл. — Главная",
+    "url": "https://minsocium.ru/",
+    "region": "Нижегородская область",
+    "region_code": "52",
+    "tier": 2,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "nnovgorod_pravovsem",
+    "name": "Правовой портал НО — Льготы и выплаты",
+    "url": "https://www.pravovsem52.ru/legal_education/posobiya_i_vyplaty/",
+    "region": "Нижегородская область",
+    "region_code": "52",
+    "tier": 2,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "rostov_mintrud_main",
+    "name": "Минтруд Ростовской обл. — Главная",
+    "url": "https://mintrud.donland.ru/",
+    "region": "Ростовская область",
+    "region_code": "61",
+    "tier": 2,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "rostov_mintrud_activity",
+    "name": "Минтруд РО — Деятельность",
+    "url": "https://mintrud.donland.ru/activity/",
+    "region": "Ростовская область",
+    "region_code": "61",
+    "tier": 2,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "rostov_mintrud_families",
+    "name": "Минтруд РО — Меры поддержки семей с детьми",
+    "url": "https://mintrud.donland.ru/activity/16537/",
+    "region": "Ростовская область",
+    "region_code": "61",
+    "tier": 2,
+    "category": "семьи_с_детьми",
+    "enabled": true
+  },
+  {
+    "id": "rostov_donland_social",
+    "name": "Правительство РО — Социальная поддержка",
+    "url": "https://www.donland.ru/activity/119/",
+    "region": "Ростовская область",
+    "region_code": "61",
+    "tier": 2,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "chelyabinsk_minsoc_main",
+    "name": "Минсоцотношений Челябинской обл. — Главная",
+    "url": "https://minsoc.gov74.ru/",
+    "region": "Челябинская область",
+    "region_code": "74",
+    "tier": 1,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "chelyabinsk_minsoc_measures",
+    "name": "Минсоц ЧО — Меры социальной поддержки",
+    "url": "https://minsoc.gov74.ru/minsoc/mery-socialnoy-podderzhki-grazhdan.htm",
+    "region": "Челябинская область",
+    "region_code": "74",
+    "tier": 1,
+    "category": "общие",
+    "enabled": true
+  },
+  {
+    "id": "chelyabinsk_minsoc_lgotniki",
+    "name": "Минсоц ЧО — Отдельные категории граждан",
+    "url": "https://minsoc.gov74.ru/minsoc/mery-socialnoy-podderzhki-grazhdan/mery-socialnoy-podderzhki-lgotnyh-kategoriy-grazhdan-0.htm",
+    "region": "Челябинская область",
+    "region_code": "74",
+    "tier": 1,
+    "category": "ветераны",
+    "enabled": true
+  },
+  {
+    "id": "chelyabinsk_minsoc_families",
+    "name": "Минсоц ЧО — Многодетная семья",
+    "url": "https://minsoc.gov74.ru/minsoc/mery-socialnoy-podderzhki-grazhdan/socialnaya-podderzhka-semey-s-detmi/mnogodetnaya-semya.htm",
+    "region": "Челябинская область",
+    "region_code": "74",
+    "tier": 1,
+    "category": "семьи_с_детьми",
+    "enabled": true
+  }
+]

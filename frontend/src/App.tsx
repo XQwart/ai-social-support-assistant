@@ -104,7 +104,7 @@ export default function App() {
     [chats, activeChatId]
   );
 
-  const showHome = !activeChat || activeChat.messages.length === 0;
+  const showHome = !activeChat;
 
   const isCurrentChatLoading = useMemo(() => {
     if (!activeChatId) return false;
@@ -246,24 +246,44 @@ export default function App() {
         if (!targetChatId) {
           const newChat = await createChat(text, controller.signal);
           targetChatId = newChat.id;
+
+          controllersRef.current.set(targetChatId, controller);
+          setLoadingChatIds((prev) =>
+            prev.includes(targetChatId!) ? prev : [...prev, targetChatId!]
+          );
+
           setChats((prev) =>
             [newChat, ...prev].sort((a, b) => b.updatedAt - a.updatedAt)
           );
           setActiveChatId(targetChatId);
+        } else {
+          controllersRef.current.set(targetChatId, controller);
+          setLoadingChatIds((prev) =>
+            prev.includes(targetChatId!) ? prev : [...prev, targetChatId!]
+          );
         }
 
-        controllersRef.current.set(targetChatId, controller);
-        setLoadingChatIds((prev) =>
-          prev.includes(targetChatId!) ? prev : [...prev, targetChatId!]
-        );
-
-        const { userMsg, assistantMsg } = await sendMessageToChat(
+        const { userMsg, assistantMsg, contextCompressed } = await sendMessageToChat(
           targetChatId,
           text,
           controller.signal
         );
 
         const finalChatId = targetChatId;
+        const newMessages: Message[] = [userMsg];
+
+        // Если контекст был сжат — добавляем системное уведомление
+        if (contextCompressed) {
+          newMessages.push({
+            id: `system-compress-${Date.now()}`,
+            role: "system",
+            content: "Контекст предыдущих сообщений был сжат для оптимизации. Я помню основные темы нашего разговора.",
+            timestamp: assistantMsg.timestamp - 1,
+          });
+        }
+
+        newMessages.push(assistantMsg);
+
         setChats((prev) =>
           prev
             .map((c) => {
@@ -271,7 +291,7 @@ export default function App() {
               return {
                 ...c,
                 updatedAt: assistantMsg.timestamp,
-                messages: mergeUniqueMessages(c.messages, [userMsg, assistantMsg]),
+                messages: mergeUniqueMessages(c.messages, newMessages),
               };
             })
             .sort((a, b) => b.updatedAt - a.updatedAt)
