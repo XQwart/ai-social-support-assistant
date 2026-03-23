@@ -1,9 +1,16 @@
 from celery import Celery
 from celery.schedules import crontab
+from celery.signals import worker_process_init
 
 from app.core.config import get_config
+from app.core.logger import setup_logging
 
 config = get_config()
+
+
+@worker_process_init.connect
+def init_worker(**kwargs):
+    setup_logging(level=config.log_level)
 
 
 app = Celery(

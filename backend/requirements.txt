@@ -17,3 +17,4 @@ python-multipart==0.0.22
 redis==6.4.0
 SQLAlchemy==2.0.48
 uvicorn==0.42.0
+eventlet==0.39.0

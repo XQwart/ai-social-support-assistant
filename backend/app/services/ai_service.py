@@ -24,11 +24,18 @@ class AIService:
         self._model = config.polza_ai_model
 
     def _create_client(self, timeout: float = 60.0) -> OpenAI:
+        from openai import DefaultHttpxClient
+
+        http_client = DefaultHttpxClient(
+            verify=False,  # Обход SSL для OpenSSL 1.1.1
+            timeout=timeout,
+        )
+
         return OpenAI(
             base_url=self._config.polza_ai_base_url,
             api_key=self._config.polza_ai_api_key,
-            timeout=timeout,
             max_retries=2,
+            http_client=http_client,
         )
 
     def _load_knowledge_base(self) -> tuple[list[dict], list[dict]]:
@@ -110,6 +117,7 @@ class AIService:
         chat_history: list[dict[str, str]],
         compressed_context: str | None = None,
     ) -> str:
+        logger.info("Запрос к ИИ: user_message='%s', history_len=%d", user_message[:100], len(chat_history))
         faq_data, chuck_data = self._load_knowledge_base()
         system_prompt = self._build_system_prompt(faq_data, chuck_data)
 
@@ -129,17 +137,23 @@ class AIService:
         messages.append({"role": "user", "content": user_message})
 
         try:
-            completion = self._create_client(timeout=60.0).chat.completions.create(
+            client = self._create_client(timeout=60.0)
+            completion = client.chat.completions.create(
                 model=self._model,
                 messages=messages,
                 temperature=0.3,
                 max_tokens=2048,
             )
-            return completion.choices[0].message.content or (
-                "Произошла ошибка при генерации ответа. Пожалуйста, попробуйте позже."
-            )
+            response_text = completion.choices[0].message.content
+            if response_text:
+                logger.info("ИИ успешно сгенерировал ответ (длина: %d)", len(response_text))
+                return response_text
+            
+            logger.warning("ИИ вернул пустой ответ")
+            return "Произошла ошибка при генерации ответа. Пожалуйста, попробуйте позже."
+
         except Exception as e:
-            logger.error("Ошибка генерации ИИ-ответа: %s", e)
+            logger.exception("Критическая ошибка при обращении к ИИ")
             return (
                 "К сожалению, не удалось получить ответ от ИИ. "
                 "Пожалуйста, попробуйте позже или обратитесь на портал Госуслуг: "
@@ -178,6 +192,7 @@ class AIService:
             return messages_text[:1000]
 
     def extract_faq_from_texts(self, texts: list[dict]) -> list[dict]:
+        logger.info("Начало извлечения FAQ из %d текстов", len(texts))
         combined = "\n\n---\n\n".join(
             f"Источник: {t.get('source_url', 'N/A')}\n"
             f"Регион: {t.get('region', 'N/A')}\n"
@@ -224,7 +239,12 @@ class AIService:
                 raw = raw[:-3]
             raw = raw.strip()
 
-            return json.loads(raw)
-        except (json.JSONDecodeError, Exception) as e:
-            logger.error("Ошибка извлечения FAQ: %s", e)
+            result = json.loads(raw)
+            logger.info("Успешно извлечено %d пар FAQ", len(result))
+            return result
+        except json.JSONDecodeError as e:
+            logger.error("Ошибка декодирования JSON при извлечении FAQ: %s. Raw content: %s", e, raw[:200])
+            return []
+        except Exception as e:
+            logger.exception("Непредвиденная ошибка при извлечении FAQ")
             return []

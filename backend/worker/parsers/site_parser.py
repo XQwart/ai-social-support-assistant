@@ -24,6 +24,7 @@ def parse_site(url: str, timeout: float = DEFAULT_TIMEOUT) -> Optional[str]:
     Returns:
         Очищенный текст страницы или None при ошибке
     """
+    logger.info("Начало парсинга URL: %s", url)
     try:
         with httpx.Client(
             timeout=timeout,
@@ -36,6 +37,7 @@ def parse_site(url: str, timeout: float = DEFAULT_TIMEOUT) -> Optional[str]:
             )
             response.raise_for_status()
             html = response.text
+            logger.info("Успешно загружен HTML с %s (размер: %d байт)", url, len(html))
 
     except httpx.TimeoutException:
         logger.warning("Таймаут при загрузке %s", url)
@@ -44,7 +46,7 @@ def parse_site(url: str, timeout: float = DEFAULT_TIMEOUT) -> Optional[str]:
         logger.warning("HTTP ошибка %s при загрузке %s", e.response.status_code, url)
         return None
     except Exception as e:
-        logger.error("Ошибка при загрузке %s: %s", url, e)
+        logger.exception("Критическая ошибка при загрузке %s", url)
         return None
 
     try:
@@ -66,13 +68,14 @@ def parse_site(url: str, timeout: float = DEFAULT_TIMEOUT) -> Optional[str]:
         text = re.sub(r"\s+", " ", text).strip()
 
         if len(text) < 50:
-            logger.warning("Слишком мало текста на %s (длина %d)", url, len(text))
+            logger.warning("Слишком мало полезного текста на %s (длина %d)", url, len(text))
             return None
 
+        logger.info("Успешно извлечен текст с %s (длина: %d символов)", url, len(text))
         return text
 
     except Exception as e:
-        logger.error("Ошибка парсинга HTML с %s: %s", url, e)
+        logger.exception("Ошибка парсинга HTML с %s", url)
         return None
 
 
