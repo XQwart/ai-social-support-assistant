@@ -1,10 +1,13 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Cookie, HTTPException
 from fastapi.responses import JSONResponse, RedirectResponse
 
+from app.dependencies.auth import AuthDep
 from app.dependencies.services import AuthServiceDep
 from app.dependencies.config import ConfigDep
+
+from app.utils.auth import set_refresh_cookie, clear_refresh_cookie
 
 # Временно
 from app.dependencies.repositories import UserRepoDep, TokenRedisRepoDep
@@ -45,6 +48,25 @@ async def sber_callback(
     return RedirectResponse(url=f"{config.frontend_success_login_url}?code={code}")
 
 
+@router.post("/refresh")
+async def refresh(
+    token_data: AuthDep,
+    auth_service: AuthServiceDep,
+    refresh_token: str | None = Cookie(default=None),
+):
+    if refresh_token is None:
+        raise HTTPException(401, "Unauthorized")
+
+    access_token, new_refresh_token = await auth_service.refresh(
+        token_data.user_id, refresh_token
+    )
+
+    response = JSONResponse(content={"token": access_token})
+    set_refresh_cookie(response, new_refresh_token)
+
+    return response
+
+
 @router.post("/login")
 async def login(
     user_repo: UserRepoDep,
@@ -74,12 +96,6 @@ async def login(
     response = JSONResponse(
         content={"message": "Успешная авторизация", "token": access_token}
     )
-    response.set_cookie(
-        key="refresh_token",
-        value=refresh_token,
-        httponly=True,
-        max_age=10 * 365 * 24 * 60 * 60,
-        expires=10 * 365 * 24 * 60 * 60,
-    )
+    set_refresh_cookie(response, refresh_token)
 
     return response

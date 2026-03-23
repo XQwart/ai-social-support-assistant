@@ -2,11 +2,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 import secrets
 import uuid
+import logging
 
 from fastapi import HTTPException
 import httpx
 import jose.jwt
-import logging
+
 from app.schemas.auth import SberTokenData, SberUserInfo
 
 if TYPE_CHECKING:
@@ -14,6 +15,7 @@ if TYPE_CHECKING:
     from app.repositories.oauth import OauthRepository
     from app.repositories.user import UserRepository
     from app.repositories.token import TokenRedisRepository
+    from app.utils.jwt import JWTTokenUtil
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +25,8 @@ class AuthService:
     _oauth_rep: OauthRepository
     _token_rep: TokenRedisRepository
     _user_rep: UserRepository
+    _access_token_util: JWTTokenUtil
+    _refresh_token_util: JWTTokenUtil
 
     def __init__(
         self,
@@ -30,11 +34,15 @@ class AuthService:
         ouath_rep: OauthRepository,
         token_rep: TokenRedisRepository,
         user_rep: UserRepository,
+        access_token_util: JWTTokenUtil,
+        refresh_token_util: JWTTokenUtil,
     ):
         self._config = config
         self._oauth_rep = ouath_rep
         self._token_rep = token_rep
         self._user_rep = user_rep
+        self._access_token_util = access_token_util
+        self._refresh_token_util = refresh_token_util
 
     async def get_and_save_state_and_nonce(self) -> dict[str, str]:
         state = secrets.token_urlsafe(32)
@@ -122,3 +130,22 @@ class AuthService:
         await self._oauth_rep.save_code(user.id, user.bank_id, code)
         logger.debug("Auth code saved for user")
         return code
+
+    async def refresh(self, user_id: int, refresh_token: str) -> tuple[str, str]:
+        payload = self._refresh_token_util.validate(refresh_token)
+        if payload is None:
+            raise HTTPException(401, "Unauthorized")
+
+        refresh_jti = payload["jti"]
+        is_exists = await self._token_rep.exists(user_id=user_id, jti=refresh_jti)
+        if not is_exists:
+            raise HTTPException(401, "Unauthorized")
+
+        access_token = self._access_token_util.generate(user_id=user_id)
+        new_refresh_token = self._refresh_token_util.generate(
+            user_id=user_id, extra={"jti": refresh_jti}
+        )
+
+        await self._token_rep.save(user_id=user_id, jti=refresh_jti)
+
+        return access_token, new_refresh_token
