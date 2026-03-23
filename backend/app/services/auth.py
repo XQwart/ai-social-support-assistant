@@ -104,7 +104,7 @@ class AuthService:
             raise HTTPException(400, "Invalid aud")
         logger.debug("id_token validated successfully")
 
-    async def login_user(self, bank_access_token: str) -> str:
+    async def login(self, bank_access_token: str) -> str:
         rquid = uuid.uuid4().hex
 
         async with httpx.AsyncClient(verify=self._config.sber_ca_path) as client:
@@ -131,11 +131,15 @@ class AuthService:
         logger.debug("Auth code saved for user")
         return code
 
-    async def refresh(self, user_id: int, refresh_token: str) -> tuple[str, str]:
+    async def refresh(self, refresh_token: str | None) -> tuple[str, str]:
+        if refresh_token is None:
+            raise HTTPException(401, "Unauthorized")
+
         payload = self._refresh_token_util.validate(refresh_token)
         if payload is None:
             raise HTTPException(401, "Unauthorized")
 
+        user_id = payload["sub"]
         refresh_jti = payload["jti"]
         is_exists = await self._token_rep.exists(user_id=user_id, jti=refresh_jti)
         if not is_exists:
@@ -149,3 +153,18 @@ class AuthService:
         await self._token_rep.save(user_id=user_id, jti=refresh_jti)
 
         return access_token, new_refresh_token
+
+    async def logout(self, refresh_token: str | None) -> None:
+        if refresh_token is None:
+            return
+
+        payload = self._refresh_token_util.validate(refresh_token)
+        if payload is None:
+            return
+
+        user_id = payload["sub"]
+        refresh_jti = payload["jti"]
+
+        await self._token_rep.remove(user_id=user_id, refresh_jti=refresh_jti)
+
+        return
