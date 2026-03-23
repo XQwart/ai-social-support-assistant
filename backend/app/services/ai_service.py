@@ -5,12 +5,13 @@ import logging
 from typing import TYPE_CHECKING
 
 from fastapi.concurrency import run_in_threadpool
-from openai import OpenAI
+from openai import OpenAI, DefaultHttpxClient
 
 from app.core.constants import FAQ_JSON, CHUCK_JSON
 
 if TYPE_CHECKING:
     from app.core.config import Config
+
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,6 @@ class AIService:
         self._model = config.polza_ai_model
 
     def _create_client(self, timeout: float = 60.0) -> OpenAI:
-        from openai import DefaultHttpxClient
 
         http_client = DefaultHttpxClient(
             verify=False,  # Обход SSL для OpenSSL 1.1.1
@@ -117,7 +117,11 @@ class AIService:
         chat_history: list[dict[str, str]],
         compressed_context: str | None = None,
     ) -> str:
-        logger.info("Запрос к ИИ: user_message='%s', history_len=%d", user_message[:100], len(chat_history))
+        logger.info(
+            "Запрос к ИИ: user_message='%s', history_len=%d",
+            user_message[:100],
+            len(chat_history),
+        )
         faq_data, chuck_data = self._load_knowledge_base()
         system_prompt = self._build_system_prompt(faq_data, chuck_data)
 
@@ -146,11 +150,15 @@ class AIService:
             )
             response_text = completion.choices[0].message.content
             if response_text:
-                logger.info("ИИ успешно сгенерировал ответ (длина: %d)", len(response_text))
+                logger.info(
+                    "ИИ успешно сгенерировал ответ (длина: %d)", len(response_text)
+                )
                 return response_text
-            
+
             logger.warning("ИИ вернул пустой ответ")
-            return "Произошла ошибка при генерации ответа. Пожалуйста, попробуйте позже."
+            return (
+                "Произошла ошибка при генерации ответа. Пожалуйста, попробуйте позже."
+            )
 
         except Exception as e:
             logger.exception("Критическая ошибка при обращении к ИИ")
@@ -210,7 +218,7 @@ class AIService:
                             "Проанализируй тексты о мерах социальной поддержки. "
                             "Извлеки пары «вопрос-ответ» в формате JSON-массива:\n"
                             "[\n"
-                            '  {\n'
+                            "  {\n"
                             '    "question": "Вопрос, который может задать гражданин",\n'
                             '    "answer": "Точный ответ из текста",\n'
                             '    "source_url": "URL источника",\n'
@@ -243,7 +251,11 @@ class AIService:
             logger.info("Успешно извлечено %d пар FAQ", len(result))
             return result
         except json.JSONDecodeError as e:
-            logger.error("Ошибка декодирования JSON при извлечении FAQ: %s. Raw content: %s", e, raw[:200])
+            logger.error(
+                "Ошибка декодирования JSON при извлечении FAQ: %s. Raw content: %s",
+                e,
+                raw[:200],
+            )
             return []
         except Exception as e:
             logger.exception("Непредвиденная ошибка при извлечении FAQ")
