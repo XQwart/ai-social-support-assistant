@@ -5,18 +5,21 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from app.repositories.message import MessageRepository
     from app.models.message import Message, MessageRole
+    from app.core.config import Config
 
 
 class MessageService:
     _message_repo: MessageRepository
+    _config: Config
 
-    def __init__(self, message_repo: MessageRepository):
+    def __init__(self, message_repo: MessageRepository, config: Config):
         self._message_repo = message_repo
+        self._config = config
 
-    async def get_all_messages(
-        self, chat_id: int, limit: int, offset: int
+    async def get_messages(
+        self, chat_id: int, limit: int, offset: int, asc: bool = True
     ) -> list[Message]:
-        messages = await self._message_repo.get_all_by_chat(chat_id, limit, offset)
+        messages = await self._message_repo.get_by_chat(chat_id, limit, offset, asc)
 
         return messages
 
@@ -26,3 +29,6 @@ class MessageService:
         return await self._message_repo.create(
             chat_id=chat_id, role=role, content=message
         )
+
+    async def count_messages(self, chat_id: int) -> int:
+        return await self._message_repo.count_messages_by_chat(chat_id)

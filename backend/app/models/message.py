@@ -15,7 +15,6 @@ if TYPE_CHECKING:
 class MessageRole(str, Enum):
     USER = "user"
     ASSISTANT = "assistant"
-    SYSTEM = "system"
 
 
 class Message(Base):

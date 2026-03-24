@@ -36,3 +36,4 @@ class Chat(Base):
         back_populates="chat",
         cascade="all, delete-orphan",
     )
+    compressed_context: Mapped[str | None] = mapped_column(nullable=True)
