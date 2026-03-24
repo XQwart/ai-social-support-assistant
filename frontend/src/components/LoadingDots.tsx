@@ -1,4 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+import { AssistantAvatar } from "@/components/AssistantAvatar";
+
+const ROLE_LABEL = "Помощник";
 
 const FUN_STATUSES = [
   "Ищем ответ в базе знаний...",
@@ -15,12 +19,60 @@ const FUN_STATUSES = [
   "Считаем размер выплат...",
   "Уточняем требования...",
   "Готовим ответ...",
+  "Пьём кофе перед ответом...",
+  "Гуглим за вас...",
+  "Спрашиваем у бабушки на лавочке...",
+  "Звоним на горячую линию...",
+  "Ищем лазейку в законе...",
+  "Надеваем очки для чтения мелкого шрифта...",
+  "Перелопачиваем кодексы...",
+  "Роемся в архивах...",
+  "Общаемся с ботом Госуслуг...",
+  "Заполняем форму в трёх экземплярах...",
+  "Берём талончик в электронной очереди...",
+  "Поднимаем судебную практику...",
+  "Просим совет у знакомого депутата...",
+  "Расшифровываем юридический язык...",
+  "Ищем нужный пункт в 400-страничном законе...",
+  "Уже почти нашли...",
+  "Сканируем все поправки за последний год...",
+  "Пробиваемся через бюрократию...",
+  "Переводим с чиновничьего на русский...",
 ];
 
-export default function LoadingDots() {
-  const [statusIndex, setStatusIndex] = useState(() =>
-    Math.floor(Math.random() * FUN_STATUSES.length)
+const STATUS_INTERVAL_MS = 2500;
+const TRANSITION_DURATION_MS = 300;
+
+function pickNextStatusIndex(prevIndex: number, used: Set<number>): number {
+  const n = FUN_STATUSES.length;
+  let available = Array.from({ length: n }, (_, i) => i).filter(
+    (i) => !used.has(i)
   );
+
+  if (available.length === 0) {
+    used.clear();
+    available = Array.from({ length: n }, (_, i) => i);
+  }
+
+  const pool =
+    available.length > 1
+      ? available.filter((i) => i !== prevIndex)
+      : available;
+
+  const next = pool[Math.floor(Math.random() * pool.length)]!;
+  used.add(next);
+  return next;
+}
+
+export default function LoadingDots() {
+  const usedInRequestRef = useRef<Set<number>>(new Set());
+
+  const [statusIndex, setStatusIndex] = useState(() => {
+    const n = FUN_STATUSES.length;
+    const i = Math.floor(Math.random() * n);
+    usedInRequestRef.current = new Set([i]);
+    return i;
+  });
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   useEffect(() => {
@@ -28,17 +80,12 @@ export default function LoadingDots() {
       setIsTransitioning(true);
 
       setTimeout(() => {
-        setStatusIndex((prev) => {
-          let next = Math.floor(Math.random() * FUN_STATUSES.length);
-          // Не повторяем тот же статус
-          while (next === prev && FUN_STATUSES.length > 1) {
-            next = Math.floor(Math.random() * FUN_STATUSES.length);
-          }
-          return next;
-        });
+        setStatusIndex((prev) =>
+          pickNextStatusIndex(prev, usedInRequestRef.current)
+        );
         setIsTransitioning(false);
-      }, 300);
-    }, 2500);
+      }, TRANSITION_DURATION_MS);
+    }, STATUS_INTERVAL_MS);
 
     return () => clearInterval(interval);
   }, []);
@@ -46,17 +93,15 @@ export default function LoadingDots() {
   return (
     <div className="fade-in-up flex w-full justify-start">
       <div className="flex max-w-[88%] items-start gap-3 md:max-w-[78%]">
-        <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-white/70 bg-white/70 text-xs font-semibold text-emerald-600 shadow-[0_6px_18px_rgba(15,23,42,0.05)] backdrop-blur-xl">
-          ИИ
-        </div>
+        <AssistantAvatar />
 
         <div className="rounded-[24px] rounded-bl-[8px] border border-white/80 bg-white/74 px-4 py-3.5 text-slate-800 shadow-[0_10px_30px_rgba(15,23,42,0.05)] backdrop-blur-2xl">
-          <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-emerald-600/90">
-            Помощник
+          <div className="mb-1 text-[11px] font-semibold tracking-[0.12em] text-emerald-600/90">
+            {ROLE_LABEL}
           </div>
 
           <div
-            className="min-w-[180px] text-[14px] text-slate-500 transition-opacity duration-300"
+            className="loading-status-text min-w-[180px] text-[14px] font-medium leading-snug transition-opacity duration-300"
             style={{ opacity: isTransitioning ? 0 : 1 }}
           >
             {FUN_STATUSES[statusIndex]}

@@ -146,7 +146,6 @@ export default function App() {
     setIsSettingsModalOpen(false);
   }, []);
 
-  // ===== Загрузить список чатов с бэка =====
   useEffect(() => {
     if (!authToken) {
       setChats([]);
@@ -166,7 +165,6 @@ export default function App() {
     return () => ctrl.abort();
   }, [authToken, handleSessionExpired]);
 
-  // ===== Загрузить сообщения при выборе чата =====
   useEffect(() => {
     if (!activeChatId || !authToken) return;
 
@@ -204,7 +202,6 @@ export default function App() {
     handleSessionExpired,
   ]);
 
-  // ===== Cleanup =====
   useEffect(() => {
     return () => {
       controllersRef.current.forEach((c) => c.abort());
@@ -225,7 +222,6 @@ export default function App() {
 
   const handleOpenAuth = useCallback(() => setIsAuthModalOpen(true), []);
 
-  // ===== Отправка сообщения =====
   const handleSend = useCallback(
     async (rawText: string) => {
       const text = rawText.trim();
@@ -241,8 +237,15 @@ export default function App() {
       const controller = new AbortController();
       let targetChatId = activeChatId;
 
+
+      const optimisticUserMsg: Message = {
+        id: `optimistic-${Date.now()}`,
+        role: "user",
+        content: text,
+        timestamp: Date.now(),
+      };
+
       try {
-        // Если нет активного чата — создаём на бэке
         if (!targetChatId) {
           const newChat = await createChat(text, controller.signal);
           targetChatId = newChat.id;
@@ -253,13 +256,24 @@ export default function App() {
           );
 
           setChats((prev) =>
-            [newChat, ...prev].sort((a, b) => b.updatedAt - a.updatedAt)
+            [{ ...newChat, messages: [optimisticUserMsg] }, ...prev].sort(
+              (a, b) => b.updatedAt - a.updatedAt
+            )
           );
           setActiveChatId(targetChatId);
         } else {
           controllersRef.current.set(targetChatId, controller);
           setLoadingChatIds((prev) =>
             prev.includes(targetChatId!) ? prev : [...prev, targetChatId!]
+          );
+
+          const chatId = targetChatId;
+          setChats((prev) =>
+            prev.map((c) =>
+              c.id === chatId
+                ? { ...c, messages: [...c.messages, optimisticUserMsg] }
+                : c
+            )
           );
         }
 
@@ -272,7 +286,6 @@ export default function App() {
         const finalChatId = targetChatId;
         const newMessages: Message[] = [userMsg];
 
-        // Если контекст был сжат — добавляем системное уведомление
         if (contextCompressed) {
           newMessages.push({
             id: `system-compress-${Date.now()}`,
@@ -288,10 +301,13 @@ export default function App() {
           prev
             .map((c) => {
               if (c.id !== finalChatId) return c;
+              const withoutOptimistic = c.messages.filter(
+                (m) => m.id !== optimisticUserMsg.id
+              );
               return {
                 ...c,
                 updatedAt: assistantMsg.timestamp,
-                messages: mergeUniqueMessages(c.messages, newMessages),
+                messages: mergeUniqueMessages(withoutOptimistic, newMessages),
               };
             })
             .sort((a, b) => b.updatedAt - a.updatedAt)

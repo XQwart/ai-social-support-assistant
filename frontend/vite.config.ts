@@ -26,7 +26,8 @@ export default defineConfig({
         target: "http://localhost:8000",
         changeOrigin: true,
       },
-      "/ai": {
+      // Только пути /ai/... — иначе /ai-assistant-avatar.png уходит на бэкенд (404)
+      "^/ai/": {
         target: "http://localhost:8000",
         changeOrigin: true,
       },

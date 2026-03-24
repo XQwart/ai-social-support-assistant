@@ -14,7 +14,6 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* ===== Scrollbar ===== */
 .custom-scrollbar::-webkit-scrollbar {
   width: 5px;
 }
@@ -29,7 +28,6 @@ body {
   background: rgba(0, 0, 0, 0.25);
 }
 
-/* ===== Animated glow blob behind title (like on screenshot) ===== */
 @keyframes glowMove {
   0% {
     transform: translate(-50%, -50%) scale(1) rotate(0deg);
@@ -75,7 +73,6 @@ body {
   animation: glowMove 10s ease-in-out infinite, glowColor 8s ease-in-out infinite;
 }
 
-/* ===== Typing cursor ===== */
 @keyframes blink {
   0%, 50% { opacity: 1; }
   51%, 100% { opacity: 0; }
@@ -90,7 +87,6 @@ body {
   animation: blink 0.8s step-end infinite;
 }
 
-/* ===== Message appear ===== */
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -105,7 +101,6 @@ body {
   animation: fadeInUp 0.35s ease-out forwards;
 }
 
-/* ===== Liquid Glass (Apple-style) ===== */
 .liquid-glass {
   background: rgba(255, 255, 255, 0.18);
   backdrop-filter: blur(40px) saturate(180%);
@@ -129,7 +124,6 @@ body {
   pointer-events: none;
 }
 
-/* ===== Sidebar slide ===== */
 @keyframes slideIn {
   from { transform: translateX(-100%); }
   to { transform: translateX(0); }

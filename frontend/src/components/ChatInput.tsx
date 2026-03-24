@@ -43,7 +43,6 @@ export default function ChatInput({
     const trimmed = value.trim();
     if (!trimmed || isLoading) return;
 
-    // Если не авторизован — перенаправляем на авторизацию
     if (!isAuthenticated) {
       onAuthRequired?.();
       return;

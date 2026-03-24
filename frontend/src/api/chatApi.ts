@@ -39,8 +39,6 @@ async function ensureOk(res: Response, fallback: string): Promise<void> {
   }
 }
 
-// ==================== ЧАТЫ ====================
-
 export async function createChat(
   content: string,
   signal?: AbortSignal
@@ -127,7 +125,6 @@ export async function sendMessageToChat(
   content: string,
   signal?: AbortSignal
 ): Promise<{ userMsg: Message; assistantMsg: Message; contextCompressed: boolean }> {
-  // Один POST — бэкенд сам генерирует AI-ответ и возвращает оба сообщения
   const res = await fetch(`${API_BASE}/chats/${chatId}/messages`, {
     method: "POST",
     headers: getAuthHeaders(),

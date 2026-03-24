@@ -190,10 +190,8 @@ export default function Sidebar({
           </button>
         </div>
 
-        {/* Content area — authenticated vs not */}
         {isAuthenticated ? (
           <>
-            {/* Search */}
             <div className="relative z-10 px-4 pb-3">
               <div className="flex items-center gap-2 rounded-2xl border border-white/65 bg-white/50 px-3 py-2.5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.45)]">
                 <svg
@@ -219,7 +217,6 @@ export default function Sidebar({
               </div>
             </div>
 
-            {/* New chat */}
             <div className="relative z-10 px-4 pb-4">
               <button
                 type="button"
@@ -246,7 +243,6 @@ export default function Sidebar({
               </button>
             </div>
 
-            {/* Chat list */}
             <div className="relative z-10 custom-scrollbar flex-1 overflow-y-auto px-3 pb-4">
               {Object.entries(groupedChats).map(([groupLabel, groupChats]) => (
                 <div key={groupLabel} className="mb-4">
@@ -327,7 +323,6 @@ export default function Sidebar({
               )}
             </div>
 
-            {/* User card at bottom */}
             <div className="relative z-10 border-t border-white/55 px-4 py-4">
               <div className="flex items-center gap-3 rounded-2xl border border-white/70 bg-white/58 p-3 shadow-[0_10px_25px_rgba(15,23,42,0.04)] backdrop-blur-xl">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,#34d399_0%,#14b8a6_100%)] text-sm font-bold text-white shadow-[0_10px_24px_rgba(16,185,129,0.24)]">
@@ -345,9 +340,7 @@ export default function Sidebar({
             </div>
           </>
         ) : (
-          /* ===== NOT AUTHENTICATED — blurred overlay ===== */
           <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6">
-            {/* Blurred fake chat list behind */}
             <div className="pointer-events-none absolute inset-0 overflow-hidden px-3 pt-2 opacity-40">
               <div className="space-y-3">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -363,7 +356,6 @@ export default function Sidebar({
               </div>
             </div>
 
-            {/* Message + login button */}
             <div className="relative z-10 flex flex-col items-center text-center">
               <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/60 bg-white/50">
                 <svg

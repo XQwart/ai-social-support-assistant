@@ -1,15 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 interface TypingAnimationProps {
   text: string;
   speed?: number;
   onComplete?: () => void;
+  children: (displayed: string, done: boolean) => ReactNode;
 }
+
+const TYPING_SPEED_DEFAULT = 14;
 
 export default function TypingAnimation({
   text,
-  speed = 14,
+  speed = TYPING_SPEED_DEFAULT,
   onComplete,
+  children,
 }: TypingAnimationProps) {
   const [displayed, setDisplayed] = useState("");
   const [done, setDone] = useState(false);
@@ -34,9 +38,7 @@ export default function TypingAnimation({
     setDone(false);
 
     const step = () => {
-      if (cancelled) {
-        return;
-      }
+      if (cancelled) return;
 
       currentIndex += 1;
       setDisplayed(text.slice(0, currentIndex));
@@ -59,10 +61,5 @@ export default function TypingAnimation({
     };
   }, [text, speed, onComplete]);
 
-  return (
-    <span>
-      {displayed}
-      {!done && <span className="typing-cursor" aria-hidden="true" />}
-    </span>
-  );
+  return <>{children(displayed, done)}</>;
 }

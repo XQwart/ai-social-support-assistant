@@ -18,9 +18,7 @@ export default function ChatView({
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) {
-      return;
-    }
+    if (!container) return;
 
     container.scrollTo({
       top: container.scrollHeight,
@@ -33,7 +31,7 @@ export default function ChatView({
       ref={containerRef}
       className="custom-scrollbar flex-1 overflow-y-auto px-3 pb-4 pt-24 md:px-5 md:pt-28"
     >
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-1">
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
         {chat.messages.map((message) => (
           <ChatMessage
             key={message.id}

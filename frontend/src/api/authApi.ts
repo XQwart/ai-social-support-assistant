@@ -5,10 +5,6 @@ export interface AuthResponse {
   token: string;
 }
 
-/**
- * Авторизация через заглушку POST /auth/login
- * Бэкенд создаёт захардкоженного пользователя и возвращает JWT
- */
 export async function loginRequest(): Promise<AuthResponse> {
   const res = await fetch(`${API_BASE}/auth/login`, {
     method: "POST",

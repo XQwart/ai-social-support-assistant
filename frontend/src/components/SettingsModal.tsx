@@ -72,9 +72,7 @@ export default function SettingsModal({
           height: "560px",
         }}
       >
-        {/* Left sidebar */}
         <div className="flex w-[200px] flex-shrink-0 flex-col border-r border-slate-100/80 bg-white/30 p-4">
-          {/* Close button */}
           <button
             onClick={onClose}
             className="mb-4 flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-100/60 hover:text-slate-600"
@@ -95,7 +93,6 @@ export default function SettingsModal({
             </svg>
           </button>
 
-          {/* Nav items */}
           <nav className="flex flex-col gap-1">
             {tabs.map((t) => (
               <button
@@ -116,7 +113,6 @@ export default function SettingsModal({
             ))}
           </nav>
 
-          {/* Logout at bottom */}
           <div className="mt-auto pt-4">
             <button
               onClick={onLogout}
@@ -132,14 +128,12 @@ export default function SettingsModal({
           </div>
         </div>
 
-        {/* Right content */}
         <div className="flex-1 p-6">
           {activeTab === "general" && (
             <>
               <h3 className="mb-6 text-lg font-bold text-slate-800">Общие</h3>
 
               <div className="space-y-5">
-                {/* Внешний вид */}
                 <div className="flex items-center justify-between">
                   <span className="text-[14px] font-medium text-slate-700">
                     Внешний вид
@@ -151,7 +145,6 @@ export default function SettingsModal({
 
                 <div className="h-px bg-slate-100/80" />
 
-                {/* Модель ИИ */}
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-[14px] font-medium text-slate-700">
@@ -168,7 +161,6 @@ export default function SettingsModal({
 
                 <div className="h-px bg-slate-100/80" />
 
-                {/* Сквозное контекстное меню */}
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-[14px] font-medium text-slate-700">
