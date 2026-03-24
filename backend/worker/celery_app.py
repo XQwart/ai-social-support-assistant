@@ -1,22 +1,28 @@
+import logging
+
 from celery import Celery
 from celery.schedules import crontab
-from celery.signals import worker_process_init
+from celery.signals import setup_logging as celery_setup_logging
 
 from app.core.config import get_config
-from app.core.logger import setup_logging
 
 config = get_config()
 
 
-@worker_process_init.connect
-def init_worker(**kwargs):
-    setup_logging(level=config.log_level)
+@celery_setup_logging.connect
+def on_setup_logging(**kwargs):
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        force=True,
+    )
 
 
 app = Celery(
     "worker",
     broker=config.redis_celery_url,
     backend=config.redis_celery_url,
+    include=["worker.tasks.update_knowledge"],
 )
 
 app.conf.update(
@@ -25,12 +31,11 @@ app.conf.update(
     result_serializer="json",
     timezone="Europe/Moscow",
     enable_utc=True,
-    # Не теряем задачи при перезапуске
     task_acks_late=True,
     worker_prefetch_multiplier=1,
+    worker_hijack_root_logger=False,
 )
 
-# Celery Beat: запуск обновления базы знаний каждые 3 дня
 app.conf.beat_schedule = {
     "update-knowledge-base-every-3-days": {
         "task": "worker.tasks.parsing.update_knowledge_base",
@@ -38,6 +43,3 @@ app.conf.beat_schedule = {
         "options": {"queue": "default"},
     },
 }
-
-# Автоматически находим задачи
-app.autodiscover_tasks(["worker.tasks"])
