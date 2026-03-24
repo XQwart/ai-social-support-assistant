@@ -5,16 +5,13 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from app.repositories.message import MessageRepository
     from app.models.message import Message, MessageRole
-    from app.core.config import Config
 
 
 class MessageService:
     _message_repo: MessageRepository
-    _config: Config
 
-    def __init__(self, message_repo: MessageRepository, config: Config):
+    def __init__(self, message_repo: MessageRepository):
         self._message_repo = message_repo
-        self._config = config
 
     async def get_messages(
         self, chat_id: int, limit: int, offset: int, asc: bool = True

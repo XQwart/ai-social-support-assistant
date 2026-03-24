@@ -19,7 +19,7 @@ async def get_all_chat_messages(
     limit: int = Query(100),
     offset: int = Query(0),
 ) -> ChatMessageResponse:
-    messages = await message_service.get_all_messages(
+    messages = await message_service.get_messages(
         chat_id=chat.id, limit=limit, offset=offset
     )
 

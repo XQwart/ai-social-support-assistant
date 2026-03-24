@@ -49,7 +49,7 @@ class ConversationService:
             chat_id=chat.id, message=ai_response, role=MessageRole.ASSISTANT
         )
 
-        await self._chat_service.update_chat(chat.id)
+        await self._chat_service.update_chat(chat)
 
         return user_msg, assistant_msg, was_compressed
 
@@ -65,7 +65,7 @@ class ConversationService:
 
             return self._to_history(messages), None, False
 
-        if messages_count % self._config.summary_limit == 1:
+        if messages_count % self._config.summary_limit <= 1:
             messages = await self._message_service.get_messages(
                 chat_id=chat.id, limit=self._config.context_size, offset=1, asc=False
             )

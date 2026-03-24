@@ -30,10 +30,10 @@ class MessageRepository:
 
     async def count_messages_by_chat(self, chat_id) -> int:
         result = await self._session.execute(
-            select(func.count).select_from(Message).where(Message.chat_id == chat_id)
+            select(func.count()).select_from(Message).where(Message.chat_id == chat_id)
         )
 
-        return result.scalar()
+        return result.scalar_one()
 
     async def get_by_chat(
         self, chat_id: int, limit: int = 100, offset: int = 0, asc: bool = True
