@@ -4,7 +4,7 @@ from celery import Celery
 from celery.schedules import crontab
 from celery.signals import setup_logging as celery_setup_logging
 
-from app.core.config import get_config
+from worker.core.config import get_config
 
 config = get_config()
 

@@ -34,10 +34,6 @@ class Config(BaseSettings):
     def redis_url(self) -> str:
         return self._get_redis_url(0)
 
-    @property
-    def redis_celery_url(self) -> str:
-        return self._get_redis_url(1)
-
     sber_token_url: str = ""
     sber_redirect_uri: str = ""
     sber_userinfo_url: str = ""
