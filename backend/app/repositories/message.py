@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from app.models.message import Message, MessageRole
 
@@ -28,13 +28,22 @@ class MessageRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_all_by_chat(
-        self, chat_id: int, limit: int = 100, offset: int = 0
+    async def count_messages_by_chat(self, chat_id) -> int:
+        result = await self._session.execute(
+            select(func.count).select_from(Message).where(Message.chat_id == chat_id)
+        )
+
+        return result.scalar()
+
+    async def get_by_chat(
+        self, chat_id: int, limit: int = 100, offset: int = 0, asc: bool = True
     ) -> list[Message]:
+        order_by = Message.created_at.asc() if asc else Message.created_at.desc()
+
         result = await self._session.execute(
             select(Message)
             .where(Message.chat_id == chat_id)
-            .order_by(Message.created_at.asc())
+            .order_by(order_by)
             .limit(limit)
             .offset(offset)
         )

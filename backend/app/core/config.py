@@ -60,6 +60,9 @@ class Config(BaseSettings):
     polza_ai_base_url: str = "https://polza.ai/api/v1"
     polza_ai_model: str = "xiaomi/mimo-v2-flash"
 
+    context_size: int = 64
+    summary_limit: int = 10
+
     def _get_redis_url(self, database_num: int) -> str:
         return f"redis://{self.redis_host}:{self.redis_port}/{database_num}"
 

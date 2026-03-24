@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from worker.celery_app import app
 from worker.parsers.site_parser import parse_site_with_metadata
 from app.core.constants import SOURCES_JSON, FAQ_JSON, CHUCK_JSON
-from app.services.ai_service import AIService
+from app.services.ai import AIService
 from app.core.config import get_config
 
 logger = logging.getLogger(__name__)

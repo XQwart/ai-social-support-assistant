@@ -5,6 +5,8 @@ from fastapi import Depends
 from app.services.chat import ChatService
 from app.services.auth import AuthService
 from app.services.message import MessageService
+from app.services.conversation import ConversationService
+from app.services.ai import AIService
 from app.dependencies.config import ConfigDep
 from app.dependencies.repositories import (
     UserRepoDep,
@@ -32,6 +34,23 @@ def get_chat_service(chat_rep: ChatRepoDep) -> ChatService:
     return ChatService(chat_rep)
 
 
+def get_conversation_service(
+    ai_service: "AIServiceDep",
+    message_service: "MessageServiceDep",
+    chat_service: "ChatServiceDep",
+    config: ConfigDep,
+) -> ConversationService:
+    return ConversationService(ai_service, message_service, chat_service, config)
+
+
+def get_ai_service(config: ConfigDep) -> AIService:
+    return AIService(config)
+
+
+AIServiceDep = Annotated[AIService, Depends(get_ai_service)]
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 ChatServiceDep = Annotated[ChatService, Depends(get_chat_service)]
 MessageServiceDep = Annotated[MessageService, Depends(get_message_service)]
+ConversationServiceDep = Annotated[
+    ConversationService, Depends(get_conversation_service)
+]

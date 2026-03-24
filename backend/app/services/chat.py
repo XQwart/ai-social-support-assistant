@@ -27,7 +27,9 @@ class ChatService:
     async def get_chats(
         self, user_id: int, limit: int, offset: int
     ) -> tuple[list[Chat], int]:
-        chats = await self._chat_rep.get_all_by_user(user_id=user_id)
+        chats = await self._chat_rep.get_all_by_user(
+            user_id=user_id, limit=limit, offset=offset
+        )
 
         return chats, len(chats)
 
@@ -37,5 +39,7 @@ class ChatService:
     async def get_chat(self, chat_id: int) -> Chat:
         return await self._chat_rep.get_by_id(chat_id=chat_id)
 
-    async def update_chat(self, chat_id: int, title: str | None = None) -> None:
-        await self._chat_rep.update(chat_id=chat_id, title=title)
+    async def update_chat(
+        self, chat: Chat, compressed_context: str | None = None
+    ) -> None:
+        await self._chat_rep.update(chat=chat, compressed_context=compressed_context)

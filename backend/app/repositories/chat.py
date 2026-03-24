@@ -20,10 +20,12 @@ class ChatRepository:
         self._session.add(chat)
         await self._session.commit()
         await self._session.refresh(chat)
+
         return chat
 
     async def get_by_id(self, chat_id: int) -> Chat | None:
         result = await self._session.execute(select(Chat).where(Chat.id == chat_id))
+
         return result.scalar_one_or_none()
 
     async def get_all_by_user(
@@ -36,16 +38,14 @@ class ChatRepository:
             .limit(limit)
             .offset(offset)
         )
+
         return list(result.scalars().all())
 
-    async def update(self, chat_id: int, title: str | None = None) -> Chat | None:
-        chat = await self._session.get(Chat, chat_id)
-
-        if not chat:
-            return None
-
-        if title is not None:
-            chat.title = title[:255]
+    async def update(
+        self, chat: Chat, compressed_context: str | None = None
+    ) -> Chat | None:
+        if compressed_context is not None:
+            chat.compressed_context = compressed_context
 
         await self._session.commit()
         await self._session.refresh(chat)
@@ -59,4 +59,5 @@ class ChatRepository:
 
         await self._session.delete(chat)
         await self._session.commit()
+
         return True
