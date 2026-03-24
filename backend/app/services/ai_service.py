@@ -160,7 +160,7 @@ class AIService:
                 "Произошла ошибка при генерации ответа. Пожалуйста, попробуйте позже."
             )
 
-        except Exception as e:
+        except Exception:
             logger.exception("Критическая ошибка при обращении к ИИ")
             return (
                 "К сожалению, не удалось получить ответ от ИИ. "
@@ -198,65 +198,3 @@ class AIService:
         except Exception as e:
             logger.error("Ошибка сжатия контекста: %s", e)
             return messages_text[:1000]
-
-    def extract_faq_from_texts(self, texts: list[dict]) -> list[dict]:
-        logger.info("Начало извлечения FAQ из %d текстов", len(texts))
-        combined = "\n\n---\n\n".join(
-            f"Источник: {t.get('source_url', 'N/A')}\n"
-            f"Регион: {t.get('region', 'N/A')}\n"
-            f"Текст:\n{t.get('text', '')[:3000]}"
-            for t in texts
-        )
-
-        try:
-            completion = self._create_client(timeout=120.0).chat.completions.create(
-                model=self._model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": (
-                            "Проанализируй тексты о мерах социальной поддержки. "
-                            "Извлеки пары «вопрос-ответ» в формате JSON-массива:\n"
-                            "[\n"
-                            "  {\n"
-                            '    "question": "Вопрос, который может задать гражданин",\n'
-                            '    "answer": "Точный ответ из текста",\n'
-                            '    "source_url": "URL источника",\n'
-                            '    "region": "Регион",\n'
-                            '    "category": "категория"\n'
-                            "  }\n"
-                            "]\n"
-                            "Категории: семьи_с_детьми, пенсионеры, инвалиды, "
-                            "ветераны, малоимущие, жку, общие.\n"
-                            "Возвращай ТОЛЬКО JSON-массив, без Markdown-обёрток."
-                        ),
-                    },
-                    {"role": "user", "content": combined},
-                ],
-                temperature=0.1,
-                max_tokens=4096,
-            )
-
-            raw = completion.choices[0].message.content or "[]"
-            raw = raw.strip()
-
-            if raw.startswith("```"):
-                lines = raw.split("\n", 1)
-                raw = lines[1] if len(lines) > 1 else raw[3:]
-            if raw.endswith("```"):
-                raw = raw[:-3]
-            raw = raw.strip()
-
-            result = json.loads(raw)
-            logger.info("Успешно извлечено %d пар FAQ", len(result))
-            return result
-        except json.JSONDecodeError as e:
-            logger.error(
-                "Ошибка декодирования JSON при извлечении FAQ: %s. Raw content: %s",
-                e,
-                raw[:200],
-            )
-            return []
-        except Exception as e:
-            logger.exception("Непредвиденная ошибка при извлечении FAQ")
-            return []
