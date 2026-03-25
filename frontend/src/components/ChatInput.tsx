@@ -60,7 +60,7 @@ export default function ChatInput({
         "w-full",
         mode === "hero"
           ? "mx-auto max-w-[760px]"
-          : "mx-auto max-w-4xl px-3 pb-3 pt-3 md:px-4 md:pb-4"
+          : "mx-auto max-w-4xl px-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-3 md:px-4 md:pb-4"
       )}
     >
       <div
@@ -68,7 +68,7 @@ export default function ChatInput({
           "relative flex min-h-[58px] items-center gap-3 overflow-hidden rounded-[28px] border px-4 py-2.5 shadow-[0_10px_35px_rgba(15,23,42,0.05)] backdrop-blur-2xl transition-all",
           mode === "hero"
             ? "bg-white/84 border-white/80"
-            : "bg-white/76 border-white/72"
+            : "bg-white/86 border-white/84 shadow-[0_16px_40px_rgba(15,23,42,0.08)]"
         )}
       >
         <div
@@ -76,7 +76,9 @@ export default function ChatInput({
           aria-hidden="true"
           style={{
             background:
-              "linear-gradient(180deg, rgba(255,255,255,0.56) 0%, rgba(255,255,255,0.12) 100%)",
+              mode === "hero"
+                ? "linear-gradient(180deg, rgba(255,255,255,0.56) 0%, rgba(255,255,255,0.12) 100%)"
+                : "linear-gradient(180deg, rgba(255,255,255,0.68) 0%, rgba(255,255,255,0.18) 100%)",
           }}
         />
 

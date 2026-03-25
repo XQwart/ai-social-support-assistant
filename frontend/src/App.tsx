@@ -385,7 +385,7 @@ export default function App() {
   const handleCloseSidebar = useCallback(() => setIsSidebarOpen(false), []);
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[var(--app-bg)] text-slate-900">
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-[var(--app-bg)] text-slate-900">
       <div className="app-background" aria-hidden="true">
         <div className="app-bg-spot app-bg-spot-one" />
         <div className="app-bg-spot app-bg-spot-two" />
@@ -414,7 +414,7 @@ export default function App() {
         userInitial={userInitial}
       />
 
-      <div className="relative z-10 flex min-h-screen flex-col">
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col">
         {showHome ? (
           <HomePage
             onSend={handleSend}
@@ -423,15 +423,18 @@ export default function App() {
             onAuthRequired={handleOpenAuth}
           />
         ) : (
-          <>
-            {activeChat && (
-              <ChatView
-                chat={activeChat}
-                isLoading={isCurrentChatLoading}
-                animatedMessageId={animatedMessageId}
-              />
-            )}
-            <div className="sticky bottom-0 z-20 border-t border-white/35 bg-[linear-gradient(180deg,rgba(239,248,243,0.2),rgba(239,248,243,0.88))] backdrop-blur-2xl">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="min-h-0 flex-1">
+              {activeChat && (
+                <ChatView
+                  chat={activeChat}
+                  isLoading={isCurrentChatLoading}
+                  animatedMessageId={animatedMessageId}
+                />
+              )}
+            </div>
+
+            <div className="z-20 border-t border-white/35 bg-[linear-gradient(180deg,rgba(239,248,243,0.22),rgba(239,248,243,0.92))] shadow-[0_-18px_48px_rgba(15,23,42,0.08)] backdrop-blur-2xl">
               <ChatInput
                 onSend={handleSend}
                 isLoading={isCurrentChatLoading}
@@ -440,9 +443,10 @@ export default function App() {
                 isAuthenticated={isAuthenticated}
                 onAuthRequired={handleOpenAuth}
               />
+
               <AppDisclaimer className="px-4 pb-4" />
             </div>
-          </>
+          </div>
         )}
       </div>
 

@@ -79,7 +79,7 @@ export function AssistantAvatar({
   return (
     <div
       className={cn(
-        "select-none mt-1 flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border shadow-[0_6px_18px_rgba(15,23,42,0.05)]",
+        "select-none mt-0.5 flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border shadow-[0_8px_24px_rgba(15,23,42,0.08)] md:h-14 md:w-14",
         variant === "error"
           ? "border-rose-200 bg-rose-50"
           : "border-slate-200/90 bg-white",
@@ -91,7 +91,7 @@ export function AssistantAvatar({
           src={AVATAR_SRC}
           alt=""
           draggable={false}
-          className="h-full w-full origin-center object-cover object-center scale-[1.55]"
+          className="h-full w-full origin-center object-cover object-center scale-[1.42]"
           onDragStart={(e) => e.preventDefault()}
           onError={() => setImageFailed(true)}
         />
