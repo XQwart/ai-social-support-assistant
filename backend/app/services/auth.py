@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 import secrets
 import uuid
 import logging
+from ssl import SSLContext
 
 from fastapi import HTTPException
 import httpx
@@ -27,6 +28,7 @@ class AuthService:
     _user_rep: UserRepository
     _access_token_util: JWTTokenUtil
     _refresh_token_util: JWTTokenUtil
+    _ssl_sber_ctx: SSLContext
 
     def __init__(
         self,
@@ -36,6 +38,7 @@ class AuthService:
         user_rep: UserRepository,
         access_token_util: JWTTokenUtil,
         refresh_token_util: JWTTokenUtil,
+        ssl_sber_ctx: SSLContext,
     ):
         self._config = config
         self._oauth_rep = ouath_rep
@@ -43,6 +46,7 @@ class AuthService:
         self._user_rep = user_rep
         self._access_token_util = access_token_util
         self._refresh_token_util = refresh_token_util
+        self._ssl_sber_ctx = ssl_sber_ctx
 
     async def get_and_save_state_and_nonce(self) -> dict[str, str]:
         state = secrets.token_urlsafe(32)
@@ -62,7 +66,7 @@ class AuthService:
     async def exchange_code_for_token(self, code: str) -> SberTokenData:
         rquid = uuid.uuid4().hex
 
-        async with httpx.AsyncClient(verify=self._config.sber_ca_path) as client:
+        async with httpx.AsyncClient(verify=self._ssl_sber_ctx) as client:
             token_res = await client.post(
                 self._config.sber_token_url,
                 data={
@@ -75,7 +79,7 @@ class AuthService:
                 headers={
                     "Content-Type": "application/x-www-form-urlencoded",
                     "Accept": "application/json",
-                    "rquid": rquid,
+                    "RqUID": rquid,
                 },
             )
 
@@ -86,12 +90,13 @@ class AuthService:
                     token_res.status_code,
                     token_res.text,
                 )
+
                 raise HTTPException(
                     status_code=token_res.status_code,
                     detail=f"Sber error: {token_res.text}",
                 )
-
             logger.info("Sber token exchange success")
+
             return SberTokenData(**token_res.json())
 
     async def validate_id_token(
@@ -104,10 +109,10 @@ class AuthService:
             raise HTTPException(400, "Invalid aud")
         logger.debug("id_token validated successfully")
 
-    async def login(self, bank_access_token: str) -> str:
+    async def process_user(self, bank_access_token: str) -> str:
         rquid = uuid.uuid4().hex
 
-        async with httpx.AsyncClient(verify=self._config.sber_ca_path) as client:
+        async with httpx.AsyncClient(verify=self._ssl_sber_ctx) as client:
             userinfo_res = await client.get(
                 self._config.sber_userinfo_url,
                 headers={
@@ -129,7 +134,19 @@ class AuthService:
         code = secrets.token_urlsafe(32)
         await self._oauth_rep.save_code(user.id, user.bank_id, code)
         logger.debug("Auth code saved for user")
+
         return code
+
+    async def login_user(self, token_code: str) -> ...:
+        code_data = await self._oauth_rep.get_code(code=token_code)
+        if code_data is None:
+            raise HTTPException(400, "Invalid code")
+
+        user_id, _ = code_data
+
+        access, refresh = await self._generate_and_save_tokens(user_id=user_id)
+
+        return access, refresh
 
     async def refresh(self, refresh_token: str | None) -> tuple[str, str]:
         if refresh_token is None:
@@ -141,18 +158,13 @@ class AuthService:
 
         user_id = payload["sub"]
         refresh_jti = payload["jti"]
-        is_exists = await self._token_rep.exists(user_id=user_id, jti=refresh_jti)
-        if not is_exists:
+        is_removed = await self._token_rep.remove(user_id=user_id, jti=refresh_jti)
+        if not is_removed:
             raise HTTPException(401, "Unauthorized")
 
-        access_token = self._access_token_util.generate(user_id=user_id)
-        new_refresh_token = self._refresh_token_util.generate(
-            user_id=user_id, extra={"jti": refresh_jti}
-        )
+        access, refresh = await self._generate_and_save_tokens(user_id=user_id)
 
-        await self._token_rep.save(user_id=user_id, jti=refresh_jti)
-
-        return access_token, new_refresh_token
+        return access, refresh
 
     async def logout(self, refresh_token: str | None) -> None:
         if refresh_token is None:
@@ -167,4 +179,14 @@ class AuthService:
 
         await self._token_rep.remove(user_id=user_id, jti=refresh_jti)
 
-        return
+    async def _generate_and_save_tokens(self, user_id: int) -> tuple[str, str]:
+        refresh_jti = self._refresh_token_util.generate_jti()
+
+        access_token = self._access_token_util.generate(user_id=user_id)
+        refresh_token = self._refresh_token_util.generate(
+            user_id=user_id, extra={"jti": refresh_jti}
+        )
+
+        await self._token_rep.save(user_id=user_id, jti=refresh_jti)
+
+        return access_token, refresh_token

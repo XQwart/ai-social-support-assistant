@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Query, Cookie, HTTPException
+from fastapi import APIRouter, Query, Cookie
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 
-from app.dependencies.auth import AuthDep
 from app.dependencies.services import AuthServiceDep
 from app.dependencies.config import ConfigDep
 
@@ -24,7 +23,8 @@ async def get_params(auth_service: AuthServiceDep, config: ConfigDep):
         {
             "client_id": config.client_id,
             "redirect_uri": config.sber_redirect_uri,
-            "scopes": "openid name",
+            "scopes": config.sber_scopes,
+            "name": config.sber_application_name,
             "response_type": "code",
             **params,
         }
@@ -43,9 +43,23 @@ async def sber_callback(
     token_data = await auth_service.exchange_code_for_token(code)
     await auth_service.validate_id_token(token_data.id_token, nonce, config.client_id)
 
-    code = await auth_service.login(token_data.access_token)
+    login_code = await auth_service.process_user(token_data.access_token)
 
-    return RedirectResponse(url=f"{config.frontend_success_login_url}?code={code}")
+    return RedirectResponse(
+        url=f"{config.frontend_success_login_url}?code={login_code}"
+    )
+
+
+@router.get("/exchange")
+async def exchange_code(auth_service: AuthServiceDep, token_code: str = Query(...)):
+    access_token, refresh_token = await auth_service.login_user(token_code=token_code)
+
+    response = JSONResponse(
+        content={"message": "Успешная авторизация", "token": access_token}
+    )
+    set_refresh_cookie(response, refresh_token)
+
+    return response
 
 
 @router.post("/refresh")
@@ -76,35 +90,36 @@ async def logout(
     return response
 
 
-@router.post("/login")
-async def login(
-    user_repo: UserRepoDep,
-    token_repo: TokenRedisRepoDep,
-    access_token_util: AccessTokenDep,
-    refresh_token_util: RefreshTokenDep,
-) -> JSONResponse:  # Затычка
-    bank_id = "wythdgsraferi4538trfhsa7837hfas"
-    name = "Ivan"
-    last_name = "Ivanov"
+# TODO: Удалить
+# @router.post("/login")
+# async def login(
+#     user_repo: UserRepoDep,
+#     token_repo: TokenRedisRepoDep,
+#     access_token_util: AccessTokenDep,
+#     refresh_token_util: RefreshTokenDep,
+# ) -> JSONResponse:  # Затычка
+#     bank_id = "wythdgsraferi4538trfhsa7837hfas"
+#     name = "Ivan"
+#     last_name = "Ivanov"
 
-    user = await user_repo.get_by_bank_id(bank_id=bank_id)
-    if user is None:
-        user = await user_repo.create(
-            bank_id=bank_id, first_name=name, second_name=last_name
-        )
+#     user = await user_repo.get_by_bank_id(bank_id=bank_id)
+#     if user is None:
+#         user = await user_repo.create(
+#             bank_id=bank_id, first_name=name, second_name=last_name
+#         )
 
-    refresh_jti = refresh_token_util.generate_jti()
+#     refresh_jti = refresh_token_util.generate_jti()
 
-    access_token = access_token_util.generate(user_id=user.id)
-    refresh_token = refresh_token_util.generate(
-        user_id=user.id, extra={"jti": refresh_jti}
-    )
+#     access_token = access_token_util.generate(user_id=user.id)
+#     refresh_token = refresh_token_util.generate(
+#         user_id=user.id, extra={"jti": refresh_jti}
+#     )
 
-    await token_repo.save(user_id=user.id, jti=refresh_jti)
+#     await token_repo.save(user_id=user.id, jti=refresh_jti)
 
-    response = JSONResponse(
-        content={"message": "Успешная авторизация", "token": access_token}
-    )
-    set_refresh_cookie(response, refresh_token)
+#     response = JSONResponse(
+#         content={"message": "Успешная авторизация", "token": access_token}
+#     )
+#     set_refresh_cookie(response, refresh_token)
 
-    return response
+#     return response

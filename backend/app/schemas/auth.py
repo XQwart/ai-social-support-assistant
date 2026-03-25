@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class SberTokenData(BaseModel):
@@ -6,13 +6,15 @@ class SberTokenData(BaseModel):
     token_type: str
     expires_in: int
     id_token: str
-    refresh_token: str
+    refresh_token: str | None = None
+
+    model_config = ConfigDict(extra="ignore")
 
 
 class SberUserInfo(BaseModel):
     sub: str
-    given_name: str | None = None
-    family_name: str | None = None
+    given_name: str
+    family_name: str
 
 
 class TokenDataOut(BaseModel):

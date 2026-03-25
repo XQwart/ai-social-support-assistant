@@ -30,5 +30,5 @@ class OauthRepository:
         if not data:
             return None
 
-        user_id_str, sber_id = data.decode().split(":", 1)
+        user_id_str, sber_id = data.split(":", 1)
         return int(user_id_str), sber_id

@@ -39,9 +39,12 @@ class Config(BaseSettings):
     sber_userinfo_url: str = ""
     client_id: str = ""
     client_secret: str = ""
-    token_endpoint_auth_method: str = "client_secret_post"
+    sber_scopes: str = "openid name"
+    sber_application_name: str = "ИИ-помощник по социальной поддержке"
 
-    sber_ca_path: str = str(CERT_DIR / "sber_ift_ca.pem")
+    sber_ca_cert_path: str = str(CERT_DIR / "sber_ift_ca.pem")
+    sber_client_cert_path: str = str(CERT_DIR / "sber_client_cert.crt")
+    sber_client_key_path: str = str(CERT_DIR / "private.key")
 
     frontend_success_login_url: str = ""
 
