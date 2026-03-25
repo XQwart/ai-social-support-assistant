@@ -9,7 +9,7 @@ from app.schemas.message import (
 )
 
 
-router = APIRouter(prefix="/chats")
+router = APIRouter(prefix="/chats", tags=["Messages"])
 
 
 @router.get("/{chat_id}/messages", status_code=status.HTTP_200_OK)

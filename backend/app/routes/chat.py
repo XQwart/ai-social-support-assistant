@@ -6,7 +6,7 @@ from app.dependencies.auth import AuthDep
 from app.dependencies.services import ChatServiceDep
 from fastapi import HTTPException
 
-router = APIRouter(prefix="/chats")
+router = APIRouter(prefix="/chats", tags=["Chats"])
 
 
 @router.post("/")

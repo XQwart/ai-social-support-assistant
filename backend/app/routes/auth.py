@@ -13,7 +13,7 @@ from app.utils.auth import set_refresh_cookie, clear_refresh_cookie
 from app.dependencies.repositories import UserRepoDep, TokenRedisRepoDep
 from app.dependencies.jwt import AccessTokenDep, RefreshTokenDep
 
-router = APIRouter(prefix="/auth")
+router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
 @router.get("/sber/params")
