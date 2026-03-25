@@ -23,7 +23,9 @@ type SberidSDKInstance = {
   init: () => Promise<unknown>;
 };
 
-type SberidSDKConstructor = new (params: Record<string, unknown>) => SberidSDKInstance;
+type SberidSDKConstructor = new (
+  params: Record<string, unknown>
+) => SberidSDKInstance;
 
 declare global {
   interface Window {
@@ -31,29 +33,34 @@ declare global {
   }
 }
 
-function loadSberSdk(): Promise<SberidSDKConstructor> {
-  return new Promise((resolve, reject) => {
-    if (window.SberidSDK) {
-      resolve(window.SberidSDK);
-      return;
-    }
+const SBER_SDK_SRC = "https://id-ift.sber.ru/sdk/web/sberid-sdk.production.js";
+const SBER_CSS_HREF = "https://id-ift.sber.ru/sdk/web/styles/common.css";
 
+let sberSdkPromise: Promise<SberidSDKConstructor> | null = null;
+
+export function preloadSberSdk(): Promise<SberidSDKConstructor> {
+  if (window.SberidSDK) {
+    return Promise.resolve(window.SberidSDK);
+  }
+
+  if (sberSdkPromise) {
+    return sberSdkPromise;
+  }
+
+  sberSdkPromise = new Promise((resolve, reject) => {
     if (!document.getElementById("sberid-css")) {
       const link = document.createElement("link");
       link.id = "sberid-css";
       link.rel = "stylesheet";
-      link.href = "https://id-ift.sber.ru/sdk/web/styles/common.css";
+      link.href = SBER_CSS_HREF;
       document.head.appendChild(link);
     }
 
     const existingScript = document.getElementById("sberid-sdk-script");
     if (existingScript) {
       const waitForSdk = () => {
-        if (window.SberidSDK) {
-          resolve(window.SberidSDK);
-        } else {
-          setTimeout(waitForSdk, 50);
-        }
+        if (window.SberidSDK) resolve(window.SberidSDK);
+        else setTimeout(waitForSdk, 50);
       };
       waitForSdk();
       return;
@@ -61,18 +68,24 @@ function loadSberSdk(): Promise<SberidSDKConstructor> {
 
     const script = document.createElement("script");
     script.id = "sberid-sdk-script";
-    script.src = "https://id-ift.sber.ru/sdk/web/sberid-sdk.production.js";
+    script.src = SBER_SDK_SRC;
     script.async = true;
     script.onload = () => {
       if (window.SberidSDK) {
         resolve(window.SberidSDK);
       } else {
-        reject(new Error("SberID SDK загружен, но не инициализировался"));
+        sberSdkPromise = null;
+        reject(new Error("SberID SDK loaded but not initialized"));
       }
     };
-    script.onerror = () => reject(new Error("Не удалось загрузить SberID SDK"));
-    document.body.appendChild(script);
+    script.onerror = () => {
+      sberSdkPromise = null;
+      reject(new Error("Failed to load SberID SDK"));
+    };
+    document.head.appendChild(script);
   });
+
+  return sberSdkPromise;
 }
 
 export default function AuthModal({
@@ -109,9 +122,6 @@ export default function AuthModal({
       setIsSdkReady(false);
       setConsentChecked(false);
       setConsentError(false);
-      if (sberIdContainerRef.current) {
-        sberIdContainerRef.current.innerHTML = "";
-      }
       return;
     }
 
@@ -124,7 +134,7 @@ export default function AuthModal({
         setError("");
 
         const [SberidSDK, paramsRes] = await Promise.all([
-          loadSberSdk(),
+          preloadSberSdk(),
           fetch(`${API_BASE}/auth/sber/params`, {
             method: "GET",
             credentials: "include",
