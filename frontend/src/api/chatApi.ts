@@ -1,20 +1,58 @@
 import type { Chat, Message } from "@/types";
 import { UnauthorizedError } from "@/api/errors";
+import { refreshRequest } from "@/api/authApi";
 
 const API_BASE = import.meta.env.VITE_API_URL || "";
 const AUTH_TOKEN_KEY = "ai-social-support.auth.token";
 
-function getAuthHeaders(): Record<string, string> {
+let refreshPromise: Promise<string> | null = null;
+
+function mergeAuthHeaders(initHeaders?: HeadersInit): Headers {
+  const headers = new Headers(initHeaders || {});
   const token = localStorage.getItem(AUTH_TOKEN_KEY);
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
+
+  headers.set("Content-Type", "application/json");
 
   if (token) {
-    headers.Authorization = `Bearer ${token}`;
+    headers.set("Authorization", `Bearer ${token}`);
   }
 
   return headers;
+}
+
+async function getFreshAccessToken(): Promise<string> {
+  if (!refreshPromise) {
+    refreshPromise = refreshRequest().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+}
+
+async function authFetch(
+  input: RequestInfo | URL,
+  init: RequestInit = {}
+): Promise<Response> {
+  const res = await fetch(input, {
+    ...init,
+    headers: mergeAuthHeaders(init.headers),
+    credentials: "include",
+  });
+
+  if (res.status !== 401) {
+    return res;
+  }
+
+  const newToken = await getFreshAccessToken();
+
+  const headers = mergeAuthHeaders(init.headers);
+  headers.set("Authorization", `Bearer ${newToken}`);
+
+  return fetch(input, {
+    ...init,
+    headers,
+    credentials: "include",
+  });
 }
 
 function ts(dateStr: string): number {
@@ -43,12 +81,10 @@ export async function createChat(
   content: string,
   signal?: AbortSignal
 ): Promise<Chat> {
-  const res = await fetch(`${API_BASE}/chats/`, {
+  const res = await authFetch(`${API_BASE}/chats/`, {
     method: "POST",
-    headers: getAuthHeaders(),
     body: JSON.stringify({ content }),
     signal,
-    credentials: "include",
   });
 
   await ensureOk(res, "Не удалось создать чат");
@@ -69,10 +105,8 @@ export async function fetchChats(
   offset = 0,
   signal?: AbortSignal
 ): Promise<Chat[]> {
-  const res = await fetch(`${API_BASE}/chats/?limit=${limit}&offset=${offset}`, {
-    headers: getAuthHeaders(),
+  const res = await authFetch(`${API_BASE}/chats/?limit=${limit}&offset=${offset}`, {
     signal,
-    credentials: "include",
   });
 
   await ensureOk(res, "Не удалось загрузить список чатов");
@@ -100,10 +134,8 @@ export async function fetchMessages(
   chatId: string,
   signal?: AbortSignal
 ): Promise<Message[]> {
-  const res = await fetch(`${API_BASE}/chats/${chatId}/messages`, {
-    headers: getAuthHeaders(),
+  const res = await authFetch(`${API_BASE}/chats/${chatId}/messages`, {
     signal,
-    credentials: "include",
   });
 
   await ensureOk(res, "Не удалось загрузить сообщения");
@@ -125,12 +157,10 @@ export async function sendMessageToChat(
   content: string,
   signal?: AbortSignal
 ): Promise<{ userMsg: Message; assistantMsg: Message; contextCompressed: boolean }> {
-  const res = await fetch(`${API_BASE}/chats/${chatId}/messages`, {
+  const res = await authFetch(`${API_BASE}/chats/${chatId}/messages`, {
     method: "POST",
-    headers: getAuthHeaders(),
     body: JSON.stringify({ content }),
     signal,
-    credentials: "include",
   });
 
   await ensureOk(res, "Не удалось отправить сообщение");
@@ -162,11 +192,9 @@ export async function deleteChat(
   chatId: string,
   signal?: AbortSignal
 ): Promise<void> {
-  const res = await fetch(`${API_BASE}/chats/${chatId}`, {
+  const res = await authFetch(`${API_BASE}/chats/${chatId}`, {
     method: "DELETE",
-    headers: getAuthHeaders(),
     signal,
-    credentials: "include",
   });
 
   await ensureOk(res, "Не удалось удалить чат");

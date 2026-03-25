@@ -6,8 +6,11 @@ import {
   fetchMessages,
   sendMessageToChat,
 } from "@/api/chatApi";
+import { preloadSberSdk } from "@/components/AuthModal";
 import AppDisclaimer from "@/components/AppDisclaimer";
 import AuthModal from "@/components/AuthModal";
+import { logoutRequest, refreshRequest } from "@/api/authApi";
+import { UnauthorizedError } from "@/api/errors";
 import ChatInput from "@/components/ChatInput";
 import ChatView from "@/components/ChatView";
 import HomePage from "@/components/HomePage";
@@ -15,33 +18,9 @@ import SettingsModal from "@/components/SettingsModal";
 import Sidebar from "@/components/Sidebar";
 import TopBar from "@/components/TopBar";
 import type { Chat, Message } from "@/types";
-import { UnauthorizedError } from "@/api/errors";
 
 const AUTH_TOKEN_KEY = "ai-social-support.auth.token";
 const AUTH_USER_KEY = "ai-social-support.auth.user";
-
-function decodeJwtPayload(token: string): { exp?: number } | null {
-  try {
-    const base64Url = token.split(".")[1];
-    if (!base64Url) return null;
-
-    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = base64.padEnd(
-      base64.length + ((4 - (base64.length % 4)) % 4),
-      "="
-    );
-
-    return JSON.parse(window.atob(padded)) as { exp?: number };
-  } catch {
-    return null;
-  }
-}
-
-function isTokenExpired(token: string): boolean {
-  const payload = decodeJwtPayload(token);
-  if (!payload?.exp) return true;
-  return payload.exp * 1000 <= Date.now();
-}
 
 function readAuthState(): { token: string | null; userName: string | null } {
   if (typeof window === "undefined") return { token: null, userName: null };
@@ -49,14 +28,8 @@ function readAuthState(): { token: string | null; userName: string | null } {
   const token = window.localStorage.getItem(AUTH_TOKEN_KEY);
   const userName = window.localStorage.getItem(AUTH_USER_KEY);
 
-  if (!token || isTokenExpired(token)) {
-    window.localStorage.removeItem(AUTH_TOKEN_KEY);
-    window.localStorage.removeItem(AUTH_USER_KEY);
-    return { token: null, userName: null };
-  }
-
   return {
-    token,
+    token: token ?? null,
     userName,
   };
 }
@@ -131,7 +104,15 @@ export default function App() {
     setIsAuthModalOpen(true);
   }, []);
 
-  const handleLogout = useCallback(() => {
+  const handleLogout = useCallback(async () => {
+    try {
+      await logoutRequest();
+    } catch (error) {
+      if (!(error instanceof UnauthorizedError)) {
+        console.error("Logout request failed", error);
+      }
+    }
+
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(AUTH_TOKEN_KEY);
       window.localStorage.removeItem(AUTH_USER_KEY);
@@ -207,6 +188,10 @@ export default function App() {
       controllersRef.current.forEach((c) => c.abort());
       controllersRef.current.clear();
     };
+  }, []);
+
+  useEffect(() => {
+    void preloadSberSdk();
   }, []);
 
   const handleAuthSuccess = useCallback((token: string, name: string) => {
@@ -400,7 +385,7 @@ export default function App() {
   const handleCloseSidebar = useCallback(() => setIsSidebarOpen(false), []);
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[var(--app-bg)] text-slate-900">
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-[var(--app-bg)] text-slate-900">
       <div className="app-background" aria-hidden="true">
         <div className="app-bg-spot app-bg-spot-one" />
         <div className="app-bg-spot app-bg-spot-two" />
@@ -429,7 +414,7 @@ export default function App() {
         userInitial={userInitial}
       />
 
-      <div className="relative z-10 flex min-h-screen flex-col">
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col">
         {showHome ? (
           <HomePage
             onSend={handleSend}
@@ -438,15 +423,18 @@ export default function App() {
             onAuthRequired={handleOpenAuth}
           />
         ) : (
-          <>
-            {activeChat && (
-              <ChatView
-                chat={activeChat}
-                isLoading={isCurrentChatLoading}
-                animatedMessageId={animatedMessageId}
-              />
-            )}
-            <div className="sticky bottom-0 z-20 border-t border-white/35 bg-[linear-gradient(180deg,rgba(239,248,243,0.2),rgba(239,248,243,0.88))] backdrop-blur-2xl">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="min-h-0 flex-1">
+              {activeChat && (
+                <ChatView
+                  chat={activeChat}
+                  isLoading={isCurrentChatLoading}
+                  animatedMessageId={animatedMessageId}
+                />
+              )}
+            </div>
+
+            <div className="z-20 border-t border-white/35 bg-[linear-gradient(180deg,rgba(239,248,243,0.22),rgba(239,248,243,0.92))] shadow-[0_-18px_48px_rgba(15,23,42,0.08)] backdrop-blur-2xl">
               <ChatInput
                 onSend={handleSend}
                 isLoading={isCurrentChatLoading}
@@ -455,9 +443,10 @@ export default function App() {
                 isAuthenticated={isAuthenticated}
                 onAuthRequired={handleOpenAuth}
               />
+
               <AppDisclaimer className="px-4 pb-4" />
             </div>
-          </>
+          </div>
         )}
       </div>
 
