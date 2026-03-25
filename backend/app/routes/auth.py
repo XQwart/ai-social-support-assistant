@@ -50,7 +50,6 @@ async def sber_callback(
 
 @router.post("/refresh")
 async def refresh(
-    token_data: AuthDep,
     auth_service: AuthServiceDep,
     refresh_token: str | None = Cookie(default=None),
 ):
