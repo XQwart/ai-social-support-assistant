@@ -17,5 +17,11 @@ class SberUserInfo(BaseModel):
     family_name: str
 
 
+class AuthExchangeResponse(BaseModel):
+    message: str
+    token: str
+    user_name: str
+
+
 class TokenDataOut(BaseModel):
     user_id: int

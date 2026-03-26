@@ -65,18 +65,29 @@ textarea {
 
 .sberid-btn-container {
   width: 100%;
-  min-height: 56px;
+  min-height: 48px;
   display: flex;
   justify-content: center;
   align-items: center;
-  position: relative;
+}
+
+.sberid-btn-container > * {
+  width: 100%;
+  max-width: 320px;
+}
+
+.sberid-btn-container [class*="_sberId_button_preload"] {
+  width: 100% !important;
+  max-width: 320px !important;
+  margin: 0 auto !important;
 }
 
 .sberid-btn-container button,
 .sberid-btn-container a {
   width: 100% !important;
   max-width: 320px !important;
-  border-radius: 16px !important;
+  margin: 0 auto !important;
+  border-radius: 18px !important;
   height: 48px !important;
   display: flex !important;
   align-items: center !important;

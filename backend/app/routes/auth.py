@@ -1,18 +1,26 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Query, Cookie
+import logging
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
+from fastapi import APIRouter, Cookie, HTTPException, Query
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 
-from app.dependencies.services import AuthServiceDep
 from app.dependencies.config import ConfigDep
-
-from app.utils.auth import set_refresh_cookie, clear_refresh_cookie
-
-# Временно
-from app.dependencies.repositories import UserRepoDep, TokenRedisRepoDep
-from app.dependencies.jwt import AccessTokenDep, RefreshTokenDep
+from app.dependencies.services import AuthServiceDep
+from app.schemas.auth import AuthExchangeResponse
+from app.utils.auth import clear_refresh_cookie, set_refresh_cookie
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
+logger = logging.getLogger(__name__)
+
+
+def build_frontend_redirect_url(base_url: str, params: dict[str, str | None]) -> str:
+    parsed = urlsplit(base_url)
+    query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    query.update({key: value for key, value in params.items() if value is not None})
+
+    return urlunsplit(parsed._replace(query=urlencode(query)))
 
 
 @router.get("/sber/params")
@@ -22,6 +30,7 @@ async def get_params(auth_service: AuthServiceDep, config: ConfigDep):
     return JSONResponse(
         {
             "client_id": config.client_id,
+            "authorize_url": config.sber_authorize_url,
             "redirect_uri": config.sber_redirect_uri,
             "scopes": config.sber_scopes,
             "name": config.sber_application_name,
@@ -35,27 +44,90 @@ async def get_params(auth_service: AuthServiceDep, config: ConfigDep):
 async def sber_callback(
     auth_service: AuthServiceDep,
     config: ConfigDep,
-    code: str = Query(...),
-    state: str = Query(...),
+    code: str | None = Query(default=None),
+    state: str | None = Query(default=None),
+    error: str | None = Query(default=None),
+    error_description: str | None = Query(default=None),
 ) -> RedirectResponse:
-    nonce = await auth_service.validate_state(state)
+    if error is not None:
+        return RedirectResponse(
+            url=build_frontend_redirect_url(
+                config.frontend_success_login_url,
+                {
+                    "error": error,
+                    "description": error_description
+                    or "Не удалось завершить вход через Sber ID",
+                },
+            ),
+            status_code=303,
+        )
 
-    token_data = await auth_service.exchange_code_for_token(code)
-    await auth_service.validate_id_token(token_data.id_token, nonce, config.client_id)
+    if code is None or state is None:
+        return RedirectResponse(
+            url=build_frontend_redirect_url(
+                config.frontend_success_login_url,
+                {
+                    "error": "invalid_request",
+                    "description": "Сбер ID не вернул код авторизации",
+                },
+            ),
+            status_code=303,
+        )
 
-    login_code = await auth_service.process_user(token_data.access_token)
+    try:
+        nonce = await auth_service.validate_state(state)
+
+        token_data = await auth_service.exchange_code_for_token(code)
+        await auth_service.validate_id_token(
+            token_data.id_token, nonce, config.client_id
+        )
+
+        login_code = await auth_service.process_user(token_data.access_token)
+    except HTTPException as exc:
+        return RedirectResponse(
+            url=build_frontend_redirect_url(
+                config.frontend_success_login_url,
+                {
+                    "error": "auth_failed",
+                    "description": str(exc.detail),
+                },
+            ),
+            status_code=303,
+        )
+    except Exception:
+        logger.exception("Unexpected Sber ID callback failure")
+        return RedirectResponse(
+            url=build_frontend_redirect_url(
+                config.frontend_success_login_url,
+                {
+                    "error": "server_error",
+                    "description": "Не удалось завершить вход через Sber ID",
+                },
+            ),
+            status_code=303,
+        )
 
     return RedirectResponse(
-        url=f"{config.frontend_success_login_url}?code={login_code}"
+        url=build_frontend_redirect_url(
+            config.frontend_success_login_url,
+            {"code": login_code},
+        ),
+        status_code=303,
     )
 
 
 @router.get("/exchange")
 async def exchange_code(auth_service: AuthServiceDep, token_code: str = Query(...)):
-    access_token, refresh_token = await auth_service.login_user(token_code=token_code)
+    access_token, refresh_token, user_name = await auth_service.login_user(
+        token_code=token_code
+    )
 
     response = JSONResponse(
-        content={"message": "Успешная авторизация", "token": access_token}
+        content=AuthExchangeResponse(
+            message="Успешная авторизация",
+            token=access_token,
+            user_name=user_name,
+        ).model_dump()
     )
     set_refresh_cookie(response, refresh_token)
 

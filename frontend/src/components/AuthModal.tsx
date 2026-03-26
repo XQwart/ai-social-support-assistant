@@ -1,16 +1,18 @@
-import { useEffect, useRef, useState } from "react";
-import { loginRequest } from "@/api/authApi";
+import { useEffect, useMemo, useState } from "react";
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAuthSuccess: (token: string, userName: string) => void;
+  externalError?: string;
+  isFinalizing?: boolean;
 }
 
 const API_BASE = import.meta.env.VITE_API_URL || "";
 const PERSONAL_DATA_POLICY_URL = "/legal/pdn-consent.pdf";
+const SBER_PARAMS_MAX_AGE_MS = 8 * 60 * 1000;
 
 type SberParamsResponse = {
+  authorize_url: string;
   client_id: string;
   redirect_uri: string;
   scopes: string;
@@ -19,210 +21,166 @@ type SberParamsResponse = {
   nonce: string;
 };
 
-type SberidSDKInstance = {
-  init: () => Promise<unknown>;
+type CachedSberParams = {
+  fetchedAt: number;
+  value: SberParamsResponse;
 };
 
-type SberidSDKConstructor = new (
-  params: Record<string, unknown>
-) => SberidSDKInstance;
+let cachedSberParams: CachedSberParams | null = null;
+let sberParamsPromise: Promise<SberParamsResponse> | null = null;
 
-declare global {
-  interface Window {
-    SberidSDK?: SberidSDKConstructor;
-  }
+function hasFreshCachedParams() {
+  return (
+    cachedSberParams !== null &&
+    Date.now() - cachedSberParams.fetchedAt < SBER_PARAMS_MAX_AGE_MS
+  );
 }
 
-const SBER_SDK_SRC = "https://id-ift.sber.ru/sdk/web/sberid-sdk.production.js";
-const SBER_CSS_HREF = "https://id-ift.sber.ru/sdk/web/styles/common.css";
-
-let sberSdkPromise: Promise<SberidSDKConstructor> | null = null;
-
-export function preloadSberSdk(): Promise<SberidSDKConstructor> {
-  if (window.SberidSDK) {
-    return Promise.resolve(window.SberidSDK);
-  }
-
-  if (sberSdkPromise) {
-    return sberSdkPromise;
-  }
-
-  sberSdkPromise = new Promise((resolve, reject) => {
-    if (!document.getElementById("sberid-css")) {
-      const link = document.createElement("link");
-      link.id = "sberid-css";
-      link.rel = "stylesheet";
-      link.href = SBER_CSS_HREF;
-      document.head.appendChild(link);
-    }
-
-    const existingScript = document.getElementById("sberid-sdk-script");
-    if (existingScript) {
-      const waitForSdk = () => {
-        if (window.SberidSDK) resolve(window.SberidSDK);
-        else setTimeout(waitForSdk, 50);
-      };
-      waitForSdk();
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.id = "sberid-sdk-script";
-    script.src = SBER_SDK_SRC;
-    script.async = true;
-    script.onload = () => {
-      if (window.SberidSDK) {
-        resolve(window.SberidSDK);
-      } else {
-        sberSdkPromise = null;
-        reject(new Error("SberID SDK loaded but not initialized"));
-      }
-    };
-    script.onerror = () => {
-      sberSdkPromise = null;
-      reject(new Error("Failed to load SberID SDK"));
-    };
-    document.head.appendChild(script);
+async function requestSberParams(
+  signal?: AbortSignal
+): Promise<SberParamsResponse> {
+  const paramsRes = await fetch(`${API_BASE}/auth/sber/params`, {
+    method: "GET",
+    credentials: "include",
+    signal,
   });
 
-  return sberSdkPromise;
+  if (!paramsRes.ok) {
+    const body = await paramsRes.json().catch(() => null);
+    throw new Error(body?.detail ?? "Не удалось получить параметры Сбер ID");
+  }
+
+  return (await paramsRes.json()) as SberParamsResponse;
+}
+
+function saveCachedParams(params: SberParamsResponse) {
+  cachedSberParams = {
+    fetchedAt: Date.now(),
+    value: params,
+  };
+
+  return params;
+}
+
+async function getSberParams(signal?: AbortSignal): Promise<SberParamsResponse> {
+  if (hasFreshCachedParams()) {
+    return cachedSberParams!.value;
+  }
+
+  if (sberParamsPromise) {
+    return sberParamsPromise;
+  }
+
+  const request = requestSberParams(signal).then(saveCachedParams);
+  sberParamsPromise = request.finally(() => {
+    sberParamsPromise = null;
+  });
+
+  return sberParamsPromise;
+}
+
+function buildSberAuthUrl(params: SberParamsResponse): string {
+  const url = new URL(params.authorize_url);
+
+  url.searchParams.set("client_id", params.client_id);
+  url.searchParams.set("client_type", "PRIVATE");
+  url.searchParams.set("nonce", params.nonce);
+  url.searchParams.set("redirect_uri", params.redirect_uri);
+  url.searchParams.set("response_type", params.response_type);
+  url.searchParams.set("scope", params.scopes);
+  url.searchParams.set("state", params.state);
+
+  return url.toString();
+}
+
+export function preloadSberAuthParams() {
+  void getSberParams().catch(() => {
+    // Ignore warmup errors; modal shows the actual error later.
+  });
 }
 
 export default function AuthModal({
   isOpen,
   onClose,
-  onAuthSuccess,
+  externalError = "",
+  isFinalizing = false,
 }: AuthModalProps) {
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [sdkLoading, setSdkLoading] = useState(false);
-  const [isSdkReady, setIsSdkReady] = useState(false);
-
+  const [initError, setInitError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [authUrl, setAuthUrl] = useState("");
   const [consentChecked, setConsentChecked] = useState(false);
   const [consentError, setConsentError] = useState(false);
 
-  const sberIdContainerRef = useRef<HTMLDivElement>(null);
-  const initIdRef = useRef(0);
-
-  const requireConsent = (): boolean => {
-    if (consentChecked) {
-      setConsentError(false);
-      return true;
-    }
-
-    setConsentError(true);
-    return false;
-  };
+  const displayError = initError || externalError;
+  const isAuthReady = !!authUrl && !isLoading && !displayError;
 
   useEffect(() => {
     if (!isOpen) {
-      setError("");
-      setLoading(false);
-      setSdkLoading(false);
-      setIsSdkReady(false);
+      setInitError("");
+      setIsLoading(false);
+      setAuthUrl("");
       setConsentChecked(false);
       setConsentError(false);
       return;
     }
 
+    if (isFinalizing) {
+      setInitError("");
+      setIsLoading(false);
+      setAuthUrl("");
+      return;
+    }
+
     let cancelled = false;
-    const currentInitId = ++initIdRef.current;
+    const controller = new AbortController();
 
-    const initSdkButton = async () => {
+    const loadParams = async () => {
       try {
-        setSdkLoading(true);
-        setError("");
+        setInitError("");
+        setIsLoading(true);
 
-        const [SberidSDK, paramsRes] = await Promise.all([
-          preloadSberSdk(),
-          fetch(`${API_BASE}/auth/sber/params`, {
-            method: "GET",
-            credentials: "include",
-          }),
-        ]);
+        const params = await getSberParams(controller.signal);
 
-        if (!paramsRes.ok) {
-          const body = await paramsRes.json().catch(() => null);
-          throw new Error(
-            body?.detail ?? "Не удалось получить параметры Сбер ID"
-          );
-        }
-
-        const params = (await paramsRes.json()) as SberParamsResponse;
-
-        if (
-          cancelled ||
-          currentInitId !== initIdRef.current ||
-          !sberIdContainerRef.current
-        ) {
+        if (cancelled) {
           return;
         }
 
-        sberIdContainerRef.current.innerHTML = "";
-
-        const sdk = new SberidSDK({
-          baseUrl: "https://id-ift.sber.ru",
-          oidc: {
-            client_id: params.client_id,
-            client_type: "PRIVATE",
-            nonce: params.nonce,
-            redirect_uri: params.redirect_uri,
-            state: params.state,
-            scope: params.scopes,
-            response_type: params.response_type,
-            name: "ИИ-помощник по социальной поддержке",
-          },
-          container: sberIdContainerRef.current,
-          display: "page",
-          generateState: false,
-          notification: { enable: false },
-          personalization: false,
-          fastLogin: { enable: false },
-          buttonProps: { type: "default" },
-        });
-
-        await sdk.init();
-        setIsSdkReady(true);
+        setAuthUrl(buildSberAuthUrl(params));
       } catch (err: unknown) {
-        if (!cancelled) {
-          setError(
-            err instanceof Error
-              ? err.message
-              : "Не удалось инициализировать Сбер ID"
-          );
+        if (cancelled || (err instanceof DOMException && err.name === "AbortError")) {
+          return;
         }
+
+        setAuthUrl("");
+        setInitError(
+          err instanceof Error
+            ? err.message
+            : "Не удалось инициализировать Сбер ID"
+        );
       } finally {
         if (!cancelled) {
-          setSdkLoading(false);
+          setIsLoading(false);
         }
       }
     };
 
-    void initSdkButton();
+    void loadParams();
 
     return () => {
       cancelled = true;
+      controller.abort();
     };
-  }, [isOpen]);
+  }, [isOpen, isFinalizing]);
+
+  const buttonLabel = useMemo(() => {
+    if (isLoading && !authUrl) {
+      return "Подготовка входа...";
+    }
+
+    return "Войти по Sber ID";
+  }, [authUrl, isLoading]);
 
   if (!isOpen) return null;
-
-  const handleLogin = async () => {
-    if (loading || sdkLoading) return;
-    if (!requireConsent()) return;
-
-    setError("");
-    setLoading(true);
-
-    try {
-      const data = await loginRequest();
-      onAuthSuccess(data.token, "Иванов Иван");
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Произошла ошибка");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center">
@@ -241,8 +199,8 @@ export default function AuthModal({
           border: "1px solid rgba(255,255,255,0.7)",
         }}
       >
-        <div className="mb-6 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-slate-800">Вход в систему</h3>
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-lg font-bold text-slate-800">Вход через Sber ID</h3>
           <button
             onClick={onClose}
             className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-2xl border border-white/60 bg-white/45 text-slate-500 transition-colors hover:bg-white/75"
@@ -264,96 +222,128 @@ export default function AuthModal({
           </button>
         </div>
 
-        <button
-          type="button"
-          onClick={handleLogin}
-          disabled={loading}
-          className={`w-full cursor-pointer rounded-2xl py-3.5 text-[15px] font-semibold transition-all ${
-            loading
-              ? "cursor-not-allowed bg-slate-200/80 text-slate-400"
-              : "bg-emerald-500 text-white shadow-[0_8px_24px_rgba(16,185,129,0.3)] hover:-translate-y-0.5 hover:bg-emerald-600"
-          }`}
-        >
-          {loading ? "Загрузка..." : "Войти (тестовый аккаунт)"}
-        </button>
-
-        <div className="my-5 flex items-center gap-3">
-          <div className="h-px flex-1 bg-slate-200/80" />
-          <span className="text-[12px] text-slate-400">или</span>
-          <div className="h-px flex-1 bg-slate-200/80" />
-        </div>
-
-        <div className="relative min-h-[56px]">
-          {!isSdkReady && (
-            <div className="absolute inset-0 flex items-center justify-center rounded-2xl border border-slate-200/80 bg-white/70 text-[13px] text-slate-400">
-              Подготавливаем кнопку Сбер ID...
+        {isFinalizing ? (
+          <div className="py-8">
+            <div className="flex flex-col items-center justify-center gap-3 text-center">
+              <div className="h-11 w-11 animate-spin rounded-full border-[3px] border-emerald-100 border-t-emerald-500" />
+              <div>
+                <p className="text-[15px] font-semibold text-slate-800">
+                  Завершаем вход...
+                </p>
+                <p className="mt-1 text-[13px] leading-5 text-slate-500">
+                  Подтверждаем вход через Sber ID и создаем сессию.
+                </p>
+              </div>
             </div>
-          )}
+          </div>
+        ) : (
+          <>
+            <p className="text-[13px] leading-5 text-slate-500">
+              Сейчас вход в сервис доступен только через Sber ID.
+            </p>
 
-          <div
-            ref={sberIdContainerRef}
-            className={`sberid-btn-container transition-opacity duration-200 ${
-              isSdkReady ? "opacity-100" : "opacity-0"
-            }`}
-          />
+            <div className="mt-6 flex flex-col items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  if (!consentChecked) {
+                    setConsentError(true);
+                    return;
+                  }
 
-          {!consentChecked && (
-            <button
-              type="button"
-              onClick={() => {
-                setConsentError(true);
-                setError("");
-              }}
-              className="absolute inset-0 z-10 cursor-pointer rounded-2xl bg-transparent"
-              aria-label="Сначала подтвердите согласие на обработку персональных данных"
-            />
-          )}
-        </div>
-
-        <div
-          className={`mt-5 rounded-2xl border px-3 py-3 transition-colors ${
-            consentError
-              ? "border-rose-300 bg-rose-50/70"
-              : "border-slate-200/80 bg-white/60"
-          }`}
-        >
-          <label className="flex cursor-pointer items-start gap-3">
-            <input
-              type="checkbox"
-              checked={consentChecked}
-              onChange={(e) => {
-                setConsentChecked(e.target.checked);
-                if (e.target.checked) {
                   setConsentError(false);
-                }
-              }}
-              className="mt-0.5 h-4 w-4 shrink-0 accent-emerald-500"
-            />
-            <span className="text-[12px] leading-5 text-slate-600">
-              Я даю согласие на обработку персональных данных и подтверждаю,
-              что ознакомился(ась) с{" "}
-              <a
-                href={PERSONAL_DATA_POLICY_URL}
-                target="_blank"
-                rel="noreferrer"
-                className="font-medium text-emerald-700 underline underline-offset-2"
-              >
-                текстом согласия
-              </a>
-              .
-            </span>
-          </label>
-        </div>
 
-        {consentError && (
+                  if (!authUrl) {
+                    return;
+                  }
+
+                  window.location.href = authUrl;
+                }}
+                disabled={isLoading || !authUrl}
+                className={`mx-auto flex min-h-[56px] w-full max-w-[320px] items-center justify-center gap-3 rounded-[18px] px-6 text-[16px] font-semibold text-white transition-all ${
+                  isLoading || !authUrl
+                    ? "cursor-wait bg-emerald-500/80 shadow-[0_10px_28px_rgba(16,185,129,0.2)]"
+                    : "cursor-pointer bg-[#25a732] shadow-[0_12px_32px_rgba(37,167,50,0.28)] hover:-translate-y-0.5 hover:bg-[#21972d]"
+                }`}
+              >
+                {isLoading && !authUrl ? (
+                  <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/35 border-t-white" />
+                ) : (
+                  <svg
+                    width="26"
+                    height="26"
+                    viewBox="0 0 26 26"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                    aria-hidden="true"
+                    className="shrink-0"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      clipRule="evenodd"
+                      d="M13 0C16.0927 0 18.9337 1.08103 21.1657 2.88421L18.6371 4.74793C17.0315 3.64848 15.0899 3.00354 13 3.00354C7.48924 3.00354 3.00587 7.48999 3.00587 13.0013C3.00587 18.5126 7.48924 22.9965 13 22.9965C18.5134 22.9965 22.9968 18.5126 22.9968 13.0013C22.9968 12.9118 22.9941 12.8223 22.9924 12.7328L25.7912 10.6699C25.9289 11.4245 26 12.2055 26 13.0013C26 20.1807 20.1795 26 13 26C5.82135 26 0 20.1807 0 13.0013C0 5.81931 5.82135 0 13 0ZM23.2856 5.05241C23.9006 5.84651 24.4262 6.71169 24.8456 7.63565L13.0002 16.3673L8.05093 13.2628V9.52921L13.0002 12.6337L23.2856 5.05241Z"
+                      fill="white"
+                    />
+                  </svg>
+                )}
+                <span>{buttonLabel}</span>
+              </button>
+
+              <p className="min-h-[20px] text-center text-[12px] text-slate-400">
+                {displayError
+                  ? ""
+                  : isAuthReady
+                    ? "Кнопка готова к входу."
+                    : "Подготавливаем безопасный переход в Sber ID..."}
+              </p>
+            </div>
+
+            <div
+              className={`mt-5 rounded-2xl border px-3 py-3 transition-colors ${
+                consentError
+                  ? "border-rose-300 bg-rose-50/70"
+                  : "border-slate-200/80 bg-white/60"
+              }`}
+            >
+              <label className="flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={consentChecked}
+                  onChange={(e) => {
+                    setConsentChecked(e.target.checked);
+                    if (e.target.checked) {
+                      setConsentError(false);
+                    }
+                  }}
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-emerald-500"
+                />
+                <span className="text-[12px] leading-5 text-slate-600">
+                  Я даю согласие на обработку персональных данных и подтверждаю,
+                  что ознакомился(ась) с{" "}
+                  <a
+                    href={PERSONAL_DATA_POLICY_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-medium text-emerald-700 underline underline-offset-2"
+                  >
+                    текстом согласия
+                  </a>
+                  .
+                </span>
+              </label>
+            </div>
+          </>
+        )}
+
+        {consentError && !isFinalizing && (
           <div className="mt-2 rounded-xl border border-rose-200/60 bg-rose-50/60 px-3 py-2 text-[12px] text-rose-600">
             Чтобы продолжить, поставьте галочку согласия на обработку персональных данных.
           </div>
         )}
 
-        {error && (
+        {displayError && (
           <div className="mt-4 rounded-xl border border-rose-200/60 bg-rose-50/60 px-3 py-2 text-[12px] text-rose-600">
-            {error}
+            {displayError}
           </div>
         )}
       </div>

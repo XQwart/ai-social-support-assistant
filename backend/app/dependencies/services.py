@@ -16,7 +16,6 @@ from app.dependencies.repositories import (
     ChatRepoDep,
 )
 from app.dependencies.jwt import AccessTokenDep, RefreshTokenDep
-from app.dependencies.http import SSLSberContextDep
 
 
 def get_auth_service(
@@ -26,7 +25,6 @@ def get_auth_service(
     user_rep: UserRepoDep,
     access_token_util: AccessTokenDep,
     refresh_token_util: RefreshTokenDep,
-    ssl_sber_ctx: SSLSberContextDep,
 ) -> AuthService:
     return AuthService(
         config,
@@ -35,7 +33,6 @@ def get_auth_service(
         user_rep,
         access_token_util,
         refresh_token_util,
-        ssl_sber_ctx,
     )
 
 

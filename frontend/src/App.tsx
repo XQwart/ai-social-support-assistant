@@ -6,10 +6,10 @@ import {
   fetchMessages,
   sendMessageToChat,
 } from "@/api/chatApi";
-import { preloadSberSdk } from "@/components/AuthModal";
+import { preloadSberAuthParams } from "@/components/AuthModal";
 import AppDisclaimer from "@/components/AppDisclaimer";
 import AuthModal from "@/components/AuthModal";
-import { logoutRequest, refreshRequest } from "@/api/authApi";
+import { exchangeSberCodeRequest, logoutRequest } from "@/api/authApi";
 import { UnauthorizedError } from "@/api/errors";
 import ChatInput from "@/components/ChatInput";
 import ChatView from "@/components/ChatView";
@@ -32,6 +32,42 @@ function readAuthState(): { token: string | null; userName: string | null } {
     token: token ?? null,
     userName,
   };
+}
+
+function clearSberCallbackParams() {
+  if (typeof window === "undefined") return;
+
+  const url = new URL(window.location.href);
+  ["code", "state", "error", "error_description", "description"].forEach(
+    (key) => url.searchParams.delete(key)
+  );
+
+  const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+  window.history.replaceState(window.history.state, "", nextUrl);
+}
+
+function resolveSberCallbackError(searchParams: URLSearchParams): string {
+  const errorCode = searchParams.get("error");
+  if (!errorCode) return "";
+
+  const description =
+    searchParams.get("description") ??
+    searchParams.get("error_description");
+
+  if (description) {
+    return description;
+  }
+
+  switch (errorCode) {
+    case "access_denied":
+      return "Вход через Sber ID был отменен.";
+    case "invalid_state":
+      return "Сессия входа устарела. Попробуйте еще раз.";
+    case "invalid_request":
+      return "Сбер ID не вернул код авторизации.";
+    default:
+      return "Не удалось завершить вход через Sber ID. Попробуйте еще раз.";
+  }
 }
 
 function mergeUniqueMessages(
@@ -65,6 +101,8 @@ export default function App() {
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [sberAuthError, setSberAuthError] = useState("");
+  const [isFinalizingSberAuth, setIsFinalizingSberAuth] = useState(false);
 
   const controllersRef = useRef<Map<string, AbortController>>(new Map());
 
@@ -101,6 +139,8 @@ export default function App() {
     setAnimatedMessageId(null);
     setIsSidebarOpen(false);
     setIsSettingsModalOpen(false);
+    setSberAuthError("");
+    setIsFinalizingSberAuth(false);
     setIsAuthModalOpen(true);
   }, []);
 
@@ -125,6 +165,8 @@ export default function App() {
     setLoadingChatIds([]);
     setAnimatedMessageId(null);
     setIsSettingsModalOpen(false);
+    setSberAuthError("");
+    setIsFinalizingSberAuth(false);
   }, []);
 
   useEffect(() => {
@@ -191,21 +233,92 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    void preloadSberSdk();
+    preloadSberAuthParams();
   }, []);
 
-  const handleAuthSuccess = useCallback((token: string, name: string) => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(AUTH_TOKEN_KEY, token);
-      window.localStorage.setItem(AUTH_USER_KEY, name);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const url = new URL(window.location.href);
+    const code = url.searchParams.get("code");
+    const callbackError = resolveSberCallbackError(url.searchParams);
+
+    if (!code && !callbackError) {
+      return;
     }
 
-    setAuthToken(token);
-    setUserName(name);
-    setIsAuthModalOpen(false);
+    clearSberCallbackParams();
+
+    if (callbackError) {
+      setSberAuthError(callbackError);
+      setIsFinalizingSberAuth(false);
+      setIsAuthModalOpen(true);
+      return;
+    }
+
+    if (!code) {
+      return;
+    }
+
+    let cancelled = false;
+
+    setSberAuthError("");
+    setIsFinalizingSberAuth(true);
+    setIsAuthModalOpen(true);
+
+    exchangeSberCodeRequest(code)
+      .then(({ token, userName }) => {
+        if (cancelled) return;
+
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(AUTH_TOKEN_KEY, token);
+          window.localStorage.setItem(AUTH_USER_KEY, userName);
+        }
+
+        setAuthToken(token);
+        setUserName(userName);
+        setSberAuthError("");
+        setIsAuthModalOpen(false);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+
+        if (typeof window !== "undefined") {
+          window.localStorage.removeItem(AUTH_TOKEN_KEY);
+          window.localStorage.removeItem(AUTH_USER_KEY);
+        }
+
+        setAuthToken(null);
+        setUserName("");
+        setSberAuthError(
+          error instanceof Error
+            ? error.message
+            : "Не удалось завершить вход через Sber ID"
+        );
+        setIsAuthModalOpen(true);
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsFinalizingSberAuth(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const handleOpenAuth = useCallback(() => setIsAuthModalOpen(true), []);
+  const handleOpenAuth = useCallback(() => {
+    setSberAuthError("");
+    setIsFinalizingSberAuth(false);
+    setIsAuthModalOpen(true);
+  }, []);
+
+  const handleCloseAuth = useCallback(() => {
+    setSberAuthError("");
+    setIsFinalizingSberAuth(false);
+    setIsAuthModalOpen(false);
+  }, []);
 
   const handleSend = useCallback(
     async (rawText: string) => {
@@ -213,7 +326,7 @@ export default function App() {
       if (!text) return;
 
       if (!authToken) {
-        setIsAuthModalOpen(true);
+        handleOpenAuth();
         return;
       }
 
@@ -339,7 +452,7 @@ export default function App() {
         }
       }
     },
-    [activeChatId, authToken, handleSessionExpired]
+    [activeChatId, authToken, handleOpenAuth, handleSessionExpired]
   );
 
   const handleSelectChat = useCallback((chatId: string) => {
@@ -452,8 +565,9 @@ export default function App() {
 
       <AuthModal
         isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        onAuthSuccess={handleAuthSuccess}
+        onClose={handleCloseAuth}
+        externalError={sberAuthError}
+        isFinalizing={isFinalizingSberAuth}
       />
 
       <SettingsModal
