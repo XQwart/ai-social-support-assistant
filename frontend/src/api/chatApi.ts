@@ -1,8 +1,9 @@
+import { getApiBase } from "@/api/base";
 import type { Chat, Message } from "@/types";
 import { UnauthorizedError } from "@/api/errors";
 import { refreshRequest } from "@/api/authApi";
 
-const API_BASE = import.meta.env.VITE_API_URL || "";
+const API_BASE = getApiBase();
 const AUTH_TOKEN_KEY = "ai-social-support.auth.token";
 
 let refreshPromise: Promise<string> | null = null;

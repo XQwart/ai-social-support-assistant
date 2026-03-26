@@ -42,6 +42,19 @@ const FUN_STATUSES = [
 const STATUS_INTERVAL_MS = 2500;
 const TRANSITION_DURATION_MS = 300;
 
+const usedStatusIndicesByChat = new Map<string, Set<number>>();
+
+function getChatStatusStore(chatId: string): Set<number> {
+  const existing = usedStatusIndicesByChat.get(chatId);
+  if (existing) {
+    return existing;
+  }
+
+  const next = new Set<number>();
+  usedStatusIndicesByChat.set(chatId, next);
+  return next;
+}
+
 function pickNextStatusIndex(prevIndex: number, used: Set<number>): number {
   const n = FUN_STATUSES.length;
   let available = Array.from({ length: n }, (_, i) => i).filter(
@@ -63,30 +76,49 @@ function pickNextStatusIndex(prevIndex: number, used: Set<number>): number {
   return next;
 }
 
-export default function LoadingDots() {
-  const usedInRequestRef = useRef<Set<number>>(new Set());
+interface LoadingDotsProps {
+  chatId: string;
+}
+
+export default function LoadingDots({ chatId }: LoadingDotsProps) {
+  const usedInChatRef = useRef<Set<number>>(getChatStatusStore(chatId));
+  const previousChatIdRef = useRef(chatId);
 
   const [statusIndex, setStatusIndex] = useState(() => {
-    const n = FUN_STATUSES.length;
-    const i = Math.floor(Math.random() * n);
-    usedInRequestRef.current = new Set([i]);
-    return i;
+    usedInChatRef.current = getChatStatusStore(chatId);
+    return pickNextStatusIndex(-1, usedInChatRef.current);
   });
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   useEffect(() => {
+    if (previousChatIdRef.current === chatId) {
+      return;
+    }
+
+    previousChatIdRef.current = chatId;
+    usedInChatRef.current = getChatStatusStore(chatId);
+    setStatusIndex((prev) => pickNextStatusIndex(prev, usedInChatRef.current));
+    setIsTransitioning(false);
+  }, [chatId]);
+
+  useEffect(() => {
+    let transitionTimeoutId: number | null = null;
+
     const interval = setInterval(() => {
       setIsTransitioning(true);
 
-      setTimeout(() => {
-        setStatusIndex((prev) =>
-          pickNextStatusIndex(prev, usedInRequestRef.current)
-        );
+      transitionTimeoutId = window.setTimeout(() => {
+        setStatusIndex((prev) => pickNextStatusIndex(prev, usedInChatRef.current));
         setIsTransitioning(false);
       }, TRANSITION_DURATION_MS);
     }, STATUS_INTERVAL_MS);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (transitionTimeoutId !== null) {
+        window.clearTimeout(transitionTimeoutId);
+      }
+    };
   }, []);
 
   return (

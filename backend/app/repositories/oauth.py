@@ -1,3 +1,5 @@
+import json
+
 from redis.asyncio import Redis
 from app.core.config import Config
 
@@ -10,13 +12,28 @@ class OauthRepository:
         self._redis = redis
         self._config = config
 
-    async def save_params(self, state: str, nonce: str) -> None:
-        await self._redis.setex(f"oauth_state:{state}", self._config.oauth_ttl, nonce)
+    async def save_params(
+        self, state: str, nonce: str, frontend_success_url: str | None = None
+    ) -> None:
+        payload = json.dumps(
+            {
+                "nonce": nonce,
+                "frontend_success_url": frontend_success_url,
+            }
+        )
+        await self._redis.setex(f"oauth_state:{state}", self._config.oauth_ttl, payload)
 
-    async def get_params(self, state: str) -> str | None:
+    async def get_params(self, state: str) -> tuple[str, str | None] | None:
         key = f"oauth_state:{state}"
-        nonce = await self._redis.getdel(key)
-        return nonce if nonce else None
+        raw_data = await self._redis.getdel(key)
+        if not raw_data:
+            return None
+
+        try:
+            data = json.loads(raw_data)
+            return data["nonce"], data.get("frontend_success_url")
+        except (json.JSONDecodeError, KeyError, TypeError):
+            return raw_data, None
 
     async def save_code(self, user_id: int, sber_id: str, code: str) -> str:
         await self._redis.setex(

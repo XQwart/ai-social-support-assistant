@@ -1,6 +1,7 @@
+import { getApiBase } from "@/api/base";
 import { UnauthorizedError } from "@/api/errors";
 
-const API_BASE = import.meta.env.VITE_API_URL || "";
+const API_BASE = getApiBase();
 const AUTH_TOKEN_KEY = "ai-social-support.auth.token";
 
 interface ExchangeSberCodeResponseDto {

@@ -69,20 +69,26 @@ class AuthService:
         self._ssl_sber_ctx = ssl_ctx
         return ssl_ctx
 
-    async def get_and_save_state_and_nonce(self) -> dict[str, str]:
+    async def get_and_save_state_and_nonce(
+        self, frontend_success_url: str | None = None
+    ) -> dict[str, str]:
         state = secrets.token_urlsafe(32)
         nonce = secrets.token_urlsafe(32)
 
-        await self._oauth_rep.save_params(state=state, nonce=nonce)
+        await self._oauth_rep.save_params(
+            state=state,
+            nonce=nonce,
+            frontend_success_url=frontend_success_url,
+        )
 
         return {"state": state, "nonce": nonce}
 
-    async def validate_state(self, state: str) -> str:
-        nonce = await self._oauth_rep.get_params(state)
-        if nonce is None:
+    async def validate_state(self, state: str) -> tuple[str, str | None]:
+        params = await self._oauth_rep.get_params(state)
+        if params is None:
             raise HTTPException(400, "Invalid or expired state")
 
-        return nonce
+        return params
 
     async def exchange_code_for_token(self, code: str) -> SberTokenData:
         rquid = uuid.uuid4().hex

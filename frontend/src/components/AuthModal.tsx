@@ -1,3 +1,4 @@
+import { getApiBase } from "@/api/base";
 import { useEffect, useMemo, useState } from "react";
 
 interface AuthModalProps {
@@ -7,7 +8,7 @@ interface AuthModalProps {
   isFinalizing?: boolean;
 }
 
-const API_BASE = import.meta.env.VITE_API_URL || "";
+const API_BASE = getApiBase();
 const PERSONAL_DATA_POLICY_URL = "/legal/pdn-consent.pdf";
 const SBER_PARAMS_MAX_AGE_MS = 8 * 60 * 1000;
 
@@ -39,7 +40,17 @@ function hasFreshCachedParams() {
 async function requestSberParams(
   signal?: AbortSignal
 ): Promise<SberParamsResponse> {
-  const paramsRes = await fetch(`${API_BASE}/auth/sber/params`, {
+  const frontendUrl =
+    typeof window === "undefined"
+      ? ""
+      : `${window.location.origin}${window.location.pathname}`;
+  const paramsUrl = new URL(`${API_BASE}/auth/sber/params`);
+
+  if (frontendUrl) {
+    paramsUrl.searchParams.set("frontend_url", frontendUrl);
+  }
+
+  const paramsRes = await fetch(paramsUrl.toString(), {
     method: "GET",
     credentials: "include",
     signal,

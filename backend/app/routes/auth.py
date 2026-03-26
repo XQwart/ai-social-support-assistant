@@ -24,8 +24,14 @@ def build_frontend_redirect_url(base_url: str, params: dict[str, str | None]) ->
 
 
 @router.get("/sber/params")
-async def get_params(auth_service: AuthServiceDep, config: ConfigDep):
-    params = await auth_service.get_and_save_state_and_nonce()
+async def get_params(
+    auth_service: AuthServiceDep,
+    config: ConfigDep,
+    frontend_url: str | None = Query(default=None),
+):
+    params = await auth_service.get_and_save_state_and_nonce(
+        frontend_success_url=frontend_url
+    )
 
     return JSONResponse(
         {
@@ -49,10 +55,12 @@ async def sber_callback(
     error: str | None = Query(default=None),
     error_description: str | None = Query(default=None),
 ) -> RedirectResponse:
+    frontend_success_login_url = config.frontend_success_login_url
+
     if error is not None:
         return RedirectResponse(
             url=build_frontend_redirect_url(
-                config.frontend_success_login_url,
+                frontend_success_login_url,
                 {
                     "error": error,
                     "description": error_description
@@ -65,7 +73,7 @@ async def sber_callback(
     if code is None or state is None:
         return RedirectResponse(
             url=build_frontend_redirect_url(
-                config.frontend_success_login_url,
+                frontend_success_login_url,
                 {
                     "error": "invalid_request",
                     "description": "Сбер ID не вернул код авторизации",
@@ -75,7 +83,12 @@ async def sber_callback(
         )
 
     try:
-        nonce = await auth_service.validate_state(state)
+        nonce, saved_frontend_success_login_url = await auth_service.validate_state(
+            state
+        )
+        frontend_success_login_url = (
+            saved_frontend_success_login_url or config.frontend_success_login_url
+        )
 
         token_data = await auth_service.exchange_code_for_token(code)
         await auth_service.validate_id_token(
@@ -86,7 +99,7 @@ async def sber_callback(
     except HTTPException as exc:
         return RedirectResponse(
             url=build_frontend_redirect_url(
-                config.frontend_success_login_url,
+                frontend_success_login_url,
                 {
                     "error": "auth_failed",
                     "description": str(exc.detail),
@@ -98,7 +111,7 @@ async def sber_callback(
         logger.exception("Unexpected Sber ID callback failure")
         return RedirectResponse(
             url=build_frontend_redirect_url(
-                config.frontend_success_login_url,
+                frontend_success_login_url,
                 {
                     "error": "server_error",
                     "description": "Не удалось завершить вход через Sber ID",
@@ -109,7 +122,7 @@ async def sber_callback(
 
     return RedirectResponse(
         url=build_frontend_redirect_url(
-            config.frontend_success_login_url,
+            frontend_success_login_url,
             {"code": login_code},
         ),
         status_code=303,

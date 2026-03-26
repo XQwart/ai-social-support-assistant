@@ -18,9 +18,23 @@ import SettingsModal from "@/components/SettingsModal";
 import Sidebar from "@/components/Sidebar";
 import TopBar from "@/components/TopBar";
 import type { Chat, Message } from "@/types";
+import type { ExchangeSberCodeResponse } from "@/api/authApi";
 
 const AUTH_TOKEN_KEY = "ai-social-support.auth.token";
 const AUTH_USER_KEY = "ai-social-support.auth.user";
+
+type PendingSberCallback = {
+  code: string | null;
+  error: string;
+};
+
+let pendingSberCallback: PendingSberCallback | null = null;
+let pendingSberExchange:
+  | {
+      code: string;
+      promise: Promise<ExchangeSberCodeResponse>;
+    }
+  | null = null;
 
 function readAuthState(): { token: string | null; userName: string | null } {
   if (typeof window === "undefined") return { token: null, userName: null };
@@ -68,6 +82,36 @@ function resolveSberCallbackError(searchParams: URLSearchParams): string {
     default:
       return "Не удалось завершить вход через Sber ID. Попробуйте еще раз.";
   }
+}
+
+function readPendingSberCallback(): PendingSberCallback | null {
+  if (typeof window === "undefined") {
+    return pendingSberCallback;
+  }
+
+  const url = new URL(window.location.href);
+  const code = url.searchParams.get("code");
+  const error = resolveSberCallbackError(url.searchParams);
+
+  if (!code && !error) {
+    return pendingSberCallback;
+  }
+
+  pendingSberCallback = { code, error };
+  clearSberCallbackParams();
+
+  return pendingSberCallback;
+}
+
+function getOrCreateSberExchange(code: string): Promise<ExchangeSberCodeResponse> {
+  if (pendingSberExchange?.code === code) {
+    return pendingSberExchange.promise;
+  }
+
+  const promise = exchangeSberCodeRequest(code);
+  pendingSberExchange = { code, promise };
+
+  return promise;
 }
 
 function mergeUniqueMessages(
@@ -239,24 +283,22 @@ export default function App() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const url = new URL(window.location.href);
-    const code = url.searchParams.get("code");
-    const callbackError = resolveSberCallbackError(url.searchParams);
+    const callbackData = readPendingSberCallback();
 
-    if (!code && !callbackError) {
+    if (!callbackData) {
       return;
     }
 
-    clearSberCallbackParams();
-
-    if (callbackError) {
-      setSberAuthError(callbackError);
+    if (callbackData.error) {
+      pendingSberCallback = null;
+      setSberAuthError(callbackData.error);
       setIsFinalizingSberAuth(false);
       setIsAuthModalOpen(true);
       return;
     }
 
-    if (!code) {
+    if (!callbackData.code) {
+      pendingSberCallback = null;
       return;
     }
 
@@ -266,7 +308,7 @@ export default function App() {
     setIsFinalizingSberAuth(true);
     setIsAuthModalOpen(true);
 
-    exchangeSberCodeRequest(code)
+    getOrCreateSberExchange(callbackData.code)
       .then(({ token, userName }) => {
         if (cancelled) return;
 
@@ -279,6 +321,7 @@ export default function App() {
         setUserName(userName);
         setSberAuthError("");
         setIsAuthModalOpen(false);
+        pendingSberCallback = null;
       })
       .catch((error: unknown) => {
         if (cancelled) return;
@@ -296,10 +339,17 @@ export default function App() {
             : "Не удалось завершить вход через Sber ID"
         );
         setIsAuthModalOpen(true);
+        pendingSberCallback = null;
       })
       .finally(() => {
-        if (!cancelled) {
-          setIsFinalizingSberAuth(false);
+        if (cancelled) {
+          return;
+        }
+
+        setIsFinalizingSberAuth(false);
+
+        if (pendingSberExchange?.code === callbackData.code) {
+          pendingSberExchange = null;
         }
       });
 
@@ -498,7 +548,7 @@ export default function App() {
   const handleCloseSidebar = useCallback(() => setIsSidebarOpen(false), []);
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden bg-[var(--app-bg)] text-slate-900">
+    <div className="relative flex h-[100dvh] min-h-screen flex-col overflow-hidden bg-[var(--app-bg)] text-slate-900">
       <div className="app-background" aria-hidden="true">
         <div className="app-bg-spot app-bg-spot-one" />
         <div className="app-bg-spot app-bg-spot-two" />
@@ -527,7 +577,7 @@ export default function App() {
         userInitial={userInitial}
       />
 
-      <div className="relative z-10 flex min-h-0 flex-1 flex-col">
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">
         {showHome ? (
           <HomePage
             onSend={handleSend}
@@ -547,7 +597,7 @@ export default function App() {
               )}
             </div>
 
-            <div className="z-20 border-t border-white/35 bg-[linear-gradient(180deg,rgba(239,248,243,0.22),rgba(239,248,243,0.92))] shadow-[0_-18px_48px_rgba(15,23,42,0.08)] backdrop-blur-2xl">
+            <div className="sticky bottom-0 z-20 shrink-0 border-t border-white/35 bg-[linear-gradient(180deg,rgba(239,248,243,0.22),rgba(239,248,243,0.92))] shadow-[0_-18px_48px_rgba(15,23,42,0.08)] backdrop-blur-2xl">
               <ChatInput
                 onSend={handleSend}
                 isLoading={isCurrentChatLoading}
