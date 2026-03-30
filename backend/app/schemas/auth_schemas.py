@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -25,3 +27,9 @@ class AuthExchangeResponse(BaseModel):
 
 class TokenDataOut(BaseModel):
     user_id: int
+
+
+@dataclass(slots=True)
+class SberCallbackResult:
+    login_code: str
+    redirect_url: str | None

@@ -1,7 +1,5 @@
 from __future__ import annotations
-
 import logging
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from fastapi import APIRouter, Cookie, HTTPException, Query
 from fastapi.responses import JSONResponse, RedirectResponse, Response
@@ -11,19 +9,12 @@ from app.dependencies.services import AuthServiceDep
 from app.dependencies.repositories import UserRepoDep, TokenRedisRepoDep
 from app.dependencies.jwt import AccessTokenDep, RefreshTokenDep
 from app.schemas.auth_schemas import AuthExchangeResponse
-from app.utils.auth_utils import clear_refresh_cookie, set_refresh_cookie
+from app.utils.cookie_utils import clear_refresh_cookie, set_refresh_cookie
+from app.utils import url_utils
 
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 logger = logging.getLogger(__name__)
-
-
-def build_frontend_redirect_url(base_url: str, params: dict[str, str | None]) -> str:
-    parsed = urlsplit(base_url)
-    query = dict(parse_qsl(parsed.query, keep_blank_values=True))
-    query.update({key: value for key, value in params.items() if value is not None})
-
-    return urlunsplit(parsed._replace(query=urlencode(query)))
 
 
 @router.get("/sber/params")
@@ -58,75 +49,52 @@ async def sber_callback(
     error: str | None = Query(default=None),
     error_description: str | None = Query(default=None),
 ) -> RedirectResponse:
-    frontend_success_login_url = config.frontend_success_login_url
+    default_redirect = config.frontend_url
 
     if error is not None:
-        return RedirectResponse(
-            url=build_frontend_redirect_url(
-                frontend_success_login_url,
-                {
-                    "error": error,
-                    "description": error_description
-                    or "Не удалось завершить вход через Sber ID",
-                },
-            ),
-            status_code=303,
+        return _error_redirect(
+            url=default_redirect,
+            error=error,
+            description=error_description or "Не удалось завершить вход через Sber ID",
         )
 
     if code is None or state is None:
-        return RedirectResponse(
-            url=build_frontend_redirect_url(
-                frontend_success_login_url,
-                {
-                    "error": "invalid_request",
-                    "description": "Сбер ID не вернул код авторизации",
-                },
-            ),
-            status_code=303,
+        return _error_redirect(
+            url=default_redirect,
+            error="invalid_request",
+            description="Sber ID не вернул код авторизации",
         )
 
     try:
-        nonce, saved_frontend_success_login_url = await auth_service.validate_state(
-            state
-        )
-        frontend_success_login_url = (
-            saved_frontend_success_login_url or config.frontend_success_login_url
-        )
-
-        token_data = await auth_service.exchange_code_for_token(code)
-        await auth_service.validate_id_token(
-            token_data.id_token, nonce, config.client_id
-        )
-
-        login_code = await auth_service.process_user(token_data.access_token)
+        results = await auth_service.process_user(state=state, code=code)
     except HTTPException as exc:
-        return RedirectResponse(
-            url=build_frontend_redirect_url(
-                frontend_success_login_url,
-                {
-                    "error": "auth_failed",
-                    "description": str(exc.detail),
-                },
-            ),
-            status_code=303,
+        return _error_redirect(
+            url=default_redirect, error="auth_failed", description=str(exc.detail)
         )
     except Exception:
         logger.exception("Unexpected Sber ID callback failure")
-        return RedirectResponse(
-            url=build_frontend_redirect_url(
-                frontend_success_login_url,
-                {
-                    "error": "server_error",
-                    "description": "Не удалось завершить вход через Sber ID",
-                },
-            ),
-            status_code=303,
+        return _error_redirect(
+            url=default_redirect,
+            error="server_error",
+            description="Не удалось завершить вход через Sber ID",
         )
 
+    redirect_url = results.redirect_url or default_redirect
+
     return RedirectResponse(
-        url=build_frontend_redirect_url(
-            frontend_success_login_url,
-            {"code": login_code},
+        url=url_utils.build_url(redirect_url, {"code": results.login_code}),
+        status_code=303,
+    )
+
+
+def _error_redirect(url: str, error: str, description: str) -> RedirectResponse:
+    return RedirectResponse(
+        url=url_utils.build_url(
+            base_url=url,
+            params={
+                "error": error,
+                "description": description,
+            },
         ),
         status_code=303,
     )
