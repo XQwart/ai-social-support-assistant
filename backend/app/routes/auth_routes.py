@@ -178,36 +178,35 @@ async def logout(
     return response
 
 
-# TODO: Удалить
-# @router.post("/login")
-# async def login(
-#     user_repo: UserRepoDep,
-#     token_repo: TokenRedisRepoDep,
-#     access_token_util: AccessTokenDep,
-#     refresh_token_util: RefreshTokenDep,
-# ) -> JSONResponse:  # Затычка
-#     bank_id = "wythdgsraferi4538trfhsa7837hfas"
-#     name = "Ivan"
-#     last_name = "Ivanov"
+@router.post("/mock-login")
+async def mock_login(
+    user_repo: UserRepoDep,
+    token_repo: TokenRedisRepoDep,
+    access_token_util: AccessTokenDep,
+    refresh_token_util: RefreshTokenDep,
+) -> JSONResponse:
+    bank_id = "wythdgsraferi4538trfhsa7837hfas"
+    name = "Ivan"
+    last_name = "Ivanov"
 
-#     user = await user_repo.get_by_bank_id(bank_id=bank_id)
-#     if user is None:
-#         user = await user_repo.create(
-#             bank_id=bank_id, first_name=name, second_name=last_name
-#         )
+    user = await user_repo.get_by_bank_id(bank_id=bank_id)
+    if user is None:
+        user = await user_repo.create(
+            bank_id=bank_id, first_name=name, second_name=last_name
+        )
 
-#     refresh_jti = refresh_token_util.generate_jti()
+    refresh_jti = refresh_token_util.generate_jti()
 
-#     access_token = access_token_util.generate(user_id=user.id)
-#     refresh_token = refresh_token_util.generate(
-#         user_id=user.id, extra={"jti": refresh_jti}
-#     )
+    access_token = access_token_util.generate(user_id=user.id)
+    refresh_token = refresh_token_util.generate(
+        user_id=user.id, extra={"jti": refresh_jti}
+    )
 
-#     await token_repo.save(user_id=user.id, jti=refresh_jti)
+    await token_repo.save(user_id=user.id, jti=refresh_jti)
 
-#     response = JSONResponse(
-#         content={"message": "Успешная авторизация", "token": access_token}
-#     )
-#     set_refresh_cookie(response, refresh_token)
+    response = JSONResponse(
+        content={"message": "Успешная авторизация", "token": access_token}
+    )
+    set_refresh_cookie(response, refresh_token)
 
-#     return response
+    return response
