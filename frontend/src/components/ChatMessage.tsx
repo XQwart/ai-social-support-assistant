@@ -132,7 +132,7 @@ function IconActionButton({
         !active && "text-slate-500 hover:bg-slate-900/5 hover:text-slate-700 active:scale-[0.96]",
         active && tone === "positive" && "bg-emerald-50 text-emerald-600 shadow-[0_10px_24px_rgba(16,185,129,0.12)]",
         active && tone === "negative" && "bg-rose-50 text-rose-600 shadow-[0_10px_24px_rgba(244,63,94,0.12)]",
-        active && tone === "neutral" && "bg-emerald-50 text-emerald-600 shadow-[0_10px_24px_rgba(16,185,129,0.12)]"
+        active && tone === "neutral" && "bg-sky-50 text-sky-600 shadow-[0_10px_24px_rgba(14,165,233,0.16)]"
       )}
     >
       {children}

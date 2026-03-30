@@ -35,6 +35,7 @@ class Config(BaseSettings):
         return self._get_redis_url(0)
 
     sber_token_url: str = ""
+    sber_authorize_url: str = "https://id-ift.sber.ru/CSAFront/oidc/authorize.do"
     sber_redirect_uri: str = ""
     sber_userinfo_url: str = ""
     client_id: str = ""

@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
+import ssl
 import secrets
 import uuid
 import logging
@@ -28,7 +29,7 @@ class AuthService:
     _user_rep: UserRepository
     _access_token_util: JWTTokenUtil
     _refresh_token_util: JWTTokenUtil
-    _ssl_sber_ctx: SSLContext
+    _ssl_sber_ctx: SSLContext | None
 
     def __init__(
         self,
@@ -38,7 +39,7 @@ class AuthService:
         user_rep: UserRepository,
         access_token_util: JWTTokenUtil,
         refresh_token_util: JWTTokenUtil,
-        ssl_sber_ctx: SSLContext,
+        ssl_sber_ctx: SSLContext | None = None,
     ):
         self._config = config
         self._oauth_rep = ouath_rep
@@ -48,25 +49,51 @@ class AuthService:
         self._refresh_token_util = refresh_token_util
         self._ssl_sber_ctx = ssl_sber_ctx
 
-    async def get_and_save_state_and_nonce(self) -> dict[str, str]:
+    def _get_ssl_sber_ctx(self) -> SSLContext:
+        if self._ssl_sber_ctx is not None:
+            return self._ssl_sber_ctx
+
+        try:
+            ssl_ctx = ssl.create_default_context(cafile=self._config.sber_ca_cert_path)
+            ssl_ctx.load_cert_chain(
+                certfile=self._config.sber_client_cert_path,
+                keyfile=self._config.sber_client_key_path,
+            )
+        except FileNotFoundError as exc:
+            logger.exception("Sber certificates not found")
+            raise HTTPException(500, "Sber certificates are not configured") from exc
+        except ssl.SSLError as exc:
+            logger.exception("Sber certificates are invalid")
+            raise HTTPException(500, "Sber certificates are invalid") from exc
+
+        self._ssl_sber_ctx = ssl_ctx
+        return ssl_ctx
+
+    async def get_and_save_state_and_nonce(
+        self, frontend_success_url: str | None = None
+    ) -> dict[str, str]:
         state = secrets.token_urlsafe(32)
         nonce = secrets.token_urlsafe(32)
 
-        await self._oauth_rep.save_params(state=state, nonce=nonce)
+        await self._oauth_rep.save_params(
+            state=state,
+            nonce=nonce,
+            frontend_success_url=frontend_success_url,
+        )
 
         return {"state": state, "nonce": nonce}
 
-    async def validate_state(self, state: str) -> str:
-        nonce = await self._oauth_rep.get_params(state)
-        if nonce is None:
+    async def validate_state(self, state: str) -> tuple[str, str | None]:
+        params = await self._oauth_rep.get_params(state)
+        if params is None:
             raise HTTPException(400, "Invalid or expired state")
 
-        return nonce
+        return params
 
     async def exchange_code_for_token(self, code: str) -> SberTokenData:
         rquid = uuid.uuid4().hex
 
-        async with httpx.AsyncClient(verify=self._ssl_sber_ctx) as client:
+        async with httpx.AsyncClient(verify=self._get_ssl_sber_ctx()) as client:
             token_res = await client.post(
                 self._config.sber_token_url,
                 data={
@@ -112,7 +139,7 @@ class AuthService:
     async def process_user(self, bank_access_token: str) -> str:
         rquid = uuid.uuid4().hex
 
-        async with httpx.AsyncClient(verify=self._ssl_sber_ctx) as client:
+        async with httpx.AsyncClient(verify=self._get_ssl_sber_ctx()) as client:
             userinfo_res = await client.get(
                 self._config.sber_userinfo_url,
                 headers={
@@ -137,16 +164,25 @@ class AuthService:
 
         return code
 
-    async def login_user(self, token_code: str) -> ...:
+    async def login_user(self, token_code: str) -> tuple[str, str, str]:
         code_data = await self._oauth_rep.get_code(code=token_code)
         if code_data is None:
             raise HTTPException(400, "Invalid code")
 
         user_id, _ = code_data
+        user = await self._user_rep.get_by_id(user_id)
+        if user is None:
+            raise HTTPException(404, "User not found")
 
         access, refresh = await self._generate_and_save_tokens(user_id=user_id)
+        user_name = (
+            " ".join(
+                part for part in [user.second_name, user.first_name] if part
+            ).strip()
+            or "Пользователь"
+        )
 
-        return access, refresh
+        return access, refresh, user_name
 
     async def refresh(self, refresh_token: str | None) -> tuple[str, str]:
         if refresh_token is None:

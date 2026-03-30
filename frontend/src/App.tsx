@@ -6,10 +6,10 @@ import {
   fetchMessages,
   sendMessageToChat,
 } from "@/api/chatApi";
-import { preloadSberSdk } from "@/components/AuthModal";
+import { preloadSberAuthParams } from "@/components/AuthModal";
 import AppDisclaimer from "@/components/AppDisclaimer";
 import AuthModal from "@/components/AuthModal";
-import { logoutRequest, refreshRequest } from "@/api/authApi";
+import { exchangeSberCodeRequest, logoutRequest } from "@/api/authApi";
 import { UnauthorizedError } from "@/api/errors";
 import ChatInput from "@/components/ChatInput";
 import ChatView from "@/components/ChatView";
@@ -18,9 +18,23 @@ import SettingsModal from "@/components/SettingsModal";
 import Sidebar from "@/components/Sidebar";
 import TopBar from "@/components/TopBar";
 import type { Chat, Message } from "@/types";
+import type { ExchangeSberCodeResponse } from "@/api/authApi";
 
 const AUTH_TOKEN_KEY = "ai-social-support.auth.token";
 const AUTH_USER_KEY = "ai-social-support.auth.user";
+
+type PendingSberCallback = {
+  code: string | null;
+  error: string;
+};
+
+let pendingSberCallback: PendingSberCallback | null = null;
+let pendingSberExchange:
+  | {
+      code: string;
+      promise: Promise<ExchangeSberCodeResponse>;
+    }
+  | null = null;
 
 function readAuthState(): { token: string | null; userName: string | null } {
   if (typeof window === "undefined") return { token: null, userName: null };
@@ -32,6 +46,72 @@ function readAuthState(): { token: string | null; userName: string | null } {
     token: token ?? null,
     userName,
   };
+}
+
+function clearSberCallbackParams() {
+  if (typeof window === "undefined") return;
+
+  const url = new URL(window.location.href);
+  ["code", "state", "error", "error_description", "description"].forEach(
+    (key) => url.searchParams.delete(key)
+  );
+
+  const nextUrl = `${url.pathname}${url.search}${url.hash}`;
+  window.history.replaceState(window.history.state, "", nextUrl);
+}
+
+function resolveSberCallbackError(searchParams: URLSearchParams): string {
+  const errorCode = searchParams.get("error");
+  if (!errorCode) return "";
+
+  const description =
+    searchParams.get("description") ??
+    searchParams.get("error_description");
+
+  if (description) {
+    return description;
+  }
+
+  switch (errorCode) {
+    case "access_denied":
+      return "Вход через Sber ID был отменен.";
+    case "invalid_state":
+      return "Сессия входа устарела. Попробуйте еще раз.";
+    case "invalid_request":
+      return "Сбер ID не вернул код авторизации.";
+    default:
+      return "Не удалось завершить вход через Sber ID. Попробуйте еще раз.";
+  }
+}
+
+function readPendingSberCallback(): PendingSberCallback | null {
+  if (typeof window === "undefined") {
+    return pendingSberCallback;
+  }
+
+  const url = new URL(window.location.href);
+  const code = url.searchParams.get("code");
+  const error = resolveSberCallbackError(url.searchParams);
+
+  if (!code && !error) {
+    return pendingSberCallback;
+  }
+
+  pendingSberCallback = { code, error };
+  clearSberCallbackParams();
+
+  return pendingSberCallback;
+}
+
+function getOrCreateSberExchange(code: string): Promise<ExchangeSberCodeResponse> {
+  if (pendingSberExchange?.code === code) {
+    return pendingSberExchange.promise;
+  }
+
+  const promise = exchangeSberCodeRequest(code);
+  pendingSberExchange = { code, promise };
+
+  return promise;
 }
 
 function mergeUniqueMessages(
@@ -65,6 +145,8 @@ export default function App() {
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [sberAuthError, setSberAuthError] = useState("");
+  const [isFinalizingSberAuth, setIsFinalizingSberAuth] = useState(false);
 
   const controllersRef = useRef<Map<string, AbortController>>(new Map());
 
@@ -101,6 +183,8 @@ export default function App() {
     setAnimatedMessageId(null);
     setIsSidebarOpen(false);
     setIsSettingsModalOpen(false);
+    setSberAuthError("");
+    setIsFinalizingSberAuth(false);
     setIsAuthModalOpen(true);
   }, []);
 
@@ -125,6 +209,8 @@ export default function App() {
     setLoadingChatIds([]);
     setAnimatedMessageId(null);
     setIsSettingsModalOpen(false);
+    setSberAuthError("");
+    setIsFinalizingSberAuth(false);
   }, []);
 
   useEffect(() => {
@@ -191,21 +277,98 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    void preloadSberSdk();
+    preloadSberAuthParams();
   }, []);
 
-  const handleAuthSuccess = useCallback((token: string, name: string) => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(AUTH_TOKEN_KEY, token);
-      window.localStorage.setItem(AUTH_USER_KEY, name);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const callbackData = readPendingSberCallback();
+
+    if (!callbackData) {
+      return;
     }
 
-    setAuthToken(token);
-    setUserName(name);
-    setIsAuthModalOpen(false);
+    if (callbackData.error) {
+      pendingSberCallback = null;
+      setSberAuthError(callbackData.error);
+      setIsFinalizingSberAuth(false);
+      setIsAuthModalOpen(true);
+      return;
+    }
+
+    if (!callbackData.code) {
+      pendingSberCallback = null;
+      return;
+    }
+
+    let cancelled = false;
+
+    setSberAuthError("");
+    setIsFinalizingSberAuth(true);
+    setIsAuthModalOpen(true);
+
+    getOrCreateSberExchange(callbackData.code)
+      .then(({ token, userName }) => {
+        if (cancelled) return;
+
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(AUTH_TOKEN_KEY, token);
+          window.localStorage.setItem(AUTH_USER_KEY, userName);
+        }
+
+        setAuthToken(token);
+        setUserName(userName);
+        setSberAuthError("");
+        setIsAuthModalOpen(false);
+        pendingSberCallback = null;
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+
+        if (typeof window !== "undefined") {
+          window.localStorage.removeItem(AUTH_TOKEN_KEY);
+          window.localStorage.removeItem(AUTH_USER_KEY);
+        }
+
+        setAuthToken(null);
+        setUserName("");
+        setSberAuthError(
+          error instanceof Error
+            ? error.message
+            : "Не удалось завершить вход через Sber ID"
+        );
+        setIsAuthModalOpen(true);
+        pendingSberCallback = null;
+      })
+      .finally(() => {
+        if (cancelled) {
+          return;
+        }
+
+        setIsFinalizingSberAuth(false);
+
+        if (pendingSberExchange?.code === callbackData.code) {
+          pendingSberExchange = null;
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const handleOpenAuth = useCallback(() => setIsAuthModalOpen(true), []);
+  const handleOpenAuth = useCallback(() => {
+    setSberAuthError("");
+    setIsFinalizingSberAuth(false);
+    setIsAuthModalOpen(true);
+  }, []);
+
+  const handleCloseAuth = useCallback(() => {
+    setSberAuthError("");
+    setIsFinalizingSberAuth(false);
+    setIsAuthModalOpen(false);
+  }, []);
 
   const handleSend = useCallback(
     async (rawText: string) => {
@@ -213,7 +376,7 @@ export default function App() {
       if (!text) return;
 
       if (!authToken) {
-        setIsAuthModalOpen(true);
+        handleOpenAuth();
         return;
       }
 
@@ -339,7 +502,7 @@ export default function App() {
         }
       }
     },
-    [activeChatId, authToken, handleSessionExpired]
+    [activeChatId, authToken, handleOpenAuth, handleSessionExpired]
   );
 
   const handleSelectChat = useCallback((chatId: string) => {
@@ -385,7 +548,7 @@ export default function App() {
   const handleCloseSidebar = useCallback(() => setIsSidebarOpen(false), []);
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden bg-[var(--app-bg)] text-slate-900">
+    <div className="relative flex h-[100dvh] min-h-screen flex-col overflow-hidden bg-[var(--app-bg)] text-slate-900">
       <div className="app-background" aria-hidden="true">
         <div className="app-bg-spot app-bg-spot-one" />
         <div className="app-bg-spot app-bg-spot-two" />
@@ -414,7 +577,7 @@ export default function App() {
         userInitial={userInitial}
       />
 
-      <div className="relative z-10 flex min-h-0 flex-1 flex-col">
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">
         {showHome ? (
           <HomePage
             onSend={handleSend}
@@ -434,7 +597,7 @@ export default function App() {
               )}
             </div>
 
-            <div className="z-20 border-t border-white/35 bg-[linear-gradient(180deg,rgba(239,248,243,0.22),rgba(239,248,243,0.92))] shadow-[0_-18px_48px_rgba(15,23,42,0.08)] backdrop-blur-2xl">
+            <div className="sticky bottom-0 z-20 shrink-0 border-t border-white/35 bg-[linear-gradient(180deg,rgba(239,248,243,0.22),rgba(239,248,243,0.92))] shadow-[0_-18px_48px_rgba(15,23,42,0.08)] backdrop-blur-2xl">
               <ChatInput
                 onSend={handleSend}
                 isLoading={isCurrentChatLoading}
@@ -452,8 +615,9 @@ export default function App() {
 
       <AuthModal
         isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        onAuthSuccess={handleAuthSuccess}
+        onClose={handleCloseAuth}
+        externalError={sberAuthError}
+        isFinalizing={isFinalizingSberAuth}
       />
 
       <SettingsModal

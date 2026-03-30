@@ -1,26 +1,44 @@
+import { getApiBase } from "@/api/base";
 import { UnauthorizedError } from "@/api/errors";
 
-const API_BASE = import.meta.env.VITE_API_URL || "";
+const API_BASE = getApiBase();
 const AUTH_TOKEN_KEY = "ai-social-support.auth.token";
 
-export interface AuthResponse {
+interface ExchangeSberCodeResponseDto {
   message: string;
   token: string;
+  user_name?: string;
 }
 
-export async function loginRequest(): Promise<AuthResponse> {
-  const res = await fetch(`${API_BASE}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-  });
+export interface ExchangeSberCodeResponse {
+  message: string;
+  token: string;
+  userName: string;
+}
+
+export async function exchangeSberCodeRequest(
+  tokenCode: string
+): Promise<ExchangeSberCodeResponse> {
+  const res = await fetch(
+    `${API_BASE}/auth/exchange?token_code=${encodeURIComponent(tokenCode)}`,
+    {
+      method: "GET",
+      credentials: "include",
+    }
+  );
 
   if (!res.ok) {
     const body = await res.json().catch(() => null);
-    throw new Error(body?.detail ?? "Ошибка авторизации");
+    throw new Error(body?.detail ?? "Не удалось завершить вход через Sber ID");
   }
 
-  return res.json();
+  const data = (await res.json()) as ExchangeSberCodeResponseDto;
+
+  return {
+    message: data.message,
+    token: data.token,
+    userName: data.user_name?.trim() || "Пользователь",
+  };
 }
 
 export async function refreshRequest(): Promise<string> {
