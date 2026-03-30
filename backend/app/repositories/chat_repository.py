@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 
-from app.models.chat_model import ChatModel
+from app.models import ChatModel
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession

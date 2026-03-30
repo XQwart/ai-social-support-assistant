@@ -1,11 +1,13 @@
 from typing import Annotated
 from fastapi import Depends
 
-from app.repositories.user_repository import UserRepository
-from app.repositories.oauth_repository import OauthRepository
-from app.repositories.token_repository import TokenRedisRepository
-from app.repositories.chat_repository import ChatRepository
-from app.repositories.message_repository import MessageRepository
+from app.repositories import (
+    ChatRepository,
+    MessageRepository,
+    OauthRepository,
+    TokenRedisRepository,
+    UserRepository,
+)
 from app.dependencies.config import ConfigDep
 from app.dependencies.redis import RedisDep
 from app.dependencies.session import DBSessionDep

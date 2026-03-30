@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Path
 
-from app.models.chat_model import ChatModel
+from app.models import ChatModel
 from app.dependencies.repositories import ChatRepoDep
 from app.dependencies.auth import AuthDep
 

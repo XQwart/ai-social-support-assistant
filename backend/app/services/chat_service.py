@@ -4,8 +4,9 @@ from typing import TYPE_CHECKING
 import logging
 
 if TYPE_CHECKING:
-    from app.repositories.chat_repository import ChatRepository
-    from app.models.chat_model import ChatModel
+    from app.repositories import ChatRepository
+    from app.models import ChatModel
+
 
 logger = logging.getLogger(__name__)
 

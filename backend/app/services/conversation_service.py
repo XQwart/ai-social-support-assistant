@@ -4,12 +4,9 @@ from typing import TYPE_CHECKING
 from app.models.message_model import MessageRole
 
 if TYPE_CHECKING:
-    from .ai_service import AIService
-    from .message_service import MessageService
-    from .chat_service import ChatService
+    from . import AIService, ChatService, MessageService
     from app.core.config import Config
-    from app.models.chat_model import ChatModel
-    from app.models.message_model import MessageModel
+    from app.models import ChatModel, MessageModel
 
 
 class ConversationService:
@@ -80,7 +77,9 @@ class ConversationService:
         )
         return self._to_history(messages), chat.compressed_context, False
 
-    async def _compress_and_save(self, chat: ChatModel, messages: list[MessageModel]) -> str:
+    async def _compress_and_save(
+        self, chat: ChatModel, messages: list[MessageModel]
+    ) -> str:
         history = self._to_history(messages)
         compressed_context = await self._ai_service.compress_context(history)
 

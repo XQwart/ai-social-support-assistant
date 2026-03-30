@@ -14,9 +14,7 @@ from app.schemas.auth_schemas import SberTokenData, SberUserInfo
 
 if TYPE_CHECKING:
     from app.core.config import Config
-    from app.repositories.oauth_repository import OauthRepository
-    from app.repositories.user_repository import UserRepository
-    from app.repositories.token_repository import TokenRedisRepository
+    from app.repositories import TokenRedisRepository, OauthRepository, UserRepository
     from app.utils.jwt_utils import JWTTokenUtil
 
 logger = logging.getLogger(__name__)

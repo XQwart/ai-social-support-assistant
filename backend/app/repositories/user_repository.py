@@ -1,6 +1,7 @@
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.user_model import UserModel
+
+from app.models import UserModel
 
 
 class UserRepository:

@@ -3,9 +3,10 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import select, func
 
-from app.models.message_model import MessageModel, MessageRole
+from app.models import MessageModel
 
 if TYPE_CHECKING:
+    from app.models.message_model import MessageRole
     from sqlalchemy.ext.asyncio import AsyncSession
 
 

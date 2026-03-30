@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from app.repositories.message_repository import MessageRepository
+    from app.repositories import MessageRepository
     from app.models.message_model import MessageModel, MessageRole
 
 
