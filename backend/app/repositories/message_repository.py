@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import select, func
 
-from app.models.message import Message, MessageRole
+from app.models.message_model import MessageModel, MessageRole
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,34 +15,40 @@ class MessageRepository:
     def __init__(self, session: AsyncSession):
         self._session = session
 
-    async def create(self, chat_id: int, role: MessageRole, content: str) -> Message:
-        message = Message(chat_id=chat_id, role=role, content=content)
+    async def create(
+        self, chat_id: int, role: MessageRole, content: str
+    ) -> MessageModel:
+        message = MessageModel(chat_id=chat_id, role=role, content=content)
         self._session.add(message)
         await self._session.commit()
         await self._session.refresh(message)
         return message
 
-    async def get_by_id(self, message_id: int) -> Message | None:
+    async def get_by_id(self, message_id: int) -> MessageModel | None:
         result = await self._session.execute(
-            select(Message).where(Message.id == message_id)
+            select(MessageModel).where(MessageModel.id == message_id)
         )
         return result.scalar_one_or_none()
 
     async def count_messages_by_chat(self, chat_id) -> int:
         result = await self._session.execute(
-            select(func.count()).select_from(Message).where(Message.chat_id == chat_id)
+            select(func.count())
+            .select_from(MessageModel)
+            .where(MessageModel.chat_id == chat_id)
         )
 
         return result.scalar_one()
 
     async def get_by_chat(
         self, chat_id: int, limit: int = 100, offset: int = 0, asc: bool = True
-    ) -> list[Message]:
-        order_by = Message.created_at.asc() if asc else Message.created_at.desc()
+    ) -> list[MessageModel]:
+        order_by = (
+            MessageModel.created_at.asc() if asc else MessageModel.created_at.desc()
+        )
 
         result = await self._session.execute(
-            select(Message)
-            .where(Message.chat_id == chat_id)
+            select(MessageModel)
+            .where(MessageModel.chat_id == chat_id)
             .order_by(order_by)
             .limit(limit)
             .offset(offset)

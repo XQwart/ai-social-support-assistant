@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse
 
-from app.routes import auth, message, chat
+from app.routes import auth_routes, chat_routes, message_routes
 from app.core.lifespan import lifespan
 
 logger = logging.getLogger(__name__)
@@ -43,9 +43,9 @@ async def log_requests_middleware(request: Request, call_next):
         )
 
 
-app.include_router(auth.router)
-app.include_router(message.router)
-app.include_router(chat.router)
+app.include_router(auth_routes.router)
+app.include_router(message_routes.router)
+app.include_router(chat_routes.router)
 
 app.add_middleware(
     CORSMiddleware,

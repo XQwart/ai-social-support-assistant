@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Query
-from app.schemas.chat import ChatResponse, ChatsPageResponse
-from app.schemas.message import MessageCreate
+from app.schemas.chat_schemas import ChatResponse, ChatsPageResponse
+from app.schemas.message_schemas import MessageCreate
 from app.dependencies.chat import OwnerChatDep
 from app.dependencies.auth import AuthDep
 from app.dependencies.services import ChatServiceDep

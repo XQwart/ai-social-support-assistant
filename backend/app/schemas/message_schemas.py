@@ -1,7 +1,7 @@
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.message import MessageRole
+from app.models.message_model import MessageRole
 
 
 class MessageCreate(BaseModel):

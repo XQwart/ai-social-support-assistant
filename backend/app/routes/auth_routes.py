@@ -8,8 +8,11 @@ from fastapi.responses import JSONResponse, RedirectResponse, Response
 
 from app.dependencies.config import ConfigDep
 from app.dependencies.services import AuthServiceDep
-from app.schemas.auth import AuthExchangeResponse
-from app.utils.auth import clear_refresh_cookie, set_refresh_cookie
+from app.dependencies.repositories import UserRepoDep, TokenRedisRepoDep
+from app.dependencies.jwt import AccessTokenDep, RefreshTokenDep
+from app.schemas.auth_schemas import AuthExchangeResponse
+from app.utils.auth_utils import clear_refresh_cookie, set_refresh_cookie
+
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 logger = logging.getLogger(__name__)

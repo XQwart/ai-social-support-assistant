@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.schemas.auth import TokenDataOut
+from app.schemas.auth_schemas import TokenDataOut
 from .jwt import AccessTokenDep
 
 

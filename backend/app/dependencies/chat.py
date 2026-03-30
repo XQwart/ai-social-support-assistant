@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Path
 
-from app.models.chat import Chat
+from app.models.chat_model import ChatModel
 from app.dependencies.repositories import ChatRepoDep
 from app.dependencies.auth import AuthDep
 
@@ -11,7 +11,7 @@ async def get_user_chat(
     token_data: AuthDep,
     chat_rep: ChatRepoDep,
     chat_id: int = Path(...),
-) -> Chat:
+) -> ChatModel:
     chat = await chat_rep.get_by_id(chat_id)
 
     if chat is None:
@@ -23,4 +23,4 @@ async def get_user_chat(
     return chat
 
 
-OwnerChatDep = Annotated[Chat, Depends(get_user_chat)]
+OwnerChatDep = Annotated[ChatModel, Depends(get_user_chat)]

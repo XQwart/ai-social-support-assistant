@@ -9,7 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
 if TYPE_CHECKING:
-    from app.models.chat import Chat
+    from app.models.chat_model import ChatModel
 
 
 class MessageRole(str, Enum):
@@ -17,7 +17,7 @@ class MessageRole(str, Enum):
     ASSISTANT = "assistant"
 
 
-class Message(Base):
+class MessageModel(Base):
     __tablename__ = "messages"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -30,4 +30,4 @@ class Message(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
-    chat: Mapped["Chat"] = relationship("Chat", back_populates="messages")
+    chat: Mapped["ChatModel"] = relationship("ChatModel", back_populates="messages")

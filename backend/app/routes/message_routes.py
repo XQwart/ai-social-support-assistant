@@ -2,7 +2,7 @@ from fastapi import APIRouter, Query, status
 
 from app.dependencies.chat import OwnerChatDep
 from app.dependencies.services import MessageServiceDep, ConversationServiceDep
-from app.schemas.message import (
+from app.schemas.message_schemas import (
     ChatMessageResponse,
     MessageCreate,
     SendMessageResponse,

@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING
 import logging
 
 if TYPE_CHECKING:
-    from app.repositories.chat import ChatRepository
-    from app.models.chat import Chat
+    from app.repositories.chat_repository import ChatRepository
+    from app.models.chat_model import ChatModel
 
 logger = logging.getLogger(__name__)
 
@@ -19,14 +19,14 @@ class ChatService:
     ):
         self._chat_rep = chat_rep
 
-    async def create_chat(self, user_id: int, message: str) -> Chat:
+    async def create_chat(self, user_id: int, message: str) -> ChatModel:
         title = message[:255]
 
         return await self._chat_rep.create(user_id=user_id, title=title)
 
     async def get_chats(
         self, user_id: int, limit: int, offset: int
-    ) -> tuple[list[Chat], int]:
+    ) -> tuple[list[ChatModel], int]:
         chats = await self._chat_rep.get_all_by_user(
             user_id=user_id, limit=limit, offset=offset
         )
@@ -36,10 +36,10 @@ class ChatService:
     async def delete_chat(self, chat_id: int) -> bool:
         return await self._chat_rep.delete(chat_id=chat_id)
 
-    async def get_chat(self, chat_id: int) -> Chat:
+    async def get_chat(self, chat_id: int) -> ChatModel:
         return await self._chat_rep.get_by_id(chat_id=chat_id)
 
     async def update_chat(
-        self, chat: Chat, compressed_context: str | None = None
+        self, chat: ChatModel, compressed_context: str | None = None
     ) -> None:
         await self._chat_rep.update(chat=chat, compressed_context=compressed_context)

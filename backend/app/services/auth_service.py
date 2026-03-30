@@ -10,14 +10,14 @@ from fastapi import HTTPException
 import httpx
 import jose.jwt
 
-from app.schemas.auth import SberTokenData, SberUserInfo
+from app.schemas.auth_schemas import SberTokenData, SberUserInfo
 
 if TYPE_CHECKING:
     from app.core.config import Config
-    from app.repositories.oauth import OauthRepository
-    from app.repositories.user import UserRepository
-    from app.repositories.token import TokenRedisRepository
-    from app.utils.jwt import JWTTokenUtil
+    from app.repositories.oauth_repository import OauthRepository
+    from app.repositories.user_repository import UserRepository
+    from app.repositories.token_repository import TokenRedisRepository
+    from app.utils.jwt_utils import JWTTokenUtil
 
 logger = logging.getLogger(__name__)
 

@@ -2,11 +2,11 @@ from typing import Annotated
 
 from fastapi import Depends
 
-from app.services.chat import ChatService
-from app.services.auth import AuthService
-from app.services.message import MessageService
-from app.services.conversation import ConversationService
-from app.services.ai import AIService
+from app.services.chat_service import ChatService
+from app.services.auth_service import AuthService
+from app.services.message_service import MessageService
+from app.services.conversation_service import ConversationService
+from app.services.ai_service import AIService
 from app.dependencies.config import ConfigDep
 from app.dependencies.repositories import (
     UserRepoDep,
