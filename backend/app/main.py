@@ -1,51 +1,21 @@
-import time
-import logging
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.responses import HTMLResponse
 
 from app.routes import router
 from app.core.lifespan import lifespan
 from app.exceptions.handlers import init_exception_handlers
+from app.middlewares.logging_middleware import LogRequestsMiddleware
 
-
-logger = logging.getLogger(__name__)
 
 app = FastAPI(lifespan=lifespan)
 
 
-@app.middleware("http")
-async def log_requests_middleware(request: Request, call_next):
-    start_time = time.time()
-    path = request.url.path
-    method = request.method
-
-    try:
-        response = await call_next(request)
-        process_time = (time.time() - start_time) * 1000
-        logger.info(
-            "Request: %s %s - Status: %s - Completed in %.2fms",
-            method,
-            path,
-            response.status_code,
-            process_time,
-        )
-        return response
-    except Exception as e:
-        process_time = (time.time() - start_time) * 1000
-        logger.exception(
-            "Request failed: %s %s - Error: %s - Failed in %.2fms",
-            method,
-            path,
-            str(e),
-            process_time,
-        )
-        raise e
-
-
-init_exception_handlers(app)
 app.include_router(router)
 
+init_exception_handlers(app)
+
+app.add_middleware(LogRequestsMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
