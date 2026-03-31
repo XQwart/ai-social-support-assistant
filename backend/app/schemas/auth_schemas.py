@@ -25,6 +25,21 @@ class AuthExchangeResponse(BaseModel):
     user_name: str
 
 
+class RefreshResponse(BaseModel):
+    token: str
+
+
+class SberParamsResponse(BaseModel):
+    client_id: str
+    authorize_url: str
+    redirect_uri: str
+    scopes: str
+    name: str
+    response_type: str
+    state: str
+    nonce: str
+
+
 class TokenDataOut(BaseModel):
     user_id: int
 
@@ -39,9 +54,3 @@ class SberCallbackResult:
 class AuthTokenPair:
     access_token: str
     refresh_token: str
-
-
-@dataclass(slots=True)
-class LoginResult:
-    user_name: str
-    tokens: AuthTokenPair

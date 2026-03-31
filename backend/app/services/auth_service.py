@@ -7,7 +7,6 @@ from app.schemas.auth_schemas import (
     SberUserInfo,
     SberCallbackResult,
     AuthTokenPair,
-    LoginResult,
 )
 from app.exceptions.base_exceptions import (
     BadRequestError,
@@ -55,7 +54,7 @@ class AuthService:
 
     async def get_and_save_state_and_nonce(
         self, frontend_success_url: str | None = None
-    ) -> dict[str, str]:
+    ) -> tuple[str, str]:
         state = secrets.token_urlsafe(32)
         nonce = secrets.token_urlsafe(32)
 
@@ -65,7 +64,7 @@ class AuthService:
             frontend_success_url=frontend_success_url,
         )
 
-        return {"state": state, "nonce": nonce}
+        return state, nonce
 
     async def handle_sber_callback(self, state: str, code: str) -> SberCallbackResult:
         nonce, saved_redirect_url = await self._validate_state(state)
@@ -99,7 +98,7 @@ class AuthService:
 
         return user
 
-    async def login_user(self, token_code: str) -> LoginResult:
+    async def login_user(self, token_code: str) -> tuple[str, AuthTokenPair]:
         code_data = await self._oauth_rep.get_code(code=token_code)
         if code_data is None:
             raise BadRequestError("Invalid code")
@@ -117,7 +116,7 @@ class AuthService:
             or "Пользователь"
         )
 
-        return LoginResult(user_name=user_name, tokens=tokens)
+        return user_name, tokens
 
     async def refresh(self, refresh_token: str | None) -> AuthTokenPair:
         if refresh_token is None:

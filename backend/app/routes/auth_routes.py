@@ -1,7 +1,7 @@
 from __future__ import annotations
 import logging
 
-from fastapi import APIRouter, Cookie, Query
+from fastapi import APIRouter, Cookie, Query, status
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 
 from app.dependencies.config import ConfigDep
@@ -9,7 +9,11 @@ from app.dependencies.services import AuthServiceDep
 from app.dependencies.repositories import UserRepoDep, TokenRedisRepoDep
 from app.dependencies.jwt import AccessTokenDep, RefreshTokenDep
 from app.exceptions.base_exceptions import AppError
-from app.schemas.auth_schemas import AuthExchangeResponse
+from app.schemas.auth_schemas import (
+    AuthExchangeResponse,
+    SberParamsResponse,
+    RefreshResponse,
+)
 from app.utils.cookie_utils import clear_refresh_cookie, set_refresh_cookie
 from app.utils import url_utils
 
@@ -18,30 +22,29 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 logger = logging.getLogger(__name__)
 
 
-@router.get("/sber/params")
+@router.get("/sber/params", status_code=status.HTTP_200_OK)
 async def get_params(
     auth_service: AuthServiceDep,
     config: ConfigDep,
     frontend_url: str | None = Query(default=None),
-):
-    params = await auth_service.get_and_save_state_and_nonce(
+) -> SberParamsResponse:
+    state, nonce = await auth_service.get_and_save_state_and_nonce(
         frontend_success_url=frontend_url
     )
 
-    return JSONResponse(
-        {
-            "client_id": config.client_id,
-            "authorize_url": config.sber_authorize_url,
-            "redirect_uri": config.sber_redirect_uri,
-            "scopes": config.sber_scopes,
-            "name": config.sber_application_name,
-            "response_type": "code",
-            **params,
-        }
+    return SberParamsResponse(
+        client_id=config.client_id,
+        authorize_url=config.sber_authorize_url,
+        redirect_uri=config.sber_redirect_uri,
+        scopes=config.sber_scopes,
+        name=config.sber_application_name,
+        response_type="code",
+        state=state,
+        nonce=nonce,
     )
 
 
-@router.get("/sber/callback")
+@router.get("/sber/callback", status_code=status.HTTP_303_SEE_OTHER)
 async def sber_callback(
     auth_service: AuthServiceDep,
     config: ConfigDep,
@@ -83,8 +86,7 @@ async def sber_callback(
     redirect_url = results.redirect_url or default_redirect
 
     return RedirectResponse(
-        url=url_utils.build_url(redirect_url, {"code": results.login_code}),
-        status_code=303,
+        url=url_utils.build_url(redirect_url, {"code": results.login_code})
     )
 
 
@@ -97,51 +99,48 @@ def _error_redirect(url: str, error: str, description: str) -> RedirectResponse:
                 "description": description,
             },
         ),
-        status_code=303,
     )
 
 
-@router.get("/exchange")
-async def exchange_code(auth_service: AuthServiceDep, token_code: str = Query(...)):
-    result = await auth_service.login_user(token_code=token_code)
-    tokens = result.tokens
+@router.get(
+    "/exchange", response_model=AuthExchangeResponse, status_code=status.HTTP_200_OK
+)
+async def exchange_code(
+    auth_service: AuthServiceDep, response: Response, token_code: str = Query(...)
+) -> AuthExchangeResponse:
+    user_name, tokens = await auth_service.login_user(token_code=token_code)
 
-    response = JSONResponse(
-        content=AuthExchangeResponse(
-            message="Успешная авторизация",
-            token=tokens.access_token,
-            user_name=result.user_name,
-        ).model_dump()
-    )
     set_refresh_cookie(response, tokens.refresh_token)
 
-    return response
+    return AuthExchangeResponse(
+        message="Успешная авторизация",
+        user_name=user_name,
+        token=tokens.access_token,
+    )
 
 
-@router.post("/refresh")
+@router.post("/refresh", status_code=status.HTTP_200_OK)
 async def refresh(
     auth_service: AuthServiceDep,
+    response: Response,
     refresh_token: str | None = Cookie(default=None),
-):
+) -> RefreshResponse:
     tokens = await auth_service.refresh(refresh_token=refresh_token)
 
-    response = JSONResponse(content={"token": tokens.access_token}, status_code=200)
-    set_refresh_cookie(response=response, refresh_token=tokens.refresh_token)
+    set_refresh_cookie(response, tokens.refresh_token)
 
-    return response
+    return RefreshResponse(token=tokens.access_token)
 
 
-@router.post("/logout")
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 async def logout(
     auth_service: AuthServiceDep,
+    response: Response,
     refresh_token: str | None = Cookie(default=None),
-) -> Response:
+) -> None:
     await auth_service.logout(refresh_token=refresh_token)
 
-    response = Response(status_code=204)
     clear_refresh_cookie(response)
-
-    return response
 
 
 @router.post("/mock-login")

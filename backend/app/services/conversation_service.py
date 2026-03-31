@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from app.models.message_model import MessageRole
+from app.schemas.message_schemas import ConversationResult
 
 if TYPE_CHECKING:
     from . import AIService, ChatService, MessageService
@@ -27,9 +28,7 @@ class ConversationService:
         self._chat_service = chat_service
         self._config = config
 
-    async def send_message(
-        self, chat: ChatModel, content: str
-    ) -> tuple[MessageModel, MessageModel, bool]:
+    async def send_message(self, chat: ChatModel, content: str) -> ConversationResult:
         user_msg = await self._message_service.send_message(
             chat_id=chat.id, message=content, role=MessageRole.USER
         )
@@ -48,7 +47,11 @@ class ConversationService:
 
         await self._chat_service.update_chat(chat)
 
-        return user_msg, assistant_msg, was_compressed
+        return ConversationResult(
+            user_message=user_msg,
+            assistant_message=assistant_msg,
+            context_compressed=was_compressed,
+        )
 
     async def _prepare_context(
         self, chat: ChatModel
