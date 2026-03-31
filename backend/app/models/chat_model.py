@@ -8,11 +8,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
 if TYPE_CHECKING:
-    from app.models.user import User
-    from app.models.message import Message
+    from app.models import MessageModel, UserModel
 
 
-class Chat(Base):
+class ChatModel(Base):
     __tablename__ = "chats"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -30,9 +29,9 @@ class Chat(Base):
         nullable=False,
     )
 
-    user: Mapped["User"] = relationship("User", back_populates="chats")
-    messages: Mapped[list["Message"]] = relationship(
-        "Message",
+    user: Mapped["UserModel"] = relationship("UserModel", back_populates="chats")
+    messages: Mapped[list["MessageModel"]] = relationship(
+        "MessageModel",
         back_populates="chat",
         cascade="all, delete-orphan",
     )

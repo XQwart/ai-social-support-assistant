@@ -8,9 +8,7 @@ from alembic import context
 from app.core.config import get_config
 from app.core.database import Base
 
-from app.models.chat import Chat  # noqa
-from app.models.message import Message  # noqa
-from app.models.user import User  # noqa
+from app.models import ChatModel, MessageModel, UserModel  # noqa
 
 settings = get_config()
 

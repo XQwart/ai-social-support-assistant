@@ -1,15 +1,13 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from app.models.message import MessageRole
+from app.models.message_model import MessageRole
+from app.schemas.message_schemas import ConversationResult
 
 if TYPE_CHECKING:
-    from .ai import AIService
-    from .message import MessageService
-    from .chat import ChatService
+    from . import AIService, ChatService, MessageService
     from app.core.config import Config
-    from app.models.chat import Chat
-    from app.models.message import Message
+    from app.models import ChatModel, MessageModel
 
 
 class ConversationService:
@@ -30,9 +28,7 @@ class ConversationService:
         self._chat_service = chat_service
         self._config = config
 
-    async def send_message(
-        self, chat: Chat, content: str
-    ) -> tuple[Message, Message, bool]:
+    async def send_message(self, chat: ChatModel, content: str) -> ConversationResult:
         user_msg = await self._message_service.send_message(
             chat_id=chat.id, message=content, role=MessageRole.USER
         )
@@ -51,10 +47,14 @@ class ConversationService:
 
         await self._chat_service.update_chat(chat)
 
-        return user_msg, assistant_msg, was_compressed
+        return ConversationResult(
+            user_message=user_msg,
+            assistant_message=assistant_msg,
+            context_compressed=was_compressed,
+        )
 
     async def _prepare_context(
-        self, chat: Chat
+        self, chat: ChatModel
     ) -> tuple[list[dict[str, str]], str | None, bool]:
         messages_count = await self._message_service.count_messages(chat.id)
         mesasges_count_without_user = messages_count - 1
@@ -80,7 +80,9 @@ class ConversationService:
         )
         return self._to_history(messages), chat.compressed_context, False
 
-    async def _compress_and_save(self, chat: Chat, messages: list[Message]) -> str:
+    async def _compress_and_save(
+        self, chat: ChatModel, messages: list[MessageModel]
+    ) -> str:
         history = self._to_history(messages)
         compressed_context = await self._ai_service.compress_context(history)
 
@@ -90,5 +92,5 @@ class ConversationService:
 
         return compressed_context
 
-    def _to_history(self, messages: list[Message]) -> list[dict[str, str]]:
+    def _to_history(self, messages: list[MessageModel]) -> list[dict[str, str]]:
         return [{"role": m.role.value, "content": m.content} for m in messages]

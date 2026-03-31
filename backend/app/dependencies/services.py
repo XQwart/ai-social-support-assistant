@@ -2,11 +2,14 @@ from typing import Annotated
 
 from fastapi import Depends
 
-from app.services.chat import ChatService
-from app.services.auth import AuthService
-from app.services.message import MessageService
-from app.services.conversation import ConversationService
-from app.services.ai import AIService
+from app.services import (
+    AIService,
+    AuthService,
+    ChatService,
+    ConversationService,
+    MessageService,
+    SberIdService,
+)
 from app.dependencies.config import ConfigDep
 from app.dependencies.repositories import (
     UserRepoDep,
@@ -15,11 +18,13 @@ from app.dependencies.repositories import (
     MessageRepoDep,
     ChatRepoDep,
 )
+from app.dependencies.http import HTTPSberClientDep
 from app.dependencies.jwt import AccessTokenDep, RefreshTokenDep
 
 
 def get_auth_service(
     config: ConfigDep,
+    sberid_service: "SberIdServiceDep",
     oauth_rep: OauthRepoDep,
     token_rep: TokenRedisRepoDep,
     user_rep: UserRepoDep,
@@ -28,12 +33,20 @@ def get_auth_service(
 ) -> AuthService:
     return AuthService(
         config,
+        sberid_service,
         oauth_rep,
         token_rep,
         user_rep,
         access_token_util,
         refresh_token_util,
     )
+
+
+def get_sberid_service(
+    config: ConfigDep,
+    client: HTTPSberClientDep,
+) -> SberIdService:
+    return SberIdService(config, client)
 
 
 def get_message_service(message_repo: MessageRepoDep) -> MessageService:
@@ -64,3 +77,4 @@ MessageServiceDep = Annotated[MessageService, Depends(get_message_service)]
 ConversationServiceDep = Annotated[
     ConversationService, Depends(get_conversation_service)
 ]
+SberIdServiceDep = Annotated[SberIdService, Depends(get_sberid_service)]

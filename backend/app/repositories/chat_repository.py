@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 
-from app.models.chat import Chat
+from app.models import ChatModel
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,26 +15,28 @@ class ChatRepository:
     def __init__(self, session: AsyncSession):
         self._session = session
 
-    async def create(self, user_id: int, title: str) -> Chat:
-        chat = Chat(user_id=user_id, title=title)
+    async def create(self, user_id: int, title: str) -> ChatModel:
+        chat = ChatModel(user_id=user_id, title=title)
         self._session.add(chat)
         await self._session.commit()
         await self._session.refresh(chat)
 
         return chat
 
-    async def get_by_id(self, chat_id: int) -> Chat | None:
-        result = await self._session.execute(select(Chat).where(Chat.id == chat_id))
+    async def get_by_id(self, chat_id: int) -> ChatModel | None:
+        result = await self._session.execute(
+            select(ChatModel).where(ChatModel.id == chat_id)
+        )
 
         return result.scalar_one_or_none()
 
     async def get_all_by_user(
         self, user_id: int, limit: int = 100, offset: int = 0
-    ) -> list[Chat]:
+    ) -> list[ChatModel]:
         result = await self._session.execute(
-            select(Chat)
-            .where(Chat.user_id == user_id)
-            .order_by(Chat.updated_at.desc())
+            select(ChatModel)
+            .where(ChatModel.user_id == user_id)
+            .order_by(ChatModel.updated_at.desc())
             .limit(limit)
             .offset(offset)
         )
@@ -42,8 +44,8 @@ class ChatRepository:
         return list(result.scalars().all())
 
     async def update(
-        self, chat: Chat, compressed_context: str | None = None
-    ) -> Chat | None:
+        self, chat: ChatModel, compressed_context: str | None = None
+    ) -> ChatModel | None:
         if compressed_context is not None:
             chat.compressed_context = compressed_context
 

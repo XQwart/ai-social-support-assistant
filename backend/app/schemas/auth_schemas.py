@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -23,5 +25,32 @@ class AuthExchangeResponse(BaseModel):
     user_name: str
 
 
+class RefreshResponse(BaseModel):
+    token: str
+
+
+class SberParamsResponse(BaseModel):
+    client_id: str
+    authorize_url: str
+    redirect_uri: str
+    scopes: str
+    name: str
+    response_type: str
+    state: str
+    nonce: str
+
+
 class TokenDataOut(BaseModel):
     user_id: int
+
+
+@dataclass(slots=True)
+class SberCallbackResult:
+    login_code: str
+    redirect_url: str | None
+
+
+@dataclass(slots=True)
+class AuthTokenPair:
+    access_token: str
+    refresh_token: str

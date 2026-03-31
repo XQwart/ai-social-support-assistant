@@ -1,26 +1,27 @@
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Path
+from fastapi import Depends, Path
 
-from app.models.chat import Chat
+from app.exceptions.base_exceptions import NotFoundError, ForbiddenError
 from app.dependencies.repositories import ChatRepoDep
 from app.dependencies.auth import AuthDep
+from app.models import ChatModel
 
 
 async def get_user_chat(
     token_data: AuthDep,
     chat_rep: ChatRepoDep,
     chat_id: int = Path(...),
-) -> Chat:
+) -> ChatModel:
     chat = await chat_rep.get_by_id(chat_id)
 
     if chat is None:
-        raise HTTPException(404, "Chat not found")
+        raise NotFoundError("Chat not found")
 
     if chat.user_id != token_data.user_id:
-        raise HTTPException(403, "Not your chat")
+        raise ForbiddenError("Not your chat")
 
     return chat
 
 
-OwnerChatDep = Annotated[Chat, Depends(get_user_chat)]
+OwnerChatDep = Annotated[ChatModel, Depends(get_user_chat)]

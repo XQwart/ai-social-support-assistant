@@ -3,8 +3,8 @@ from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
-    from app.repositories.message import MessageRepository
-    from app.models.message import Message, MessageRole
+    from app.repositories import MessageRepository
+    from app.models.message_model import MessageModel, MessageRole
 
 
 class MessageService:
@@ -15,14 +15,14 @@ class MessageService:
 
     async def get_messages(
         self, chat_id: int, limit: int, offset: int, asc: bool = True
-    ) -> list[Message]:
+    ) -> list[MessageModel]:
         messages = await self._message_repo.get_by_chat(chat_id, limit, offset, asc)
 
         return messages
 
     async def send_message(
         self, chat_id: int, message: str, role: MessageRole
-    ) -> Message:
+    ) -> MessageModel:
         return await self._message_repo.create(
             chat_id=chat_id, role=role, content=message
         )

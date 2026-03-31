@@ -1,9 +1,10 @@
 from typing import Annotated
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.schemas.auth import TokenDataOut
+from app.exceptions.base_exceptions import NotAuthenticatedError
+from app.schemas.auth_schemas import TokenDataOut
 from .jwt import AccessTokenDep
 
 
@@ -18,7 +19,7 @@ async def validate_token(
 
     payload = access_token_util.validate(token)
     if not payload:
-        raise HTTPException(401, "Unauthorized")
+        raise NotAuthenticatedError("Unauthorized")
 
     return TokenDataOut(user_id=payload["sub"])
 

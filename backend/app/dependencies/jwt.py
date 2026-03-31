@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import Depends
 
-from app.utils.jwt import JWTTokenUtil
+from app.utils.jwt_utils import JWTTokenUtil
 from app.dependencies.config import ConfigDep
 
 
