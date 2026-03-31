@@ -33,3 +33,15 @@ class TokenDataOut(BaseModel):
 class SberCallbackResult:
     login_code: str
     redirect_url: str | None
+
+
+@dataclass(slots=True)
+class AuthTokenPair:
+    access_token: str
+    refresh_token: str
+
+
+@dataclass(slots=True)
+class LoginResult:
+    user_name: str
+    tokens: AuthTokenPair

@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Query
-from app.schemas.chat_schemas import ChatResponse, ChatsPageResponse
-from app.schemas.message_schemas import MessageCreate
+
 from app.dependencies.chat import OwnerChatDep
 from app.dependencies.auth import AuthDep
 from app.dependencies.services import ChatServiceDep
-from fastapi import HTTPException
+from app.exceptions.base_exceptions import NotFoundError
+from app.schemas.chat_schemas import ChatResponse, ChatsPageResponse
+from app.schemas.message_schemas import MessageCreate
+
 
 router = APIRouter(prefix="/chats", tags=["Chats"])
 
@@ -54,4 +56,4 @@ async def delete_chat(
     success = await chat_service.delete_chat(chat_id=chat.id)
 
     if not success:
-        raise HTTPException(status_code=404, detail="Chat not found")
+        raise NotFoundError("Chat not found")

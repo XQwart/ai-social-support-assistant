@@ -3,9 +3,17 @@ from typing import TYPE_CHECKING
 import secrets
 import logging
 
-from fastapi import HTTPException
-
-from app.schemas.auth_schemas import SberTokenData, SberUserInfo, SberCallbackResult
+from app.schemas.auth_schemas import (
+    SberUserInfo,
+    SberCallbackResult,
+    AuthTokenPair,
+    LoginResult,
+)
+from app.exceptions.base_exceptions import (
+    BadRequestError,
+    NotAuthenticatedError,
+    NotFoundError,
+)
 
 if TYPE_CHECKING:
     from . import SberIdService
@@ -75,7 +83,7 @@ class AuthService:
     async def _validate_state(self, state: str) -> tuple[str, str | None]:
         params = await self._oauth_rep.get_params(state)
         if params is None:
-            raise HTTPException(400, "Invalid or expired state")
+            raise BadRequestError("Invalid or expired state")
 
         return params
 
@@ -91,17 +99,17 @@ class AuthService:
 
         return user
 
-    async def login_user(self, token_code: str) -> tuple[str, str, str]:
+    async def login_user(self, token_code: str) -> LoginResult:
         code_data = await self._oauth_rep.get_code(code=token_code)
         if code_data is None:
-            raise HTTPException(400, "Invalid code")
+            raise BadRequestError("Invalid code")
 
         user_id, _ = code_data
         user = await self._user_rep.get_by_id(user_id)
         if user is None:
-            raise HTTPException(404, "User not found")
+            raise NotFoundError("User not found")
 
-        access, refresh = await self._generate_and_save_tokens(user_id=user_id)
+        tokens = await self._generate_and_save_tokens(user_id=user_id)
         user_name = (
             " ".join(
                 part for part in [user.second_name, user.first_name] if part
@@ -109,25 +117,23 @@ class AuthService:
             or "Пользователь"
         )
 
-        return access, refresh, user_name
+        return LoginResult(user_name=user_name, tokens=tokens)
 
-    async def refresh(self, refresh_token: str | None) -> tuple[str, str]:
+    async def refresh(self, refresh_token: str | None) -> AuthTokenPair:
         if refresh_token is None:
-            raise HTTPException(401, "Unauthorized")
+            raise NotAuthenticatedError("Refresh token missing")
 
         payload = self._refresh_token_util.validate(refresh_token)
         if payload is None:
-            raise HTTPException(401, "Unauthorized")
+            raise NotAuthenticatedError("Invalid refresh token")
 
         user_id = payload["sub"]
         refresh_jti = payload["jti"]
         is_removed = await self._token_rep.remove(user_id=user_id, jti=refresh_jti)
         if not is_removed:
-            raise HTTPException(401, "Unauthorized")
+            raise NotAuthenticatedError("Refresh token revoked")
 
-        access, refresh = await self._generate_and_save_tokens(user_id=user_id)
-
-        return access, refresh
+        return await self._generate_and_save_tokens(user_id=user_id)
 
     async def logout(self, refresh_token: str | None) -> None:
         if refresh_token is None:
@@ -142,7 +148,7 @@ class AuthService:
 
         await self._token_rep.remove(user_id=user_id, jti=refresh_jti)
 
-    async def _generate_and_save_tokens(self, user_id: int) -> tuple[str, str]:
+    async def _generate_and_save_tokens(self, user_id: int) -> AuthTokenPair:
         refresh_jti = self._refresh_token_util.generate_jti()
 
         access_token = self._access_token_util.generate(user_id=user_id)
@@ -152,4 +158,4 @@ class AuthService:
 
         await self._token_rep.save(user_id=user_id, jti=refresh_jti)
 
-        return access_token, refresh_token
+        return AuthTokenPair(access_token=access_token, refresh_token=refresh_token)

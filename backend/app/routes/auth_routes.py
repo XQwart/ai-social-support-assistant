@@ -1,13 +1,14 @@
 from __future__ import annotations
 import logging
 
-from fastapi import APIRouter, Cookie, HTTPException, Query
+from fastapi import APIRouter, Cookie, Query
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 
 from app.dependencies.config import ConfigDep
 from app.dependencies.services import AuthServiceDep
 from app.dependencies.repositories import UserRepoDep, TokenRedisRepoDep
 from app.dependencies.jwt import AccessTokenDep, RefreshTokenDep
+from app.exceptions.base_exceptions import AppError
 from app.schemas.auth_schemas import AuthExchangeResponse
 from app.utils.cookie_utils import clear_refresh_cookie, set_refresh_cookie
 from app.utils import url_utils
@@ -66,8 +67,8 @@ async def sber_callback(
         )
 
     try:
-        results = await auth_service.process_user(state=state, code=code)
-    except HTTPException as exc:
+        results = await auth_service.handle_sber_callback(state=state, code=code)
+    except AppError as exc:
         return _error_redirect(
             url=default_redirect, error="auth_failed", description=str(exc.detail)
         )
@@ -102,18 +103,17 @@ def _error_redirect(url: str, error: str, description: str) -> RedirectResponse:
 
 @router.get("/exchange")
 async def exchange_code(auth_service: AuthServiceDep, token_code: str = Query(...)):
-    access_token, refresh_token, user_name = await auth_service.login_user(
-        token_code=token_code
-    )
+    result = await auth_service.login_user(token_code=token_code)
+    tokens = result.tokens
 
     response = JSONResponse(
         content=AuthExchangeResponse(
             message="Успешная авторизация",
-            token=access_token,
-            user_name=user_name,
+            token=tokens.access_token,
+            user_name=result.user_name,
         ).model_dump()
     )
-    set_refresh_cookie(response, refresh_token)
+    set_refresh_cookie(response, tokens.refresh_token)
 
     return response
 
@@ -123,12 +123,10 @@ async def refresh(
     auth_service: AuthServiceDep,
     refresh_token: str | None = Cookie(default=None),
 ):
-    access_token, new_refresh_token = await auth_service.refresh(
-        refresh_token=refresh_token
-    )
+    tokens = await auth_service.refresh(refresh_token=refresh_token)
 
-    response = JSONResponse(content={"token": access_token}, status_code=200)
-    set_refresh_cookie(response=response, refresh_token=new_refresh_token)
+    response = JSONResponse(content={"token": tokens.access_token}, status_code=200)
+    set_refresh_cookie(response=response, refresh_token=tokens.refresh_token)
 
     return response
 

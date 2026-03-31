@@ -18,7 +18,7 @@ from app.dependencies.repositories import (
     MessageRepoDep,
     ChatRepoDep,
 )
-from app.dependencies.http import SSLSberContextDep
+from app.dependencies.http import HTTPSberClientDep
 from app.dependencies.jwt import AccessTokenDep, RefreshTokenDep
 
 
@@ -44,9 +44,9 @@ def get_auth_service(
 
 def get_sberid_service(
     config: ConfigDep,
-    ssl_sber_ctx: SSLSberContextDep,
+    client: HTTPSberClientDep,
 ) -> SberIdService:
-    return SberIdService(config, ssl_sber_ctx)
+    return SberIdService(config, client)
 
 
 def get_message_service(message_repo: MessageRepoDep) -> MessageService:

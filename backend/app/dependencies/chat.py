@@ -1,10 +1,11 @@
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Path
+from fastapi import Depends, Path
 
-from app.models import ChatModel
+from app.exceptions.base_exceptions import NotFoundError, ForbiddenError
 from app.dependencies.repositories import ChatRepoDep
 from app.dependencies.auth import AuthDep
+from app.models import ChatModel
 
 
 async def get_user_chat(
@@ -15,10 +16,10 @@ async def get_user_chat(
     chat = await chat_rep.get_by_id(chat_id)
 
     if chat is None:
-        raise HTTPException(404, "Chat not found")
+        raise NotFoundError("Chat not found")
 
     if chat.user_id != token_data.user_id:
-        raise HTTPException(403, "Not your chat")
+        raise ForbiddenError("Not your chat")
 
     return chat
 

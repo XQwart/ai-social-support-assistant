@@ -6,6 +6,8 @@ from fastapi.responses import JSONResponse, HTMLResponse
 
 from app.routes import router
 from app.core.lifespan import lifespan
+from app.exceptions.handlers import init_exception_handlers
+
 
 logger = logging.getLogger(__name__)
 
@@ -38,11 +40,10 @@ async def log_requests_middleware(request: Request, call_next):
             str(e),
             process_time,
         )
-        return JSONResponse(
-            status_code=500, content={"detail": "Internal Server Error"}
-        )
+        raise e
 
 
+init_exception_handlers(app)
 app.include_router(router)
 
 app.add_middleware(
