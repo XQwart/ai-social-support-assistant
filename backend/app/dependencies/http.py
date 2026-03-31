@@ -5,7 +5,7 @@ import httpx
 
 
 def get_sber_client(req: Request) -> httpx.AsyncClient:
-    return req.app.state.client
+    return req.app.state.sber_client
 
 
 HTTPSberClientDep = Annotated[httpx.AsyncClient, Depends(get_sber_client)]
