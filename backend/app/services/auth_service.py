@@ -4,21 +4,16 @@ import secrets
 import logging
 
 from app.schemas.auth_schemas import (
-    SberUserInfo,
     SberCallbackResult,
     AuthTokenPair,
 )
-from app.exceptions.base_exceptions import (
-    BadRequestError,
-    NotAuthenticatedError,
-    NotFoundError,
-)
+from app.exceptions.base_exceptions import BadRequestError, NotAuthenticatedError
 
 if TYPE_CHECKING:
-    from . import SberIdService
+    from . import SberIdService, UserService
     from app.core.config import Config
     from app.models import UserModel
-    from app.repositories import TokenRedisRepository, OauthRepository, UserRepository
+    from app.repositories import TokenRedisRepository, OauthRepository
     from app.utils.jwt_utils import JWTTokenUtil
 
 
@@ -30,7 +25,7 @@ class AuthService:
     _sberid_service: SberIdService
     _oauth_rep: OauthRepository
     _token_rep: TokenRedisRepository
-    _user_rep: UserRepository
+    _user_service: UserService
     _access_token_util: JWTTokenUtil
     _refresh_token_util: JWTTokenUtil
 
@@ -40,7 +35,7 @@ class AuthService:
         sberid_service: SberIdService,
         ouath_rep: OauthRepository,
         token_rep: TokenRedisRepository,
-        user_rep: UserRepository,
+        user_service: UserService,
         access_token_util: JWTTokenUtil,
         refresh_token_util: JWTTokenUtil,
     ):
@@ -48,7 +43,7 @@ class AuthService:
         self._sberid_service = sberid_service
         self._oauth_rep = ouath_rep
         self._token_rep = token_rep
-        self._user_rep = user_rep
+        self._user_service = user_service
         self._access_token_util = access_token_util
         self._refresh_token_util = refresh_token_util
 
@@ -70,7 +65,12 @@ class AuthService:
         nonce, saved_redirect_url = await self._validate_state(state)
 
         user_info = await self._sberid_service.authenticate(code=code, nonce=nonce)
-        user = await self._get_or_create_user(user_info)
+        user = await self._user_service.get_or_create_by_bank_id(
+            bank_id=user_info.sub,
+            first_name=user_info.given_name,
+            second_name=user_info.family_name,
+            place_of_work=user_info.place_of_work,
+        )
 
         login_code = secrets.token_urlsafe(32)
         await self._oauth_rep.save_code(user.id, user.bank_id, code)
@@ -86,37 +86,17 @@ class AuthService:
 
         return params
 
-    async def _get_or_create_user(self, user_info: SberUserInfo) -> UserModel:
-        user = await self._user_rep.get_by_bank_id(user_info.sub)
-
-        if user is None:
-            user = await self._user_rep.create(
-                bank_id=user_info.sub,
-                first_name=user_info.given_name,
-                second_name=user_info.family_name,
-            )
-
-        return user
-
-    async def login_user(self, token_code: str) -> tuple[str, AuthTokenPair]:
+    async def login_user(self, token_code: str) -> tuple[UserModel, AuthTokenPair]:
         code_data = await self._oauth_rep.get_code(code=token_code)
         if code_data is None:
             raise BadRequestError("Invalid code")
 
         user_id, _ = code_data
-        user = await self._user_rep.get_by_id(user_id)
-        if user is None:
-            raise NotFoundError("User not found")
+        user = await self._user_service.get_by_id(user_id)
 
         tokens = await self._generate_and_save_tokens(user_id=user_id)
-        user_name = (
-            " ".join(
-                part for part in [user.second_name, user.first_name] if part
-            ).strip()
-            or "Пользователь"
-        )
 
-        return user_name, tokens
+        return user, tokens
 
     async def refresh(self, refresh_token: str | None) -> AuthTokenPair:
         if refresh_token is None:

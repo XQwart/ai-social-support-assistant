@@ -17,6 +17,7 @@ class UserModel(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     first_name: Mapped[str] = mapped_column(String(200))
     second_name: Mapped[str] = mapped_column(String(200))
+    place_of_work: Mapped[str | None] = mapped_column(String(200), nullable=True)
     bank_id: Mapped[str] = mapped_column(String(200), unique=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 

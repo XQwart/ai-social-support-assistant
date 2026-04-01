@@ -19,10 +19,13 @@ class UserRepository:
         return result.scalar_one_or_none()
 
     async def create(
-        self, bank_id: str, first_name: str, second_name: str
+        self, bank_id: str, first_name: str, second_name: str, place_of_work: str | None
     ) -> UserModel:
         user = UserModel(
-            bank_id=bank_id, first_name=first_name, second_name=second_name
+            bank_id=bank_id,
+            first_name=first_name,
+            second_name=second_name,
+            place_of_work=place_of_work,
         )
         self._session.add(user)
         await self._session.commit()

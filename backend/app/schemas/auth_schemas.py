@@ -2,6 +2,8 @@ from dataclasses import dataclass
 
 from pydantic import BaseModel, ConfigDict
 
+from .user_schemas import UserOut
+
 
 class SberTokenData(BaseModel):
     access_token: str
@@ -17,12 +19,13 @@ class SberUserInfo(BaseModel):
     sub: str
     given_name: str
     family_name: str
+    place_of_work: str | None = None
 
 
 class AuthExchangeResponse(BaseModel):
     message: str
     token: str
-    user_name: str
+    user: UserOut
 
 
 class RefreshResponse(BaseModel):

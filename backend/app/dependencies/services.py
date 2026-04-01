@@ -9,6 +9,7 @@ from app.services import (
     ConversationService,
     MessageService,
     SberIdService,
+    UserService,
 )
 from app.dependencies.config import ConfigDep
 from app.dependencies.repositories import (
@@ -27,7 +28,7 @@ def get_auth_service(
     sberid_service: "SberIdServiceDep",
     oauth_rep: OauthRepoDep,
     token_rep: TokenRedisRepoDep,
-    user_rep: UserRepoDep,
+    user_service: "UserServiceDep",
     access_token_util: AccessTokenDep,
     refresh_token_util: RefreshTokenDep,
 ) -> AuthService:
@@ -36,7 +37,7 @@ def get_auth_service(
         sberid_service,
         oauth_rep,
         token_rep,
-        user_rep,
+        user_service,
         access_token_util,
         refresh_token_util,
     )
@@ -70,6 +71,10 @@ def get_ai_service(config: ConfigDep) -> AIService:
     return AIService(config)
 
 
+def get_user_service(user_rep: UserRepoDep) -> UserService:
+    return UserService(user_rep)
+
+
 AIServiceDep = Annotated[AIService, Depends(get_ai_service)]
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 ChatServiceDep = Annotated[ChatService, Depends(get_chat_service)]
@@ -78,3 +83,4 @@ ConversationServiceDep = Annotated[
     ConversationService, Depends(get_conversation_service)
 ]
 SberIdServiceDep = Annotated[SberIdService, Depends(get_sberid_service)]
+UserServiceDep = Annotated[UserService, Depends(get_user_service)]

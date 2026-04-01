@@ -5,8 +5,8 @@ from fastapi import APIRouter, Cookie, Query, status
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 
 from app.dependencies.config import ConfigDep
-from app.dependencies.services import AuthServiceDep
-from app.dependencies.repositories import UserRepoDep, TokenRedisRepoDep
+from app.dependencies.services import UserServiceDep, AuthServiceDep
+from app.dependencies.repositories import TokenRedisRepoDep
 from app.dependencies.jwt import AccessTokenDep, RefreshTokenDep
 from app.exceptions.base_exceptions import AppError
 from app.schemas.auth_schemas import (
@@ -14,6 +14,7 @@ from app.schemas.auth_schemas import (
     SberParamsResponse,
     RefreshResponse,
 )
+from app.schemas.user_schemas import UserOut
 from app.utils.cookie_utils import clear_refresh_cookie, set_refresh_cookie
 from app.utils import url_utils
 
@@ -102,19 +103,17 @@ def _error_redirect(url: str, error: str, description: str) -> RedirectResponse:
     )
 
 
-@router.get(
-    "/exchange", response_model=AuthExchangeResponse, status_code=status.HTTP_200_OK
-)
+@router.get("/exchange", status_code=status.HTTP_200_OK)
 async def exchange_code(
     auth_service: AuthServiceDep, response: Response, token_code: str = Query(...)
 ) -> AuthExchangeResponse:
-    user_name, tokens = await auth_service.login_user(token_code=token_code)
+    user, tokens = await auth_service.login_user(token_code=token_code)
 
     set_refresh_cookie(response, tokens.refresh_token)
 
     return AuthExchangeResponse(
         message="Успешная авторизация",
-        user_name=user_name,
+        user=UserOut.model_validate(user),
         token=tokens.access_token,
     )
 
@@ -145,7 +144,7 @@ async def logout(
 
 @router.post("/mock-login")
 async def mock_login(
-    user_repo: UserRepoDep,
+    user_service: UserServiceDep,
     token_repo: TokenRedisRepoDep,
     access_token_util: AccessTokenDep,
     refresh_token_util: RefreshTokenDep,
@@ -153,12 +152,14 @@ async def mock_login(
     bank_id = "wythdgsraferi4538trfhsa7837hfas"
     name = "Ivan"
     last_name = "Ivanov"
+    place_of_work = "Sberbank"
 
-    user = await user_repo.get_by_bank_id(bank_id=bank_id)
-    if user is None:
-        user = await user_repo.create(
-            bank_id=bank_id, first_name=name, second_name=last_name
-        )
+    user = await user_service.get_or_create_by_bank_id(
+        bank_id=bank_id,
+        first_name=name,
+        second_name=last_name,
+        place_of_work=place_of_work,
+    )
 
     refresh_jti = refresh_token_util.generate_jti()
 
