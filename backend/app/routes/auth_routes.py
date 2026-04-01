@@ -8,9 +8,8 @@ from app.dependencies.config import ConfigDep
 from app.dependencies.services import AuthServiceDep
 from app.exceptions.base_exceptions import AppError
 from app.schemas.auth_schemas import (
-    AuthExchangeResponse,
+    AuthResponse,
     SberParamsResponse,
-    RefreshResponse,
 )
 from app.schemas.user_schemas import UserOut
 from app.utils.cookie_utils import clear_refresh_cookie, set_refresh_cookie
@@ -104,12 +103,12 @@ def _error_redirect(url: str, error: str, description: str) -> RedirectResponse:
 @router.get("/exchange", status_code=status.HTTP_200_OK)
 async def exchange_code(
     auth_service: AuthServiceDep, response: Response, token_code: str = Query(...)
-) -> AuthExchangeResponse:
+) -> AuthResponse:
     user, tokens = await auth_service.login_user(token_code=token_code)
 
     set_refresh_cookie(response, tokens.refresh_token)
 
-    return AuthExchangeResponse(
+    return AuthResponse(
         message="Успешная авторизация",
         user=UserOut.model_validate(user),
         token=tokens.access_token,
@@ -121,12 +120,15 @@ async def refresh(
     auth_service: AuthServiceDep,
     response: Response,
     refresh_token: str | None = Cookie(default=None),
-) -> RefreshResponse:
-    tokens = await auth_service.refresh(refresh_token=refresh_token)
+) -> AuthResponse:
+    user, tokens = await auth_service.refresh(refresh_token=refresh_token)
 
     set_refresh_cookie(response, tokens.refresh_token)
 
-    return RefreshResponse(token=tokens.access_token)
+    return AuthResponse(
+        user=UserOut.model_validate(user),
+        token=tokens.access_token,
+    )
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
@@ -141,14 +143,12 @@ async def logout(
 
 
 @router.post("/mock-login")
-async def mock_login(
-    auth_service: AuthServiceDep, response: Response
-) -> AuthExchangeResponse:
+async def mock_login(auth_service: AuthServiceDep, response: Response) -> AuthResponse:
     user, tokens = await auth_service.mock_login_user()
 
     set_refresh_cookie(response, tokens.refresh_token)
 
-    return AuthExchangeResponse(
+    return AuthResponse(
         message="Успешная авторизация",
         user=UserOut.model_validate(user),
         token=tokens.access_token,

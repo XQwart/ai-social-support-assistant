@@ -115,7 +115,9 @@ class AuthService:
 
         return user, tokens
 
-    async def refresh(self, refresh_token: str | None) -> AuthTokenPair:
+    async def refresh(
+        self, refresh_token: str | None
+    ) -> tuple[UserModel, AuthTokenPair]:
         if refresh_token is None:
             raise NotAuthenticatedError("Refresh token missing")
 
@@ -123,13 +125,19 @@ class AuthService:
         if payload is None:
             raise NotAuthenticatedError("Invalid refresh token")
 
-        user_id = payload["sub"]
+        user_id = int(payload["sub"])
         refresh_jti = payload["jti"]
         is_removed = await self._token_rep.remove(user_id=user_id, jti=refresh_jti)
         if not is_removed:
             raise NotAuthenticatedError("Refresh token revoked")
 
-        return await self._generate_and_save_tokens(user_id=user_id)
+        # TODO: Сделать обновление данных и их перезапись в бд
+        user = await self._user_service.get_by_id(
+            user_id=user_id
+        )  # Пока просто возврат старого пользователя
+        tokens = await self._generate_and_save_tokens(user_id=user_id)
+
+        return user, tokens
 
     async def logout(self, refresh_token: str | None) -> None:
         if refresh_token is None:

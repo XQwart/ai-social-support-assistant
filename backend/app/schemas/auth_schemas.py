@@ -22,14 +22,10 @@ class SberUserInfo(BaseModel):
     place_of_work: str | None = None
 
 
-class AuthExchangeResponse(BaseModel):
-    message: str
+class AuthResponse(BaseModel):
+    message: str | None = None
     token: str
     user: UserOut
-
-
-class RefreshResponse(BaseModel):
-    token: str
 
 
 class SberParamsResponse(BaseModel):
