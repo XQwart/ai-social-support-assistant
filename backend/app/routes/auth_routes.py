@@ -2,12 +2,10 @@ from __future__ import annotations
 import logging
 
 from fastapi import APIRouter, Cookie, Query, status
-from fastapi.responses import JSONResponse, RedirectResponse, Response
+from fastapi.responses import RedirectResponse, Response
 
 from app.dependencies.config import ConfigDep
-from app.dependencies.services import UserServiceDep, AuthServiceDep
-from app.dependencies.repositories import TokenRedisRepoDep
-from app.dependencies.jwt import AccessTokenDep, RefreshTokenDep
+from app.dependencies.services import AuthServiceDep
 from app.exceptions.base_exceptions import AppError
 from app.schemas.auth_schemas import (
     AuthExchangeResponse,
@@ -144,35 +142,14 @@ async def logout(
 
 @router.post("/mock-login")
 async def mock_login(
-    user_service: UserServiceDep,
-    token_repo: TokenRedisRepoDep,
-    access_token_util: AccessTokenDep,
-    refresh_token_util: RefreshTokenDep,
-) -> JSONResponse:
-    bank_id = "wythdgsraferi4538trfhsa7837hfas"
-    name = "Ivan"
-    last_name = "Ivanov"
-    place_of_work = "Sberbank"
+    auth_service: AuthServiceDep, response: Response
+) -> AuthExchangeResponse:
+    user, tokens = await auth_service.mock_login_user()
 
-    user = await user_service.get_or_create_by_bank_id(
-        bank_id=bank_id,
-        first_name=name,
-        second_name=last_name,
-        place_of_work=place_of_work,
+    set_refresh_cookie(response, tokens.refresh_token)
+
+    return AuthExchangeResponse(
+        message="Успешная авторизация",
+        user=UserOut.model_validate(user),
+        token=tokens.access_token,
     )
-
-    refresh_jti = refresh_token_util.generate_jti()
-
-    access_token = access_token_util.generate(user_id=user.id)
-    refresh_token = refresh_token_util.generate(
-        user_id=user.id, extra={"jti": refresh_jti}
-    )
-
-    await token_repo.save(user_id=user.id, jti=refresh_jti)
-
-    response = JSONResponse(
-        content={"message": "Успешная авторизация", "token": access_token}
-    )
-    set_refresh_cookie(response, refresh_token)
-
-    return response

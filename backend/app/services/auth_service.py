@@ -86,6 +86,23 @@ class AuthService:
 
         return params
 
+    async def mock_login_user(self) -> tuple[UserModel, AuthTokenPair]:
+        bank_id = "wythdgsraferi4538trfhsa7837hfas"
+        name = "Ivan"
+        last_name = "Ivanov"
+        place_of_work = "Sberbank"
+
+        user = await self._user_service.get_or_create_by_bank_id(
+            bank_id=bank_id,
+            first_name=name,
+            second_name=last_name,
+            place_of_work=place_of_work,
+        )
+
+        tokens = await self._generate_and_save_tokens(user_id=user.id)
+
+        return user, tokens
+
     async def login_user(self, token_code: str) -> tuple[UserModel, AuthTokenPair]:
         code_data = await self._oauth_rep.get_code(code=token_code)
         if code_data is None:
