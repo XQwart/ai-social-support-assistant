@@ -1,0 +1,1201 @@
+[
+  {
+    "region": "Адыгея",
+    "code": "01",
+    "url": [
+      "https://adygheya.ru/",
+      "http://adygheya.ru/ministers/departments/ministerstvo-truda-i-sotsialnogo-razvitiya/mery/okazaniei.php",
+      "http://adygheya.ru/ministers/departments/ministerstvo-truda-i-sotsialnogo-razvitiya/mery/predostavlenie.php"
+    ],
+    "aliases": [
+      "адыгея",
+      "майкоп"
+    ]
+  },
+  {
+    "region": "Башкортостан",
+    "code": "02",
+    "url": [
+      "https://bashkortostan.ru/",
+      "https://mintrud.bashkortostan.ru/activity/15924/",
+      "https://gogov.ru/newborn-benefits/bash",
+      "https://gogov.ru/mf-region/bash",
+      "https://mintrud.bashkortostan.ru/activity/39324/",
+      "https://gogov.ru/unemployment-benefit/bash"
+    ],
+    "aliases": [
+      "башкортостан",
+      "башкирия",
+      "уфа"
+    ]
+  },
+  {
+    "region": "Бурятия",
+    "code": "03",
+    "url": [
+      "https://egov-buryatia.ru/",
+      "https://egov-buryatia.ru/mspvoen/help/mery-reg-podderzhki/dobrovolotcam/",
+      "https://egov-buryatia.ru/mspvoen/help/mery-reg-podderzhki/mobilizovannym/",
+      "https://egov-buryatia.ru/mspvoen/help/mery-fed-sots-podderzhki/fedmspkontrakt/"
+    ],
+    "aliases": [
+      "бурятия",
+      "улан-удэ"
+    ]
+  },
+  {
+    "region": "Алтай Республика",
+    "code": "04",
+    "url": [
+      "https://altai-republic.ru/",
+      "https://gogov.ru/child-benefit/alt",
+      "https://gogov.ru/cb-newborn/alt",
+      "https://gogov.ru/mf-region/alt",
+      "https://szn24.ru/supports/dlya-semej-s-detmi/mery-sotsialnoy-podderzhki-dlya-mnogodetnykh-semey"
+    ],
+    "aliases": [
+      "алтай",
+      "горный алтай"
+    ]
+  },
+  {
+    "region": "Дагестан",
+    "code": "05",
+    "url": [
+      "https://e-dag.ru/",
+      "https://gogov.ru/articles/far-north-jan22",
+      "https://gogov.ru/mf-region/dg",
+      "https://gogov.ru/burial-benefit/dg",
+      "https://gogov.ru/services/pension-death",
+      "https://gogov.ru/compensation-camp/dg",
+      "https://gogov.ru/dc-child/dg",
+      "https://gogov.ru/child-benefit/dg#:~:text=Table_title:%20%D0%9F%D0%BE%D0%BB%D0%BD%D1%8B%D0%B9%20%D0%BF%D0%B5%D1%80%D0%B5%D1%87%D0%B5%D0%BD%D1%8C%20%D0%B4%D0%B5%D1%82%D1%81%D0%BA%D0%B8%D1%85%20%D0%BF%D0%BE%D1%81%D0%BE%D0%B1%D0%B8%D0%B9%20%D0%BD%D0%B0%202026,669%2C65%20%7C%20%D0%92%D0%BE%D0%B7%D1%80%D0%B0%D1%81%D1%82:%200%20%2D%201%2C5%20%7C"
+    ],
+    "aliases": [
+      "дагестан",
+      "махачкала"
+    ]
+  },
+  {
+    "region": "Ингушетия",
+    "code": "06",
+    "url": [
+      "https://ingushetia.ru/",
+      "https://gogov.ru/articles/far-north-jan22",
+      "https://gogov.ru/mf-region/ing",
+      "https://gogov.ru/compensation-camp/ing",
+      "http://pravo.gov.ru/proxy/ips/?doc_itself=&infostr=xO7q8+zl7fIg7vLu4fDg5uDl8vH/IO3lIOIg7+7x6+Xk7eXpIPDl5ODq9ujo&backlink=1&nd=134012202&page=1&rdk=9#I0"
+    ],
+    "aliases": [
+      "ингушетия",
+      "магас"
+    ]
+  },
+  {
+    "region": "Кабардино-Балкария",
+    "code": "07",
+    "url": [
+      "https://pravitelstvo.kbr.ru/",
+      "https://mintrud.kbr.ru/activity/lgoty-i-vyplaty/semyam-s-detmi/ezhemesyachnaya-denezhnaya-vyplata-nuzhdayushchimsya-v-podderzhke-semi-pri-rozhdenii-tretego-rebenka-i-posleduyushchikh-detey-do-dostizheniya-3-let.html",
+      "https://mintrud.kbr.ru/activity/lgoty-i-vyplaty/semyam-s-detmi/edinovremennoe-posobie-pri-rozhdenii-rebenka-grazhdanam-prozhivayushchim-v-kabardino-balkarskoy-respublike.html",
+      "https://mintrud.kbr.ru/activity/lgoty-i-vyplaty/semyam-s-detmi/ezhemesyachnoe-posobie-po-ukhodu-za-rebenkom-invalidom.html",
+      "https://mintrud.kbr.ru/activity/sotsialnoe-obsluzhivanie/detyam/detskiy-otdykh-i-ozdorovlenie.html"
+    ],
+    "aliases": [
+      "кбр",
+      "нальчик"
+    ]
+  },
+  {
+    "region": "Калмыкия",
+    "code": "08",
+    "url": [
+      "https://kalmregion.ru/",
+      "https://gogov.ru/mf-region/klm",
+      "https://gogov.ru/unemployment-benefit/klm"
+    ],
+    "aliases": [
+      "калмыкия",
+      "элиста"
+    ]
+  },
+  {
+    "region": "Карачаево-Черкесия",
+    "code": "09",
+    "url": [
+      "https://kchr.ru/",
+      "https://mintrudkchr.ru/page/regionalnyy-materinskiy-kapital-1",
+      "https://gogov.ru/child-benefit/krch",
+      "https://mintrudkchr.ru/page/posobie-na-pogrebenie",
+      "https://mintrudkchr.ru/page/maloimushchie-semi"
+    ],
+    "aliases": [
+      "кчр",
+      "черкесск"
+    ]
+  },
+  {
+    "region": "Карелия",
+    "code": "10",
+    "url": [
+      "https://gov.karelia.ru/",
+      "https://csr-ptz.ru/post/regionalnyj-materinskij-semejnyj-kapital"
+    ],
+    "aliases": [
+      "карелия",
+      "петрозаводск"
+    ]
+  },
+  {
+    "region": "Коми",
+    "code": "11",
+    "url": [
+      "https://rkomi.ru/",
+      "https://xn--h1alcedd.xn--d1aqf.xn--p1ai/catalog/sertifikat-na-regionalnyy-semeynyy-kapital/",
+      "https://gogov.ru/mf-region/kmi",
+      "https://gogov.ru/unemployment-benefit/kmi"
+    ],
+    "aliases": [
+      "коми",
+      "сыктывкар"
+    ]
+  },
+  {
+    "region": "Марий Эл",
+    "code": "12",
+    "url": [
+      "https://mari-el.gov.ru/",
+      "https://gogov.ru/unemployment-benefit/mrl",
+      "https://mari-el.gov.ru/ministries/minsoc/cspn_kuzhener/pages/benefits/",
+      "https://gogov.ru/mf-region/mrl"
+    ],
+    "aliases": [
+      "марий эл",
+      "йошкар-ола"
+    ]
+  },
+  {
+    "region": "Мордовия",
+    "code": "13",
+    "url": [
+      "https://e-mordovia.ru/",
+      "https://gogov.ru/mf-region/mrd"
+    ],
+    "aliases": [
+      "мордовия",
+      "саранск"
+    ]
+  },
+  {
+    "region": "Саха (Якутия)",
+    "code": "14",
+    "url": [
+      "https://sakha.gov.ru/",
+      "https://gogov.ru/mf-region/yak",
+      "http://usznykt.ru/mery-semya/"
+    ],
+    "aliases": [
+      "якутия",
+      "саха",
+      "якутск"
+    ]
+  },
+  {
+    "region": "Северная Осетия — Алания",
+    "code": "15",
+    "url": [
+      "https://alania.gov.ru/",
+      "https://gogov.ru/cb-newborn/ost",
+      "https://minsotc.alania.gov.ru/activity/disabled/utilityexpenses",
+      "https://trud.alania.gov.ru/pages/247"
+    ],
+    "aliases": [
+      "осетия",
+      "владикавказ"
+    ]
+  },
+  {
+    "region": "Татарстан",
+    "code": "16",
+    "url": [
+      "https://tatarstan.ru/",
+      "https://gogov.ru/mf-region/rt"
+    ],
+    "aliases": [
+      "татарстан",
+      "казань"
+    ]
+  },
+  {
+    "region": "Тыва",
+    "code": "17",
+    "url": [
+      "https://gov.tuva.ru/",
+      "https://gogov.ru/newborn-benefits/tva",
+      "https://gogov.ru/mf-region/tva"
+    ],
+    "aliases": [
+      "тыва",
+      "тува",
+      "кызыл"
+    ]
+  },
+  {
+    "region": "Удмуртия",
+    "code": "18",
+    "url": [
+      "https://udmurt.ru/",
+      "https://gogov.ru/mf-region/udm",
+      "https://gogov.ru/child-benefit/udm"
+    ],
+    "aliases": [
+      "удмуртия",
+      "ижевск"
+    ]
+  },
+  {
+    "region": "Хакасия",
+    "code": "19",
+    "url": [
+      "https://r-19.ru/",
+      "https://gogov.ru/newborn-benefits/khks",
+      "https://gogov.ru/mf-region/khks",
+      "https://uspnrh.ru/post/posobie-na-pogrebenie/"
+    ],
+    "aliases": [
+      "хакасия",
+      "абакан"
+    ]
+  },
+  {
+    "region": "Чечня",
+    "code": "20",
+    "url": [
+      "https://chechnya.gov.ru/",
+      "https://gogov.ru/newborn-benefits/che",
+      "https://gogov.ru/mf-region/che",
+      "https://gogov.ru/burial-benefit/che"
+    ],
+    "aliases": [
+      "чечня",
+      "грозный"
+    ]
+  },
+  {
+    "region": "Чувашия",
+    "code": "21",
+    "url": [
+      "https://cap.ru/",
+      "https://gogov.ru/newborn-benefits/chvsh",
+      "https://gogov.ru/mf-region/chvsh",
+      "https://gogov.ru/join-czn/chvsh",
+      "https://shuv-centr.soc.cap.ru/deyateljnostj/social-support/socialjnoe-posobie-na-pogrebenie"
+    ],
+    "aliases": [
+      "чувашия",
+      "чебоксары"
+    ]
+  },
+  {
+    "region": "Алтайский край",
+    "code": "22",
+    "url": [
+      "https://www.altairegion22.ru/",
+      "https://gogov.ru/articles/far-north-jan22",
+      "https://gogov.ru/cb-newborn/altkr",
+      "https://gogov.ru/burial-benefit/altkr",
+      "https://www.aksp.ru/news/news/47490/",
+      "https://suetskijrajon-r22.gosweb.gosuslugi.ru/spravochnik/altayskiy-filial-ranhigs/novosti_30.html",
+      "https://gogov.ru/unemployment-benefit/altkr",
+      "https://yarovoe.gosuslugi.ru/dlya-zhiteley/novosti-i-reportazhi/novosti-193_2092.html"
+    ],
+    "aliases": [
+      "алтайский край",
+      "барнаул"
+    ]
+  },
+  {
+    "region": "Краснодарский край",
+    "code": "23",
+    "url": [
+      "https://admkrai.krasnodar.ru/",
+      "https://gogov.ru/cb-second/krd",
+      "https://gogov.ru/mf-region/krd",
+      "https://szn.krasnodar.ru/activity/mery-sotsialnoy-podderzhki/mnogodetnih-semey/69229"
+    ],
+    "aliases": [
+      "краснодарский",
+      "краснодар"
+    ]
+  },
+  {
+    "region": "Красноярский край",
+    "code": "24",
+    "url": [
+      "https://krskstate.ru/",
+      "https://szn24.ru/supports/dlya-semej-s-detmi/semeynyy-kapital",
+      "https://gogov.ru/mf-region/krasnoyarsk"
+    ],
+    "aliases": [
+      "красноярский",
+      "красноярск"
+    ]
+  },
+  {
+    "region": "Приморский край",
+    "code": "25",
+    "url": [
+      "https://primorsky.ru/",
+      "https://gogov.ru/child-benefit/prim"
+    ],
+    "aliases": [
+      "приморский",
+      "владивосток"
+    ]
+  },
+  {
+    "region": "Ставропольский край",
+    "code": "26",
+    "url": [
+      "https://stavregion.ru/",
+      "https://gogov.ru/mf-feb26/srp",
+      "https://newstracker.ru/news/2026-03-29/polnyy-spisok-vseh-lgot-i-vyplat-na-stavropolie-kto-i-na-chto-mozhet-rasschityvat-5567984?utm_source=google.com&utm_medium=organic&utm_campaign=google.com&utm_referrer=google.com"
+    ],
+    "aliases": [
+      "ставропольский",
+      "ставрополь"
+    ]
+  },
+  {
+    "region": "Хабаровский край",
+    "code": "27",
+    "url": [
+      "https://khabkrai.ru/",
+      "https://mszn27.ru/msp/1",
+      "https://gogov.ru/mf-region/khbr",
+      "https://mszn27.ru/node/1238",
+      "https://sz27.ru/content/%D0%BF%D0%BE%D1%81%D0%BE%D0%B1%D0%B8%D0%B5_%D0%BF%D0%BE_%D0%B1%D0%B5%D0%B7%D1%80%D0%B0%D0%B1%D0%BE%D1%82%D0%B8%D1%86%D0%B5"
+    ],
+    "aliases": [
+      "хабаровский",
+      "хабаровск"
+    ]
+  },
+  {
+    "region": "Амурская область",
+    "code": "28",
+    "url": [
+      "https://amurobl.ru/",
+      "https://gogov.ru/mf-region/amr",
+      "https://gogov.ru/join-czn/amr"
+    ],
+    "aliases": [
+      "амурская",
+      "благовещенск"
+    ]
+  },
+  {
+    "region": "Архангельская область",
+    "code": "29",
+    "url": [
+      "https://dvinaland.ru/",
+      "https://xn--h1alcedd.xn--d1aqf.xn--p1ai/catalog/regionalnyy-materinskiy-kapital-arkhangelskoy-oblasti/",
+      "https://gogov.ru/mf-feb26/arkh",
+      "https://gogov.ru/mf-region/arkh"
+    ],
+    "aliases": [
+      "архангельская",
+      "архангельск"
+    ]
+  },
+  {
+    "region": "Астраханская область",
+    "code": "30",
+    "url": [
+      "https://astrobl.ru/",
+      "https://materinskiy-semeyniy-kapital.ru/regionalnyj_materinskij_kapital_i_socialnaja_podderzhka_mnogodetnyh_semej/astrahanskaja_oblast/"
+    ],
+    "aliases": [
+      "астраханская",
+      "астрахань"
+    ]
+  },
+  {
+    "region": "Белгородская область",
+    "code": "31",
+    "url": [
+      "https://belregion.ru/",
+      "https://gogov.ru/mf-region/blg",
+      "http://minsoc31.ru/mery-podderzhki-podborka/regionalnyj-materinskij-semejnyj-kapi/",
+      "https://czn31.ru/searchjob/"
+    ],
+    "aliases": [
+      "белгородская",
+      "белгород"
+    ]
+  },
+  {
+    "region": "Брянская область",
+    "code": "32",
+    "url": [
+      "https://bryanskobl.ru/",
+      "https://xn--h1alcedd.xn--d1aqf.xn--p1ai/catalog/regionalnyy-materinskiy-kapital-v-bryanskoy-oblasti/",
+      "https://gogov.ru/mf-region/brn",
+      "https://czn31.ru/soiskatelaym/socialnye_viplaty/"
+    ],
+    "aliases": [
+      "брянская",
+      "брянск"
+    ]
+  },
+  {
+    "region": "Владимирская область",
+    "code": "33",
+    "url": [
+      "https://avo.ru/",
+      "https://xn--h1alcedd.xn--d1aqf.xn--p1ai/catalog/regionalnyy-materinskiy-kapital-vladimirskoy-oblasti/",
+      "https://alexandrov.social33.ru/mery-sotspodderzhki/semyam-s-detmi/materinskiy-oblastnoy-kapital/"
+    ],
+    "aliases": [
+      "владимирская",
+      "владимир"
+    ]
+  },
+  {
+    "region": "Волгоградская область",
+    "code": "34",
+    "url": [
+      "https://volgograd.ru/",
+      "https://gogov.ru/mf-feb26/vlg",
+      "https://xn--h1alcedd.xn--d1aqf.xn--p1ai/catalog/roditelskiy-kapital-volgogradskoy-oblasti/",
+      "https://volgadmin.ru/d/socialsphere/socsupport",
+      "https://volgoduma.ru/voters/info/?ELEMENT_ID=36999"
+    ],
+    "aliases": [
+      "волгоградская",
+      "волгоград"
+    ]
+  },
+  {
+    "region": "Вологодская область",
+    "code": "35",
+    "url": [
+      "https://vologda-oblast.ru/",
+      "https://vologda-oblast.ru/family/capital/",
+      "https://gogov.ru/mf-region/vologda",
+      "https://pravo.gov35.ru/gov_piipravprosvgrazhdan/pravovoe-informirovanie-i-pravovoe-prosveshchenie-grazhdan/sotsialnye-lgoty-posobiya/perechen-regionalnykh-lgot-i-mer-sotsialnoy-podderzhki-predostavlyaemykh-voennosluzhashchim-i-chlena/"
+    ],
+    "aliases": [
+      "вологодская",
+      "вологда"
+    ]
+  },
+  {
+    "region": "Воронежская область",
+    "code": "36",
+    "url": [
+      "https://govvrn.ru/",
+      "https://xn--h1alcedd.xn--d1aqf.xn--p1ai/catalog/regionalnyy-materinskiy-kapital-voronezhskoy-oblasti/",
+      "https://uszn-centr.e-gov36.ru/its/edinovremennoe-posobie-pri-rogdenii-rebenka"
+    ],
+    "aliases": [
+      "воронежская",
+      "воронеж"
+    ]
+  },
+  {
+    "region": "Ивановская область",
+    "code": "37",
+    "url": [
+      "https://ivanovoobl.ru/",
+      "https://gogov.ru/mf-region/ivanovo",
+      "https://www.yarbrusovik.ru/articles/regionalnyy-materinskiy-kapital-v-ivanovo-i-oblasti/",
+      "https://gogov.ru/child-benefit/ivnv",
+      "https://zan.ivanovoobl.ru/deyatelnost/ishchushchim-rabotu/posobie-po-bezrabotitse/"
+    ],
+    "aliases": [
+      "ивановская",
+      "иваново"
+    ]
+  },
+  {
+    "region": "Иркутская область",
+    "code": "38",
+    "url": [
+      "https://irkobl.ru/",
+      "https://xn--h1alcedd.xn--d1aqf.xn--p1ai/catalog/regionalnyy-materinskiy-kapital-v-irkutskoy-oblasti/",
+      "https://gogov.ru/mf-region/irkutsk"
+    ],
+    "aliases": [
+      "иркутская",
+      "иркутск"
+    ]
+  },
+  {
+    "region": "Калининградская область",
+    "code": "39",
+    "url": [
+      "https://gov39.ru/",
+      "https://social.gov39.ru/informatsiya/important/sotsialnye-vyplaty/semyam-s-detmi/edinovremennye-vyplaty-v-svyazi-s-rozhdeniem-rebenka/regionalnoe-edinovremennoe-posobie-pri-rozhdenii-rebenka/",
+      "https://gogov.ru/mf-region/kaliningrad",
+      "https://social.gov39.ru/uchrezhdeniya/gku-ko-tsentr-zanyatosti-naseleniya-kaliningradskoy-oblasti/sotsialnye-vyplaty/",
+      "https://rabotakaliningrad.ru/content/%D1%81%D0%BE%D1%86%D0%B8%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D0%B5_%D0%B2%D1%8B%D0%BF%D0%BB%D0%B0%D1%82%D1%8B"
+    ],
+    "aliases": [
+      "калининградская",
+      "калининград"
+    ]
+  },
+  {
+    "region": "Калужская область",
+    "code": "40",
+    "url": [
+      "https://admoblkaluga.ru/",
+      "https://xn--h1alcedd.xn--d1aqf.xn--p1ai/catalog/materinskiy-kapital-kaluzhskoy-oblasti/?utm_referrer=https%3a%2f%2fwww.google.com%2f"
+    ],
+    "aliases": [
+      "калужская",
+      "калуга"
+    ]
+  },
+  {
+    "region": "Камчатский край",
+    "code": "41",
+    "url": [
+      "https://kamgov.ru/",
+      "https://soc.gosuslugi41.ru/actions/15",
+      "https://soc.gosuslugi41.ru/actions/257",
+      "https://soc.gosuslugi41.ru/actions/18",
+      "https://gogov.ru/mf-region/petropavlovsk-kamchatskiy",
+      "https://soc.gosuslugi41.ru/actions/346",
+      "https://soc.gosuslugi41.ru/actions/116"
+    ],
+    "aliases": [
+      "камчатка",
+      "петропавловск-камчатский"
+    ]
+  },
+  {
+    "region": "Кемеровская область",
+    "code": "42",
+    "url": [
+      "https://ako.ru/",
+      "https://kemerovo.ru/sfery-deyatelnosti/sotsialnaya-zashchita/oblastnoy-materinskiy-semeynyy-kapital/",
+      "https://gogov.ru/mf-region/kmrx",
+      "https://www.dsznko.ru/trud-i-zanyatost/rabotodatelyam/mery-podderzhki.php",
+      "https://kemozn.ru/?p=763"
+    ],
+    "aliases": [
+      "кемеровская",
+      "кузбасс"
+    ]
+  },
+  {
+    "region": "Кировская область",
+    "code": "43",
+    "url": [
+      "https://kirovreg.ru/",
+      "https://xn--43-jlcennldkec6cj0j.xn--p1ai/uslugi/predostavlenie-edinovremennoe-denezhnoy-vyplaty-v-forme-regionalnogo-semeynogo-kapitala.html",
+      "https://gogov.ru/mf-region/krv"
+    ],
+    "aliases": [
+      "кировская",
+      "киров"
+    ]
+  },
+  {
+    "region": "Костромская область",
+    "code": "44",
+    "url": [
+      "https://adm44.ru/",
+      "https://gogov.ru/mf-region/kostroma",
+      "https://socdep.kostroma.gov.ru/deyatelnost/zanyatost-naseleniya/registratsiya-v-tsentrakh-zanyatosti.php"
+    ],
+    "aliases": [
+      "костромская",
+      "кострома"
+    ]
+  },
+  {
+    "region": "Курганская область",
+    "code": "45",
+    "url": [
+      "https://kurganobl.ru/",
+      "https://gogov.ru/mf-region/kurgan",
+      "https://www.it.kurganobl.ru/info/news/12722/"
+    ],
+    "aliases": [
+      "курганская",
+      "курган"
+    ]
+  },
+  {
+    "region": "Курская область",
+    "code": "46",
+    "url": [
+      "https://adm.rkursk.ru/",
+      "https://gogov.ru/mf-region/kursk",
+      "https://trud46.ru/services/description/d0f9e603-54b5-46a5-99af-b62dadb2cc42/"
+    ],
+    "aliases": [
+      "курская",
+      "курск"
+    ]
+  },
+  {
+    "region": "Ленинградская область",
+    "code": "47",
+    "url": [
+      "https://lenobl.ru/",
+      "https://cszn.info/public/socvipl",
+      "https://xn--h1alcedd.xn--d1aqf.xn--p1ai/catalog/regionalnyy-materinskiy-kapital-v-leningradskoy-oblasti/",
+      "https://zdrav.lenobl.ru/ru/programm/mery-socialnoj-podderzhki-rabotnikov-medicinskih-organizacij/"
+    ],
+    "aliases": [
+      "ленинградская",
+      "ленобласть"
+    ]
+  },
+  {
+    "region": "Липецкая область",
+    "code": "48",
+    "url": [
+      "https://admlip.ru/",
+      "https://gogov.ru/mf-region/lpts",
+      "https://cszn.admlr.lipetsk.ru/uslugi/mery-sotsialnoj-podderzhki/subsidii-i-lgotu-po-zhku/rabotnikam-byudzhetnoj-sfery-rabotayushhim-v-selskoj-mestnosti/",
+      "https://cszn.admlr.lipetsk.ru/uslugi/mery-sotsialnoj-podderzhki/soczialnyj-kontrakt/gosudarstvennaya-sotsialnaya-pomoshh-na-osnovanii-sotsialnogo-kontrakta/"
+    ],
+    "aliases": [
+      "липецкая",
+      "липецк"
+    ]
+  },
+  {
+    "region": "Магаданская область",
+    "code": "49",
+    "url": [
+      "https://magadan.gov.ru/",
+      "https://gogov.ru/mf-region/magadan"
+    ],
+    "aliases": [
+      "магаданская",
+      "магадан"
+    ]
+  },
+  {
+    "region": "Московская область",
+    "code": "50",
+    "url": [
+      "https://mosreg.ru/",
+      "https://gogov.ru/mf-region/mo",
+      "https://czn.mosreg.ru/informatsiya-dlya-grazhdan/soiskatelyam/informatsiya-dlya-grazhdanam/razmery-posobiy-i-pravila-polucheniya"
+    ],
+    "aliases": [
+      "московская",
+      "подмосковье"
+    ]
+  },
+  {
+    "region": "Мурманская область",
+    "code": "51",
+    "url": [
+      "https://gov-murman.ru/",
+      "https://gogov.ru/newborn-benefits/murmansk",
+      "https://gogov.ru/mf-region/murmansk",
+      "https://murman-zan.ru/prochie-uslugi/sotsialnye-vyplaty-bezrabotnym-grazhdanam/"
+    ],
+    "aliases": [
+      "мурманская",
+      "мурманск"
+    ]
+  },
+  {
+    "region": "Нижегородская область",
+    "code": "52",
+    "url": [
+      "https://government-nnov.ru/",
+      "https://gogov.ru/child-benefit/ngo",
+      "https://gogov.ru/unemployment-benefit/ngo"
+    ],
+    "aliases": [
+      "нижегородская",
+      "нижний новгород"
+    ]
+  },
+  {
+    "region": "Новгородская область",
+    "code": "53",
+    "url": [
+      "https://novreg.ru/",
+      "https://gogov.ru/mf-region/velikiy-novgorod",
+      "https://mincx.novreg.ru/ministry/hrpolicy/gosudarstvennaya-podderzhka-molodykh-spetsialistov/"
+    ],
+    "aliases": [
+      "новгородская",
+      "великий новгород"
+    ]
+  },
+  {
+    "region": "Новосибирская область",
+    "code": "54",
+    "url": [
+      "https://nso.ru/",
+      "https://xn--h1alcedd.xn--d1aqf.xn--p1ai/catalog/regionalnyy-semeynyy-kapital-novosibirskoy-oblasti/",
+      "https://gogov.ru/mf-region/novosibirsk"
+    ],
+    "aliases": [
+      "новосибирская",
+      "новосибирск"
+    ]
+  },
+  {
+    "region": "Омская область",
+    "code": "55",
+    "url": [
+      "https://omskportal.ru/",
+      "http://omskmintrud.ru/?sid=698",
+      "http://www.omskmintrud.ru/?sid=2202",
+      "https://xn----ttbebjtrq.xn--p1ai/services/razmery-socialnyh-vyplat/"
+    ],
+    "aliases": [
+      "омская",
+      "омск"
+    ]
+  },
+  {
+    "region": "Оренбургская область",
+    "code": "56",
+    "url": [
+      "https://orenburg-gov.ru/",
+      "https://gogov.ru/mf-region/orb"
+    ],
+    "aliases": [
+      "оренбургская",
+      "оренбург"
+    ]
+  },
+  {
+    "region": "Орловская область",
+    "code": "57",
+    "url": [
+      "https://orel-region.ru/",
+      "https://gogov.ru/mf-region/orel"
+    ],
+    "aliases": [
+      "орловская",
+      "орёл"
+    ]
+  },
+  {
+    "region": "Пензенская область",
+    "code": "58",
+    "url": [
+      "https://pnzreg.ru/",
+      "https://gogov.ru/mf-region/pnz",
+      "https://trud.pnzreg.ru/all/"
+    ],
+    "aliases": [
+      "пензенская",
+      "пенза"
+    ]
+  },
+  {
+    "region": "Пермский край",
+    "code": "59",
+    "url": [
+      "https://permkrai.ru/",
+      "https://minsoc.permkrai.ru/sotsialnaya-pomoshch-i-podderzhka/podderzhka-semey-s-detmi/podderzhka-mnogodetnykh-semey",
+      "http://minsoc.permkrai.ru/chastichnaya-mobilizatsiya/informatsiya-po-polozhennym-sotsialnym-vyplatam-grazhdanam-prizvannym-po-chastichnoy-mobilizatsii-i-"
+    ],
+    "aliases": [
+      "пермский",
+      "пермь"
+    ]
+  },
+  {
+    "region": "Псковская область",
+    "code": "60",
+    "url": [
+      "https://pskov.ru/",
+      "https://gogov.ru/mf-region/psk",
+      "https://trud.pskov.ru/deyatelnost-komiteta-i-czn/socialnye-vyplaty",
+      "https://sfr.gov.ru/branches/pskov/news~2026/01/30/278654"
+    ],
+    "aliases": [
+      "псковская",
+      "псков"
+    ]
+  },
+  {
+    "region": "Ростовская область",
+    "code": "61",
+    "url": [
+      "https://donland.ru/",
+      "https://usznnekl.ru/?page_id=511",
+      "https://gogov.ru/mf-region/rostov-na-donu"
+    ],
+    "aliases": [
+      "ростовская",
+      "ростов-на-дону"
+    ]
+  },
+  {
+    "region": "Рязанская область",
+    "code": "62",
+    "url": [
+      "https://ryazan.gov.ru/",
+      "https://gogov.ru/mf-region/rzn",
+      "https://csvrzn.ru/?page_id=111"
+    ],
+    "aliases": [
+      "рязанская",
+      "рязань"
+    ]
+  },
+  {
+    "region": "Самарская область",
+    "code": "63",
+    "url": [
+      "https://samregion.ru/",
+      "https://gogov.ru/mf-region/samara",
+      "https://sfr.gov.ru/branches/samara/news~2026/01/21/278267"
+    ],
+    "aliases": [
+      "самарская",
+      "самара"
+    ]
+  },
+  {
+    "region": "Саратовская область",
+    "code": "64",
+    "url": [
+      "https://saratov.gov.ru/",
+      "https://gogov.ru/mf-region/saratov",
+      "https://social.saratov.gov.ru/tematicheskie_sajty/mery_socpodderzhki_semyam_s_detmi_v_saratovskoy_oblasti/denezhnye_vyplaty/"
+    ],
+    "aliases": [
+      "саратовская",
+      "саратов"
+    ]
+  },
+  {
+    "region": "Сахалинская область",
+    "code": "65",
+    "url": [
+      "https://sakhalin.gov.ru/",
+      "https://gogov.ru/mf-region/skhl",
+      "https://msz.sakhalin.gov.ru/pomoshch-inym-kategoriyam-grazhdan/razmer-vyplat/"
+    ],
+    "aliases": [
+      "сахалинская",
+      "южно-сахалинск"
+    ]
+  },
+  {
+    "region": "Свердловская область",
+    "code": "66",
+    "url": [
+      "https://midural.ru/",
+      "https://gogov.ru/mf-region/svo",
+      "https://tusp27.msp.midural.ru/deyatelnost31/informaciya-organa-zanyatosti-naseleniya.html"
+    ],
+    "aliases": [
+      "свердловская",
+      "екб",
+      "екатеринбург"
+    ]
+  },
+  {
+    "region": "Смоленская область",
+    "code": "67",
+    "url": [
+      "https://admin-smolensk.ru/",
+      "https://gogov.ru/mf-region/smolensk",
+      "https://socrazvitie.admin-smolensk.ru/deiatelnost/informaciya-dlya-grazhdan/semi-s-detmi/mery-socialnoj-podderzhki/vyplaty/oblastnoe-ezhemesyachnoe-posobie-na-rebenka-ne-poseschayusch/"
+    ],
+    "aliases": [
+      "смоленская",
+      "смоленск"
+    ]
+  },
+  {
+    "region": "Тамбовская область",
+    "code": "68",
+    "url": [
+      "https://uprsoc.tmbreg.ru/",
+      "https://gogov.ru/mf-region/tambov"
+    ],
+    "aliases": [
+      "тамбов"
+    ]
+  },
+  {
+    "region": "Тверская область",
+    "code": "69",
+    "url": [
+      "https://tverreg.ru/",
+      "https://minsemya.tverreg.ru/mery-podderzhki-semey-s-detmi/aktualnye-mery-sotsialnoy-podderzhki/mnogodetnye-semi/regionalnyy-materinskiy-semeynyy-kapital-pri-rozhdenii-usynovlenii-tretego-rebenka-libo-posleduyushch/?print=y",
+      "https://minsemya.tverreg.ru/mery-podderzhki-semey-s-detmi/rozhdenie-malysha/ezhemesyachnoe-gosudarstvennoe-posobie-na-rebenka-maloobespechennym-grazhdanam-imeyushchim-detey/?special=y"
+    ],
+    "aliases": [
+      "тверская",
+      "тверь"
+    ]
+  },
+  {
+    "region": "Томская область",
+    "code": "70",
+    "url": [
+      "https://tomsk.gov.ru/",
+      "https://tomsk.gov.ru/news/front/view?id=128594",
+      "https://parabel.social.tomsk.gov.ru/mery_to"
+    ],
+    "aliases": [
+      "томская",
+      "томск"
+    ]
+  },
+  {
+    "region": "Тульская область",
+    "code": "71",
+    "url": [
+      "https://tularegion.ru/",
+      "https://gogov.ru/mf-region/tula",
+      "https://sfr.gov.ru/branches/tula/news~2025/12/22/277799"
+    ],
+    "aliases": [
+      "тульская",
+      "тула"
+    ]
+  },
+  {
+    "region": "Тюменская область",
+    "code": "72",
+    "url": [
+      "https://admtyumen.ru/",
+      "https://gogov.ru/mf-region/tmn",
+      "https://admtyumen.ru/ogv_ru/news/subj/society/more.htm?id=12222181@egNews"
+    ],
+    "aliases": [
+      "тюменская",
+      "тюмень"
+    ]
+  },
+  {
+    "region": "Ульяновская область",
+    "code": "73",
+    "url": [
+      "https://ulgov.ru/",
+      "https://gogov.ru/mf-region/ulyanovsk",
+      "https://ulgov.ru/page/index/permlink/id/3751/"
+    ],
+    "aliases": [
+      "ульяновская",
+      "ульяновск"
+    ]
+  },
+  {
+    "region": "Челябинская область",
+    "code": "74",
+    "url": [
+      "https://gubernator74.ru/",
+      "https://gogov.ru/mf-region/chelyabinsk",
+      "https://sfr.gov.ru/branches/chelyabinsk/news~2026/01/15/278100"
+    ],
+    "aliases": [
+      "челябинская",
+      "челябинск"
+    ]
+  },
+  {
+    "region": "Забайкальский край",
+    "code": "75",
+    "url": [
+      "https://75.ru/",
+      "https://gogov.ru/cb-newborn/zbk",
+      "https://gogov.ru/cb-second/zbk",
+      "https://gogov.ru/cb-third/zbk",
+      "https://soczashita-chita.ru/%D1%80%D0%B0%D0%B7%D0%BC%D0%B5%D1%80-%D1%81%D0%BE%D1%86%D0%B8%D0%B0%D0%BB%D1%8C%D0%BD%D1%8B%D1%85-%D0%B2%D1%8B%D0%BF%D0%BB%D0%B0%D1%82/"
+    ],
+    "aliases": [
+      "забайкальский",
+      "чита"
+    ]
+  },
+  {
+    "region": "Ярославская область",
+    "code": "76",
+    "url": [
+      "https://yarregion.ru/",
+      "https://gogov.ru/mf-region/yaroslavl",
+      "https://sfr.gov.ru/branches/yaroslavl/news~2026/01/12/277993"
+    ],
+    "aliases": [
+      "ярославская",
+      "ярославль"
+    ]
+  },
+  {
+    "region": "Москва",
+    "code": "77",
+    "url": [
+      "https://www.mos.ru/",
+      "https://www.garant.ru/actual/posobiya/posob_deti/1020052/"
+    ],
+    "aliases": [
+      "москва",
+      "мск"
+    ]
+  },
+  {
+    "region": "Санкт-Петербург",
+    "code": "78",
+    "url": [
+      "https://www.gov.spb.ru/",
+      "https://xn--h1alcedd.xn--d1aqf.xn--p1ai/instructions/regionalnyy-materinskiy-kapital/?utm_referrer=https%3a%2f%2fwww.google.com%2f"
+    ],
+    "aliases": [
+      "спб",
+      "питер"
+    ]
+  },
+  {
+    "region": "Еврейская автономная область",
+    "code": "79",
+    "url": [
+      "https://eao.ru/",
+      "https://gogov.ru/mf-region/eao",
+      "https://www.eao.ru/isp-vlast/departament-po-trudu-i-zanyatosti-naseleniya-pravitelstva-evreyskoy-avtonomnoy-oblasti/mery-sotsialnoy-podderzhki-naseleniya/"
+    ],
+    "aliases": [
+      "еао",
+      "биробиджан"
+    ]
+  },
+  {
+    "region": "Донецкая Народная Республика",
+    "code": "80",
+    "url": [
+      "https://gov-dnr.ru/",
+      "https://gogov.ru/mothers-fund/donetsk-dnr",
+      "https://gogov.ru/services/mothers-fund/region"
+    ],
+    "aliases": [
+      "днр",
+      "донецк"
+    ]
+  },
+  {
+    "region": "Луганская Народная Республика",
+    "code": "81",
+    "url": [
+      "https://lnr-gov.ru/",
+      "https://sfr.gov.ru/branches/lugansk/news/~2026/01/27/278398",
+      "https://bloknot-lugansk.ru/news/materinskiy-kapital-v-lnr-vyrastet-s-fevralya-2026-1941328"
+    ],
+    "aliases": [
+      "лнр",
+      "луганск"
+    ]
+  },
+  {
+    "region": "Республика Крым",
+    "code": "82",
+    "url": [
+      "https://rk.gov.ru/",
+      "https://mtrud.rk.gov.ru/structure/a80d451a-0f39-4d32-83db-62f598603bf8",
+      "https://gogov.ru/mf-region/crimea"
+    ],
+    "aliases": [
+      "крым",
+      "симферополь"
+    ]
+  },
+  {
+    "region": "Ненецкий АО",
+    "code": "83",
+    "url": [
+      "https://adm-nao.ru/",
+      "https://gogov.ru/mf-region/nao",
+      "https://sfr.gov.ru/branches/yanao/news/~2026/01/14/278084"
+    ],
+    "aliases": [
+      "нао"
+    ]
+  },
+  {
+    "region": "Херсонская область",
+    "code": "84",
+    "url": [
+      "https://khersonska.gov.ru/",
+      "https://gogov.ru/mothers-fund/her",
+      "https://khogov.ru/wp-content/uploads/2024/06/mery_socz_podderzhki_uchastnikov_svo.pdf"
+    ],
+    "aliases": [
+      "херсон"
+    ]
+  },
+  {
+    "region": "Запорожская область",
+    "code": "85",
+    "url": [
+      "https://zp.gov.ru/",
+      "https://sfr.gov.ru/branches/zaporozhye/news/~2026/01/30/278479",
+      "https://sfr.gov.ru/branches/zaporozhye/news/~2026/03/24/279842"
+    ],
+    "aliases": [
+      "запорожье"
+    ]
+  },
+  {
+    "region": "Ханты-Мансийский АО — Югра",
+    "code": "86",
+    "url": [
+      "https://admhmao.ru/",
+      "https://gogov.ru/mf-region/hmao",
+      "https://sfr.gov.ru/branches/hmao/news~2026/01/19/278173"
+    ],
+    "aliases": [
+      "хмао",
+      "югра"
+    ]
+  },
+  {
+    "region": "Чукотский АО",
+    "code": "87",
+    "url": [
+      "https://chukotka-gov.ru/",
+      "https://cson-chukotka.ru/ed6",
+      "https://cson-chukotka.ru/svreg?mobile=1",
+      "https://gogov.ru/mf-region/chuk"
+    ],
+    "aliases": [
+      "чукотка"
+    ]
+  },
+  {
+    "region": "Ямало-Ненецкий АО",
+    "code": "89",
+    "url": [
+      "https://yanao.ru/",
+      "https://gogov.ru/mf-region/yam",
+      "https://sfr.gov.ru/branches/yanao/news~2025/03/18/270391"
+    ],
+    "aliases": [
+      "янао",
+      "ямал"
+    ]
+  },
+  {
+    "region": "Севастополь",
+    "code": "92",
+    "url": [
+      "https://sev.gov.ru/",
+      "https://gogov.ru/mf-region/sev",
+      "https://dszn.sev.gov.ru/mery-sotsialnoi-podderzhki/"
+    ],
+    "aliases": [
+      "севастополь"
+    ]
+  }
+]

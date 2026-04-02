@@ -52,6 +52,6 @@ app.conf.beat_schedule = {
 
 @worker_shutdown.connect
 def cleanup_on_shutdown(**kwargs):
-    from worker.dependences.build import WorkerDependencies
+    from worker.dependencies.build import WorkerDependencies
 
     WorkerDependencies.reset()

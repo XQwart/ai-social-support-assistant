@@ -1,7 +1,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -11,10 +10,6 @@ from sqlalchemy.ext.asyncio import (
 
 if TYPE_CHECKING:
     from app.core.config import Config
-
-
-class Base(DeclarativeBase):
-    pass
 
 
 def create_engine(config: Config) -> AsyncEngine:

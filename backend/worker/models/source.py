@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy import DateTime, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
-from worker.db.session import Base
+from shared.database import Base
 
 
 class Source(Base):

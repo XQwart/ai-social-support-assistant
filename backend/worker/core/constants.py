@@ -1,6 +1,6 @@
 import re
 from pathlib import Path
-
+from datetime import timedelta
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 DATA_DIR = BASE_DIR / "data"
@@ -11,11 +11,44 @@ CHUCK_JSON = DATA_DIR / "chuck.json"
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
+DEFAULT_CRAWL_INTERVAL = timedelta(hours=72)
+
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/120.0.0.0 Safari/537.36"
 )
+
+_ABBR_SET: set[str] = {
+    "ст",
+    "п",
+    "пп",
+    "руб",
+    "коп",
+    "млн",
+    "млрд",
+    "тыс",
+    "др",
+    "пр",
+    "т",
+    "г",
+    "гг",
+    "ул",
+    "д",
+    "кв",
+    "обл",
+    "см",
+    "рис",
+    "табл",
+    "проф",
+    "доц",
+    "канд",
+    "акад",
+    "напр",
+    "н",
+}
+
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
 
 _NOISE_TAGS: set[str] = {
     "script",

@@ -1,9 +1,5 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, DeclarativeBase
-
-
-class Base(DeclarativeBase):
-    pass
+from sqlalchemy.orm import sessionmaker
 
 
 def create_session(postgres_url: str):

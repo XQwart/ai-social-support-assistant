@@ -6,9 +6,10 @@ from sqlalchemy import pool
 from alembic import context
 
 from app.core.config import get_config
-from app.core.database import Base
+from shared.database import Base
 
 from app.models import ChatModel, MessageModel, UserModel  # noqa
+from worker.models import DocumentChunk, Source  # noqa
 
 settings = get_config()
 

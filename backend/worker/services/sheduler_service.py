@@ -31,7 +31,7 @@ class SchedulerService:
                 "id": source.id,
                 "url": source.url,
                 "name": source.name,
-                "region": source.region,
+                "region_code": source.region_code,
             }
             for source in sources
         ]

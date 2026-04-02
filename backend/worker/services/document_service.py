@@ -1,6 +1,10 @@
 from worker.repositories.vector_repositories import VectorRepository
 from worker.repositories.chunk_repositories import ChunkRepository
-from worker.schemas.document import DocumentChunkCreate, StoredDocumentChunk
+from worker.schemas.document import (
+    DocumentChunkCreate,
+    StoredDocumentChunk,
+    EmbeddedDocumentChunk,
+)
 
 
 class DocumentService:
@@ -26,7 +30,7 @@ class DocumentService:
     def save_vectors(
         self,
         source_id: int,
-        embedded_chunks: list[dict],
+        embedded_chunks: list[EmbeddedDocumentChunk],
     ) -> int:
         self._vector_rep.delete_by_source_id(source_id)
         return self._vector_rep.upsert_chunks(embedded_chunks)
