@@ -1,4 +1,6 @@
+import re
 from pathlib import Path
+
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 DATA_DIR = BASE_DIR / "data"
@@ -14,3 +16,40 @@ USER_AGENT = (
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/120.0.0.0 Safari/537.36"
 )
+
+_NOISE_TAGS: set[str] = {
+    "script",
+    "style",
+    "noscript",
+    "iframe",
+    "svg",
+    "nav",
+    "footer",
+    "header",
+    "aside",
+    "form",
+    "button",
+}
+
+_NOISE_ROLES: set[str] = {
+    "banner",
+    "navigation",
+    "complementary",
+    "contentinfo",
+    "search",
+    "menu",
+    "menubar",
+    "dialog",
+}
+
+_NOISE_CLASS_RE = re.compile(
+    r"\b(?:cookie|banner|popup|modal|widget|sidebar|menu|breadcrumb|advert|social|share)\b",
+    re.I,
+)
+
+_BLOCKED_RESOURCES_RE = re.compile(
+    r"\.(png|jpg|jpeg|gif|webp|svg|ico|woff2?|ttf|eot|mp4|mp3|avi|css)(\?.*)?$",
+    re.I,
+)
+
+_MIN_TEXT_LENGTH = 50

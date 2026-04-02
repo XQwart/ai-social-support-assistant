@@ -1,24 +1,21 @@
-from __future__ import annotations
-
 import logging
 import re
-import httpx
 from typing import Optional
 from playwright.sync_api import sync_playwright
+import httpx
 from bs4 import BeautifulSoup
-from worker.core.constants import USER_AGENT
-
-
-from typing import TYPE_CHECKING
-
-
-if TYPE_CHECKING:
-    from worker.core.config import Config
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_TIMEOUT = 30.0
+USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/120.0.0.0 Safari/537.36"
+)
 
-def parse_site(url: str, timeout: int = 30) -> Optional[str]:
+
+def parse_site(url: str, timeout: float = DEFAULT_TIMEOUT) -> Optional[str]:
 
     html = None
 
@@ -111,7 +108,7 @@ def _fetch_with_playwright(url: str, timeout: float) -> Optional[str]:
     return None
 
 
-def parse_site_with_metadata(source: dict, config: Config) -> list[dict]:
+def parse_site_with_metadata(source: dict) -> list[dict]:
     urls = source.get("urls", [])
     if not urls:
         return []
@@ -122,7 +119,7 @@ def parse_site_with_metadata(source: dict, config: Config) -> list[dict]:
         if not url:
             continue
 
-        text = parse_site(url, config.default_timeout)
+        text = parse_site(url)
         if not text:
             continue
 

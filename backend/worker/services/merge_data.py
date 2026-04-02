@@ -2,7 +2,7 @@ import logging
 from datetime import datetime, timezone
 
 from worker.utils.json_storage import load_json, save_json
-from worker.core.constants import FAQ_JSON, CHUCK_JSON, SOURCES_JSON
+from app.core.constants import FAQ_JSON, CHUCK_JSON, SOURCES_JSON
 
 logger = logging.getLogger(__name__)
 

@@ -11,10 +11,12 @@ from worker.services.merge_data import (
     save_chuck,
     save_new_faq,
 )
-from worker.core.config import get_config
-from worker.services.ai import AIService
+from app.core.config import get_config
+from app.services.ai_service import AIService
 
 logger = logging.getLogger(__name__)
+
+BATCH_SIZE = 5
 
 
 @app.task(
@@ -26,8 +28,7 @@ logger = logging.getLogger(__name__)
     retry_backoff_max=300,
 )
 def parse_single_site(self, source: dict) -> list[dict]:
-    config = get_config()
-    results = parse_site_with_metadata(source, config)
+    results = parse_site_with_metadata(source)
 
     return results
 
@@ -50,7 +51,8 @@ def save_chunks_and_extract(self, nested_results: list[list[dict]]):
         logger.warning("POLZA_AI_API_KEY не задан")
         return
 
-    batches = split_batches(results, config.batch_size)
+    batches = split_batches(results, BATCH_SIZE)
+    logger.info("FAQ: %d батчей", len(batches))
 
     chord(
         group(process_batch.s(batch) for batch in batches),
@@ -83,7 +85,7 @@ def process_batch(self, texts: list[dict]) -> list[dict]:
     name="worker.tasks.parsing.save_faq",
     max_retries=1,
 )
-def save_faq(self, faq_batches: list[list[dict]]) -> None:
+def save_faq(self, faq_batches: list[list[dict]]):
     all_new = merge_batches(faq_batches)
     count = save_new_faq(all_new)
     if not count:
