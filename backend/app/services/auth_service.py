@@ -73,7 +73,7 @@ class AuthService:
         )
 
         login_code = secrets.token_urlsafe(32)
-        await self._oauth_rep.save_code(user.id, user.bank_id, code)
+        await self._oauth_rep.save_code(user.id, user.bank_id, login_code)
 
         return SberCallbackResult(
             login_code=login_code, redirect_url=saved_redirect_url

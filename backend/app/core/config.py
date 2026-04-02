@@ -47,7 +47,7 @@ class Config(BaseSettings):
     sber_client_cert_path: str = str(CERT_DIR / "sber_client_cert.crt")
     sber_client_key_path: str = str(CERT_DIR / "private.key")
 
-    frontend_url: str = ""
+    frontend_auth_redirect_url: str = ""
 
     jwt_access_secret: str
     jwt_refresh_secret: str

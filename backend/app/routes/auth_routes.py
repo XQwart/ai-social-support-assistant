@@ -51,7 +51,7 @@ async def sber_callback(
     error: str | None = Query(default=None),
     error_description: str | None = Query(default=None),
 ) -> RedirectResponse:
-    default_redirect = config.frontend_url
+    default_redirect = config.frontend_auth_redirect_url
 
     if error is not None:
         return _error_redirect(
@@ -97,6 +97,7 @@ def _error_redirect(url: str, error: str, description: str) -> RedirectResponse:
                 "description": description,
             },
         ),
+        status_code=status.HTTP_303_SEE_OTHER,
     )
 
 
