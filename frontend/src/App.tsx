@@ -9,7 +9,12 @@ import {
 import { preloadSberAuthParams } from "@/components/AuthModal";
 import AppDisclaimer from "@/components/AppDisclaimer";
 import AuthModal from "@/components/AuthModal";
-import { exchangeSberCodeRequest, logoutRequest } from "@/api/authApi";
+import {
+  exchangeSberCodeRequest,
+  logoutRequest,
+  type ExchangeSberCodeResponse,
+  type UserInfo,
+} from "@/api/authApi";
 import { UnauthorizedError } from "@/api/errors";
 import ChatInput from "@/components/ChatInput";
 import ChatView from "@/components/ChatView";
@@ -18,7 +23,6 @@ import SettingsModal from "@/components/SettingsModal";
 import Sidebar from "@/components/Sidebar";
 import TopBar from "@/components/TopBar";
 import type { Chat, Message } from "@/types";
-import type { ExchangeSberCodeResponse } from "@/api/authApi";
 
 const AUTH_TOKEN_KEY = "ai-social-support.auth.token";
 const AUTH_USER_KEY = "ai-social-support.auth.user";
@@ -36,16 +40,30 @@ let pendingSberExchange:
     }
   | null = null;
 
-function readAuthState(): { token: string | null; userName: string | null } {
-  if (typeof window === "undefined") return { token: null, userName: null };
+const EMPTY_USER_INFO: UserInfo = { firstName: "", secondName: "", placeOfWork: "" };
+
+function readAuthState(): { token: string | null; userInfo: UserInfo } {
+  if (typeof window === "undefined") return { token: null, userInfo: EMPTY_USER_INFO };
 
   const token = window.localStorage.getItem(AUTH_TOKEN_KEY);
-  const userName = window.localStorage.getItem(AUTH_USER_KEY);
+  const raw = window.localStorage.getItem(AUTH_USER_KEY);
 
-  return {
-    token: token ?? null,
-    userName,
-  };
+  let userInfo: UserInfo = EMPTY_USER_INFO;
+  if (raw) {
+    try {
+      userInfo = JSON.parse(raw) as UserInfo;
+    } catch {
+      // legacy plain-string format — ignore, user will re-login
+    }
+  }
+
+  return { token: token ?? null, userInfo };
+}
+
+function saveUserInfo(userInfo: UserInfo) {
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(AUTH_USER_KEY, JSON.stringify(userInfo));
+  }
 }
 
 function clearSberCallbackParams() {
@@ -139,8 +157,8 @@ export default function App() {
   const [authToken, setAuthToken] = useState<string | null>(
     () => readAuthState().token
   );
-  const [userName, setUserName] = useState<string>(
-    () => readAuthState().userName || ""
+  const [userInfo, setUserInfo] = useState<UserInfo>(
+    () => readAuthState().userInfo
   );
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -151,7 +169,8 @@ export default function App() {
   const controllersRef = useRef<Map<string, AbortController>>(new Map());
 
   const isAuthenticated = !!authToken;
-  const userFullName = userName || "Пользователь";
+  const userFullName =
+    [userInfo.firstName, userInfo.secondName].filter(Boolean).join(" ") || "Пользователь";
   const userInitial = userFullName.trim().charAt(0).toUpperCase() || "П";
 
   const activeChat = useMemo(
@@ -176,7 +195,7 @@ export default function App() {
     }
 
     setAuthToken(null);
-    setUserName("");
+    setUserInfo(EMPTY_USER_INFO);
     setChats([]);
     setActiveChatId(null);
     setLoadingChatIds([]);
@@ -203,7 +222,7 @@ export default function App() {
     }
 
     setAuthToken(null);
-    setUserName("");
+    setUserInfo(EMPTY_USER_INFO);
     setChats([]);
     setActiveChatId(null);
     setLoadingChatIds([]);
@@ -309,16 +328,16 @@ export default function App() {
     setIsAuthModalOpen(true);
 
     getOrCreateSberExchange(callbackData.code)
-      .then(({ token, userName }) => {
+      .then(({ token, user }) => {
         if (cancelled) return;
 
         if (typeof window !== "undefined") {
           window.localStorage.setItem(AUTH_TOKEN_KEY, token);
-          window.localStorage.setItem(AUTH_USER_KEY, userName);
+          saveUserInfo(user);
         }
 
         setAuthToken(token);
-        setUserName(userName);
+        setUserInfo(user);
         setSberAuthError("");
         setIsAuthModalOpen(false);
         pendingSberCallback = null;
@@ -332,7 +351,7 @@ export default function App() {
         }
 
         setAuthToken(null);
-        setUserName("");
+        setUserInfo(EMPTY_USER_INFO);
         setSberAuthError(
           error instanceof Error
             ? error.message
@@ -367,6 +386,17 @@ export default function App() {
   const handleCloseAuth = useCallback(() => {
     setSberAuthError("");
     setIsFinalizingSberAuth(false);
+    setIsAuthModalOpen(false);
+  }, []);
+
+  const handleMockLogin = useCallback((token: string, user: UserInfo) => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(AUTH_TOKEN_KEY, token);
+      saveUserInfo(user);
+    }
+    setAuthToken(token);
+    setUserInfo(user);
+    setSberAuthError("");
     setIsAuthModalOpen(false);
   }, []);
 
@@ -618,6 +648,7 @@ export default function App() {
         onClose={handleCloseAuth}
         externalError={sberAuthError}
         isFinalizing={isFinalizingSberAuth}
+        onMockLogin={handleMockLogin}
       />
 
       <SettingsModal

@@ -1,4 +1,5 @@
 import { getApiBase } from "@/api/base";
+import { mockLoginRequest, type UserInfo } from "@/api/authApi";
 import { useEffect, useMemo, useState } from "react";
 
 interface AuthModalProps {
@@ -6,6 +7,7 @@ interface AuthModalProps {
   onClose: () => void;
   externalError?: string;
   isFinalizing?: boolean;
+  onMockLogin?: (token: string, user: UserInfo) => void;
 }
 
 const API_BASE = getApiBase();
@@ -115,12 +117,15 @@ export default function AuthModal({
   onClose,
   externalError = "",
   isFinalizing = false,
+  onMockLogin,
 }: AuthModalProps) {
   const [initError, setInitError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [authUrl, setAuthUrl] = useState("");
   const [consentChecked, setConsentChecked] = useState(false);
   const [consentError, setConsentError] = useState(false);
+  const [isMockLoading, setIsMockLoading] = useState(false);
+  const [mockError, setMockError] = useState("");
 
   const displayError = initError || externalError;
   const isAuthReady = !!authUrl && !isLoading && !displayError;
@@ -132,6 +137,8 @@ export default function AuthModal({
       setAuthUrl("");
       setConsentChecked(false);
       setConsentError(false);
+      setMockError("");
+      setIsMockLoading(false);
       return;
     }
 
@@ -249,11 +256,70 @@ export default function AuthModal({
           </div>
         ) : (
           <>
-            <p className="text-[13px] leading-5 text-slate-500">
-              Сейчас вход в сервис доступен только через Sber ID.
-            </p>
+            {onMockLogin && (
+              <div className="mt-4 flex flex-col items-center gap-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!consentChecked) {
+                      setConsentError(true);
+                      return;
+                    }
+                    setConsentError(false);
+                    if (isMockLoading) return;
+                    setMockError("");
+                    setIsMockLoading(true);
+                    try {
+                      const result = await mockLoginRequest();
+                      onMockLogin(result.token, result.user);
+                    } catch (err: unknown) {
+                      setMockError(
+                        err instanceof Error ? err.message : "Не удалось выполнить временный вход"
+                      );
+                    } finally {
+                      setIsMockLoading(false);
+                    }
+                  }}
+                  disabled={isMockLoading}
+                  className={`mx-auto flex min-h-[48px] w-full max-w-[320px] items-center justify-center gap-2 rounded-[14px] border border-dashed border-amber-400 bg-amber-50/70 px-5 text-[14px] font-medium text-amber-800 transition-all ${
+                    isMockLoading
+                      ? "cursor-wait opacity-60"
+                      : "cursor-pointer hover:bg-amber-100/80"
+                  }`}
+                >
+                  {isMockLoading ? (
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-amber-400/40 border-t-amber-600" />
+                  ) : (
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                      className="shrink-0 opacity-70"
+                    >
+                      <circle cx="12" cy="8" r="4" />
+                      <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+                    </svg>
+                  )}
+                  <span>Временный вход (без Sber ID)</span>
+                </button>
+                {mockError && (
+                  <p className="text-center text-[12px] text-rose-600">{mockError}</p>
+                )}
+                <div className="flex items-center gap-2 text-[11px] text-slate-400">
+                  <span className="h-px flex-1 bg-slate-200" />
+                  <span>или</span>
+                  <span className="h-px flex-1 bg-slate-200" />
+                </div>
+              </div>
+            )}
 
-            <div className="mt-6 flex flex-col items-center justify-center gap-3">
+            <div className="mt-2 flex flex-col items-center justify-center gap-3">
               <button
                 type="button"
                 onClick={() => {
@@ -300,13 +366,11 @@ export default function AuthModal({
                 <span>{buttonLabel}</span>
               </button>
 
-              <p className="min-h-[20px] text-center text-[12px] text-slate-400">
-                {displayError
-                  ? ""
-                  : isAuthReady
-                    ? "Кнопка готова к входу."
-                    : "Подготавливаем безопасный переход в Sber ID..."}
-              </p>
+              {!isAuthReady && !displayError && (
+                <p className="min-h-[20px] text-center text-[12px] text-slate-400">
+                  Подготавливаем безопасный переход в Sber ID...
+                </p>
+              )}
             </div>
 
             <div

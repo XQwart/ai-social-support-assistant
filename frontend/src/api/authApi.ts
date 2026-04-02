@@ -3,17 +3,27 @@ import { UnauthorizedError } from "@/api/errors";
 
 const API_BASE = getApiBase();
 const AUTH_TOKEN_KEY = "ai-social-support.auth.token";
+const AUTH_USER_KEY = "ai-social-support.auth.user";
 
-interface ExchangeSberCodeResponseDto {
-  message: string;
-  token: string;
-  user_name?: string;
+export interface UserInfo {
+  firstName: string;
+  secondName: string;
+  placeOfWork: string;
+}
+
+function parseUserInfo(raw: unknown): UserInfo {
+  const u = raw as { first_name?: string; second_name?: string; place_of_work?: string } | null;
+  return {
+    firstName: u?.first_name?.trim() ?? "",
+    secondName: u?.second_name?.trim() ?? "",
+    placeOfWork: u?.place_of_work?.trim() ?? "",
+  };
 }
 
 export interface ExchangeSberCodeResponse {
   message: string;
   token: string;
-  userName: string;
+  user: UserInfo;
 }
 
 export async function exchangeSberCodeRequest(
@@ -32,12 +42,12 @@ export async function exchangeSberCodeRequest(
     throw new Error(body?.detail ?? "Не удалось завершить вход через Sber ID");
   }
 
-  const data = (await res.json()) as ExchangeSberCodeResponseDto;
+  const data = await res.json();
 
   return {
     message: data.message,
     token: data.token,
-    userName: data.user_name?.trim() || "Пользователь",
+    user: parseUserInfo(data.user),
   };
 }
 
@@ -58,7 +68,34 @@ export async function refreshRequest(): Promise<string> {
 
   const data = await res.json();
   localStorage.setItem(AUTH_TOKEN_KEY, data.token);
+  localStorage.setItem(AUTH_USER_KEY, JSON.stringify(parseUserInfo(data.user)));
   return data.token;
+}
+
+export interface MockLoginResponse {
+  message: string;
+  token: string;
+  user: UserInfo;
+}
+
+export async function mockLoginRequest(): Promise<MockLoginResponse> {
+  const res = await fetch(`${API_BASE}/auth/mock-login`, {
+    method: "POST",
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.detail ?? "Не удалось выполнить временный вход");
+  }
+
+  const data = await res.json();
+
+  return {
+    message: data.message,
+    token: data.token,
+    user: parseUserInfo(data.user),
+  };
 }
 
 export async function logoutRequest(): Promise<void> {
