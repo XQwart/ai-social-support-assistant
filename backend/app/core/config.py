@@ -40,7 +40,7 @@ class Config(BaseSettings):
     sber_userinfo_url: str = ""
     client_id: str = ""
     client_secret: str = ""
-    sber_scopes: str = "openid name"
+    sber_scopes: str = "openid name place_of_work"
     sber_application_name: str = "ИИ-помощник по социальной поддержке"
 
     sber_ca_cert_path: str = str(CERT_DIR / "sber_ift_ca.pem")
