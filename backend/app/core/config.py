@@ -1,9 +1,15 @@
 from datetime import timedelta
+from enum import Enum
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from .constants import BASE_DIR, CERT_DIR
+
+
+class LLMProvider(str, Enum):
+    POLZA = "polza"
+    GIGACHAT = "gigachat"
 
 
 class Config(BaseSettings):
@@ -43,6 +49,7 @@ class Config(BaseSettings):
     sber_scopes: str = "openid name place_of_work"
     sber_application_name: str = "ИИ-помощник по социальной поддержке"
 
+    rus_root_ca_cert_path: str = str(CERT_DIR / "russian_trusted_root_ca.cer")
     sber_ca_cert_path: str = str(CERT_DIR / "sber_ift_ca.pem")
     sber_client_cert_path: str = str(CERT_DIR / "sber_client_cert.crt")
     sber_client_key_path: str = str(CERT_DIR / "private.key")
@@ -56,9 +63,25 @@ class Config(BaseSettings):
     code_ttl: timedelta = timedelta(seconds=30)
     oauth_ttl: timedelta = timedelta(minutes=10)
 
+    llm_provider: LLMProvider = LLMProvider.GIGACHAT
+
     polza_ai_api_key: str = ""
     polza_ai_base_url: str = "https://polza.ai/api/v1"
     polza_ai_model: str = "xiaomi/mimo-v2-flash"
+
+    gigachat_api_key: str = ""
+    gigachat_scope: str = ""
+    gigachat_model: str | None = None
+
+    llm_source_text_limit: int = 3000
+    llm_fallback_context_limit: int = 1000
+
+    llm_generate_temperature: float = 0.3
+    llm_generate_max_tokens: int = 2048
+    llm_compress_temperature: float = 0.2
+    llm_compress_max_tokens: int = 512
+
+    llm_timeout: float = 60.0
 
     context_size: int = 64
     summary_limit: int = 10
