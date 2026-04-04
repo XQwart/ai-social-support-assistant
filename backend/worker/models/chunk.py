@@ -21,8 +21,6 @@ class DocumentChunk(Base):
     source_url: Mapped[str] = mapped_column(String(2048), nullable=False)
     source_name: Mapped[str] = mapped_column(String(255), nullable=False)
 
-    region_code: Mapped[int] = mapped_column(Integer, nullable=False)
-
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
 
     text: Mapped[str] = mapped_column(Text, nullable=False)

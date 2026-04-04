@@ -1,5 +1,5 @@
-from worker.repositories.vector_repositories import VectorRepository
-from worker.repositories.chunk_repositories import ChunkRepository
+from worker.repositories.vector_repository import VectorRepository
+from worker.repositories.chunk_repository import ChunkRepository
 from worker.schemas.document import (
     DocumentChunkCreate,
     StoredDocumentChunk,
@@ -25,12 +25,16 @@ class DocumentService:
         chunks: list[DocumentChunkCreate],
     ) -> list[StoredDocumentChunk]:
         self._chunk_rep.delete_by_source_id(source_id)
-        return self._chunk_rep.create_many(chunks)
+        chunk_stored = self._chunk_rep.create_many(chunks)
+        print(f"ДЛИНА СОХРАНЕНЫХ ЧАНКОВ {len(chunk_stored)}")
+
+        return chunk_stored
 
     def save_vectors(
         self,
         source_id: int,
         embedded_chunks: list[EmbeddedDocumentChunk],
+        regions: list[str],
     ) -> int:
         self._vector_rep.delete_by_source_id(source_id)
-        return self._vector_rep.upsert_chunks(embedded_chunks)
+        return self._vector_rep.upsert_chunks(embedded_chunks, regions)

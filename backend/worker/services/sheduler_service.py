@@ -1,21 +1,18 @@
-from datetime import datetime, timezone
 from uuid import uuid4
 from worker.tasks.update_knowledge_task import update_knowledge
 from celery import group
-from worker.repositories.source import SourceRepository
+from worker.services.source_service import SourceService
 
 
 class SchedulerService:
-    _source_repository: SourceRepository
+    _source_service: SourceService
 
-    def __init__(self, source_repository: SourceRepository):
-        self._source_repository = source_repository
+    def __init__(self, source_service: SourceService):
+        self._source_service = source_service
 
     def dispatch_due_crawls(self) -> dict:
-        now = datetime.now(timezone.utc)
 
-        sources = self._source_repository.claim_due_sources(
-            now=now,
+        sources = self._source_service.claim_due_sources(
             limit=50,
         )
 
@@ -31,7 +28,6 @@ class SchedulerService:
                 "id": source.id,
                 "url": source.url,
                 "name": source.name,
-                "region_code": source.region_code,
             }
             for source in sources
         ]
