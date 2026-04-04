@@ -4,7 +4,7 @@ import logging
 
 from worker.services.parsing_service import ParsingService
 from worker.services.document_service import DocumentService
-from worker.services.embedding_service import EmbeddingService
+from worker.services.embedding.embedding_service import EmbeddingService
 from worker.services.chunk_service import ChunkingService
 from worker.services.source_service import SourceService
 

@@ -3,7 +3,7 @@ from openai import OpenAI, DefaultHttpxClient
 from worker.core.config import Config
 
 
-def build_openai_client(config: Config, timeout: int = 60) -> OpenAI:
+def build_polza_ai_client(config: Config, timeout: int = 60) -> OpenAI:
 
     http_client = DefaultHttpxClient(
         verify=False,

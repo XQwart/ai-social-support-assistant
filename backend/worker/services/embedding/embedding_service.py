@@ -1,14 +1,13 @@
-from openai import OpenAI
-
 from worker.schemas.document import StoredDocumentChunk, EmbeddedDocumentChunk
+from worker.services.embedding.base_provider import BaseEmbeddingProvider
 
 
 class EmbeddingService:
-    _client: OpenAI
+    _provider: BaseEmbeddingProvider
     _model: str
 
-    def __init__(self, client: OpenAI, model: str) -> None:
-        self._client = client
+    def __init__(self, provider: BaseEmbeddingProvider, model: str) -> None:
+        self._provider = provider
         self._model = model
 
     def create_embeddings(
@@ -21,12 +20,7 @@ class EmbeddingService:
 
         texts = [chunk.text for chunk in chunks]
 
-        response = self._client.embeddings.create(
-            model=self._model,
-            input=texts,
-            encoding_format="float",
-        )
-        vectors = [item.embedding for item in response.data]
+        vectors = self._provider.embed_texts(texts=texts)
 
         return [
             EmbeddedDocumentChunk(

@@ -4,7 +4,7 @@ from datetime import timedelta
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 DATA_DIR = BASE_DIR / "data"
-
+CERT_DIR = BASE_DIR / "cert"
 SOURCES_JSON = DATA_DIR / "sources.json"
 FAQ_JSON = DATA_DIR / "faq.json"
 CHUCK_JSON = DATA_DIR / "chuck.json"

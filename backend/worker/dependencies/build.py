@@ -5,13 +5,13 @@ from threading import Lock
 from qdrant_client.models import VectorParams, Distance
 from contextlib import contextmanager
 from worker.core.config import get_config, Config
-from worker.client.openai_client import build_openai_client
+from worker.services.embedding.build import build_embedding_provider
 from worker.db.qdrant import create_qdrant
 from worker.db.session import create_session
 from worker.repositories.chunk_repository import ChunkRepository
 from worker.repositories.vector_repository import VectorRepository
 from worker.services.parsing_service import ParsingService
-from worker.services.embedding_service import EmbeddingService
+from worker.services.embedding.embedding_service import EmbeddingService
 from worker.services.document_service import DocumentService
 from worker.services.chunk_service import ChunkingService
 from worker.services.source_processing_service import SourceProcessingService
@@ -28,9 +28,10 @@ class WorkerDependencies:
     def __init__(self, config: Config) -> None:
         self._config = config
 
-        self._openai_client = build_openai_client(config=config)
+        self._provider = build_embedding_provider(config=config)
         self._qdrant = create_qdrant(url=config.qdrant_url)
-        self.ensure_collection()
+
+        self.ensure_collection(self._provider.vector_size)
 
         self._sessionmaker = create_session(config.database_url)
 
@@ -41,7 +42,7 @@ class WorkerDependencies:
             embedding_model=config.polza_ai_embedding_model,
         )
         self._embedding_service = EmbeddingService(
-            client=self._openai_client,
+            provider=self._provider,
             model=config.polza_ai_embedding_model,
         )
 
@@ -97,12 +98,12 @@ class WorkerDependencies:
             source_service=source_service,
         )
 
-    def ensure_collection(self) -> None:
+    def ensure_collection(self, vector_size: int) -> None:
         if not self._qdrant.collection_exists(self._config.qdrant_collection):
             self._qdrant.create_collection(
                 collection_name=self._config.qdrant_collection,
                 vectors_config=VectorParams(
-                    size=3072,
+                    size=vector_size,
                     distance=Distance.COSINE,
                 ),
             )
@@ -114,6 +115,10 @@ class WorkerDependencies:
             pass
         try:
             self._qdrant.close()
+        except Exception:
+            pass
+        try:
+            self._provider.close()
         except Exception:
             pass
         logger.info("WorkerDependencies закрыты")
