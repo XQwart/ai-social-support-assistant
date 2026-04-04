@@ -11,19 +11,19 @@ if TYPE_CHECKING:
 
 
 class ConversationService:
-    _ai_service: LLMServiceBase
+    _llm_service: LLMServiceBase
     _message_service: MessageService
     _chat_service: ChatService
     _config: Config
 
     def __init__(
         self,
-        ai_service: LLMServiceBase,
+        llm_service: LLMServiceBase,
         message_service: MessageService,
         chat_service: ChatService,
         config: Config,
     ):
-        self._ai_service = ai_service
+        self._llm_service = llm_service
         self._message_service = message_service
         self._chat_service = chat_service
         self._config = config
@@ -36,7 +36,7 @@ class ConversationService:
         chat_history, compressed_context, was_compressed = await self._prepare_context(
             chat=chat
         )
-        ai_response = await self._ai_service.generate_response(
+        ai_response = await self._llm_service.generate_response(
             user_message=content,
             chat_history=chat_history,
             compressed_context=compressed_context,
@@ -84,7 +84,7 @@ class ConversationService:
         self, chat: ChatModel, messages: list[MessageModel]
     ) -> str:
         history = self._to_history(messages)
-        compressed_context = await self._ai_service.compress_context(history)
+        compressed_context = await self._llm_service.compress_context(history)
 
         await self._chat_service.update_chat(
             chat=chat, compressed_context=compressed_context

@@ -3,7 +3,6 @@ from typing import Annotated
 from fastapi import Request, Depends
 
 from app.services import (
-    AIService,
     AuthService,
     ChatService,
     ConversationService,
@@ -68,10 +67,6 @@ def get_conversation_service(
     return ConversationService(llm_service, message_service, chat_service, config)
 
 
-def get_ai_service(config: ConfigDep) -> AIService:
-    return AIService(config)
-
-
 def get_user_service(user_rep: UserRepoDep) -> UserService:
     return UserService(user_rep)
 
@@ -80,7 +75,6 @@ def get_llm_service(request: Request) -> LLMServiceBase:
     return request.app.state.llm_service
 
 
-# AIServiceDep = Annotated[AIService, Depends(get_ai_service)]
 LLMServiceDep = Annotated[LLMServiceBase, Depends(get_llm_service)]
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 ChatServiceDep = Annotated[ChatService, Depends(get_chat_service)]
