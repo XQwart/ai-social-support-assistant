@@ -15,15 +15,9 @@ class VectorRepository:
         self._client = client
         self._collection_name = collection_name
 
-    def replace_source_vectors(
-        self,
-        source_id: int,
-        embedded_chunks: Sequence[EmbeddedDocumentChunk],
+    def upsert_chunks(
+        self, embedded_chunks: Sequence[EmbeddedDocumentChunk], regions: list[str]
     ) -> int:
-        self.delete_by_source_id(source_id)
-        return self.upsert_chunks(embedded_chunks)
-
-    def upsert_chunks(self, embedded_chunks: Sequence[EmbeddedDocumentChunk]) -> int:
         if not embedded_chunks:
             return 0
 
@@ -37,7 +31,7 @@ class VectorRepository:
             payload = {
                 "text_id": chunk.id,
                 "source_id": chunk.source_id,
-                "region_code": chunk.region_code,
+                "region_codes": regions,
                 "access_level": chunk.access_level,
                 "chunk_index": chunk.chunk_index,
             }

@@ -4,14 +4,17 @@ import argparse
 import json
 import logging
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from worker.core.config import get_config
-from worker.models.source import Source
 from worker.db.session import create_session
+from worker.models.regions import Region, SourceRegion
+from worker.models.source import Source
+from worker.repositories.source_repository import SourceRepository
+from worker.services.source_service import SourceService
 
 logger = logging.getLogger(__name__)
 
@@ -30,48 +33,103 @@ def load_json(path: Path) -> list[dict]:
     return data
 
 
-def seed(session: Session, regions: list[dict], clear: bool = False) -> None:
+def get_or_create_region(
+    session: Session,
+    code: str,
+    name: str,
+) -> Region:
+    stmt = select(Region).where(Region.code == code)
+    region = session.scalar(stmt)
+
+    if region is not None:
+        if region.name != name:
+            region.name = name
+            session.flush()
+        return region
+
+    region = Region(
+        code=code,
+        name=name,
+    )
+    session.add(region)
+    session.flush()
+    return region
+
+
+def clear_all(session: Session) -> None:
+    deleted_links = session.query(SourceRegion).delete()
+    deleted_sources = session.query(Source).delete()
+    deleted_regions = session.query(Region).delete()
+
+    logger.warning(
+        "Удалено связей: %d, source: %d, regions: %d",
+        deleted_links,
+        deleted_sources,
+        deleted_regions,
+    )
+    session.flush()
+
+
+def seed(session: Session, regions_data: list[dict], clear: bool = False) -> None:
+    source_repository = SourceRepository(session)
+    source_service = SourceService(source_repository)
+
     if clear:
-        deleted = session.query(Source).delete()
-        logger.warning("Удалено %d старых source", deleted)
+        clear_all(session)
 
-    now = datetime.now(timezone.utc)
-    added = 0
-    skipped = 0
+    added_sources = 0
+    existing_sources = 0
+    added_links = 0
 
-    for region in regions:
-        region_name = region["region"]
-        region_code = int(region["code"])
-        urls = region.get("url", [])
+    for item in regions_data:
+        region_name = item["region"]
+        region_code = str(item["code"]).zfill(2)
+        urls = item.get("url", [])
+
+        region = get_or_create_region(
+            session=session,
+            code=region_code,
+            name=region_name,
+        )
 
         for url in urls:
-            exists = session.query(Source.id).filter_by(url=url).first()
+            existing_source = source_service.get_by_url(url)
 
-            if exists:
-                logger.debug("Уже существует: %s", url)
-                skipped += 1
-                continue
+            before_codes: set[str] = set()
+            if existing_source is not None:
+                existing_sources += 1
+                before_codes = set(
+                    source_service.get_region_codes_by_source_id(existing_source.id)
+                )
 
-            source = Source(
-                name=region_name,
+            source = source_service.register_source_for_region(
                 url=url,
-                region=region_name,
-                region_code=region_code,
-                is_active=True,
-                next_crawl_at=now,
+                region_id=region.id,
+                name=region_name,
             )
-            session.add(source)
-            added += 1
+
+            if existing_source is None:
+                added_sources += 1
+
+            after_codes = set(source_service.get_region_codes_by_source_id(source.id))
+
+            if after_codes != before_codes:
+                added_links += 1
 
         logger.debug(
-            "Регион %s (код %d): %d URL",
+            "Регион %s (код %s): %d URL",
             region_name,
             region_code,
             len(urls),
         )
 
     session.commit()
-    logger.info("Добавлено: %d, пропущено (дубли): %d", added, skipped)
+    logger.info(
+        "Добавлено source: %d, найдено существующих source: %d, добавлено связей source-region: %d",
+        added_sources,
+        existing_sources,
+        added_links,
+    )
 
 
 def main() -> None:
@@ -90,7 +148,7 @@ def main() -> None:
     parser.add_argument(
         "--clear",
         action="store_true",
-        help="Удалить все source перед загрузкой",
+        help="Удалить все source, region и связи перед загрузкой",
     )
     args = parser.parse_args()
 
@@ -99,8 +157,8 @@ def main() -> None:
     session = session_factory()
 
     try:
-        regions = load_json(args.file)
-        seed(session, regions, clear=args.clear)
+        regions_data = load_json(args.file)
+        seed(session, regions_data, clear=args.clear)
     except Exception:
         session.rollback()
         logger.exception("Ошибка загрузки sources")

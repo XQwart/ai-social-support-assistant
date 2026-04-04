@@ -29,7 +29,6 @@ class ChunkRepository:
                 source_id=chunk.source_id,
                 source_url=chunk.source_url,
                 source_name=chunk.source_name,
-                region_code=chunk.region_code,
                 chunk_index=chunk.chunk_index,
                 text=chunk.text,
             )
@@ -44,7 +43,6 @@ class ChunkRepository:
                 source_id=row.source_id,
                 source_url=row.source_url,
                 source_name=row.source_name,
-                region_code=row.region_code,
                 chunk_index=row.chunk_index,
                 text=row.text,
             )
@@ -61,14 +59,6 @@ class ChunkRepository:
         result = self._session.execute(stmt)
         deleted_ids = result.scalars().all()
         return len(deleted_ids)
-
-    def replace_source_chunks(
-        self,
-        source_id: int,
-        chunks: Sequence[DocumentChunkCreate],
-    ) -> list[StoredDocumentChunk]:
-        self.delete_by_source_id(source_id)
-        return self.create_many(chunks)
 
     def get_by_ids(self, chunk_ids: Sequence[int]) -> list[StoredDocumentChunk]:
         if not chunk_ids:
@@ -88,7 +78,6 @@ class ChunkRepository:
                 source_id=row.source_id,
                 source_url=row.source_url,
                 source_name=row.source_name,
-                region_code=row.region_code,
                 chunk_index=row.chunk_index,
                 text=row.text,
             )
@@ -110,7 +99,6 @@ class ChunkRepository:
                 source_id=row.source_id,
                 source_url=row.source_url,
                 source_name=row.source_name,
-                region_code=row.region_code,
                 chunk_index=row.chunk_index,
                 text=row.text,
             )

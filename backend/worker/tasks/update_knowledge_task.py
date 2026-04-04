@@ -16,7 +16,8 @@ logger = logging.getLogger(__name__)
 )
 def update_knowledge(self, source: dict) -> dict:
     deps = WorkerDependencies.get()
-    service = deps.build_processing_service()
 
-    result = service.process_source(source)
-    return result
+    with deps.session_scope() as session:
+        service = deps.build_processing_service(session=session)
+        result = service.process_source(source)
+        return result
