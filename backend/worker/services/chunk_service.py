@@ -47,7 +47,6 @@ class ChunkingService:
                 source_id=document.source_id,
                 source_url=document.source_url,
                 source_name=document.source_name,
-                region_code=document.region_code,
                 chunk_index=index,
                 text=chunk_text,
             )

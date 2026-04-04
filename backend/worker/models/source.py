@@ -15,7 +15,6 @@ class Source(Base):
 
     url: Mapped[str] = mapped_column(String(2048), nullable=False, unique=True)
     name: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    region_code: Mapped[int] = mapped_column(nullable=True)
 
     crawl_interval_minutes: Mapped[int] = mapped_column(default=60, nullable=False)
 

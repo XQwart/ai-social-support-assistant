@@ -8,7 +8,6 @@ from worker.schemas.status import SourceStatus
 class ProcessingResult:
     source_id: int
     url: str
-    region_code: int
     status: SourceStatus
     chunks_count: int = 0
     vectors_count: int = 0
@@ -18,7 +17,6 @@ class ProcessingResult:
         return {
             "source_id": self.source_id,
             "url": self.url,
-            "region_code": self.region_code,
             "status": self.status.value,
             "chunks_count": self.chunks_count,
             "vectors_count": self.vectors_count,

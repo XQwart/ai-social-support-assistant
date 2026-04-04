@@ -33,7 +33,6 @@ class ParsingService:
         source_id: int,
         url: str,
         name: str,
-        region_code: int,
     ) -> ParsedDocument | None:
         if not url:
             logger.warning("Source %d: пустой URL", source_id)
@@ -47,7 +46,6 @@ class ParsingService:
             source_id=source_id,
             source_url=url,
             source_name=name,
-            region_code=region_code,
             text=text,
         )
 
@@ -235,8 +233,9 @@ class ParsingService:
                 tag.decompose()
 
         for tag in body.find_all(True):
-            classes = " ".join(tag.get("class") or [])
-            tag_id = tag.get("id") or ""
+            attrs = getattr(tag, "attrs", None) or {}
+            classes = " ".join(attrs.get("class", []))
+            tag_id = attrs.get("id", "") or ""
 
             if _NOISE_CLASS_RE.search(f"{classes} {tag_id}"):
                 tag.decompose()
