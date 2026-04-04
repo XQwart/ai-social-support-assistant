@@ -1,15 +1,15 @@
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Request, Depends
 
 from app.services import (
-    AIService,
     AuthService,
     ChatService,
     ConversationService,
     MessageService,
     SberIdService,
     UserService,
+    LLMServiceBase,
 )
 from app.dependencies.config import ConfigDep
 from app.dependencies.repositories import (
@@ -59,23 +59,23 @@ def get_chat_service(chat_rep: ChatRepoDep) -> ChatService:
 
 
 def get_conversation_service(
-    ai_service: "AIServiceDep",
+    llm_service: "LLMServiceDep",
     message_service: "MessageServiceDep",
     chat_service: "ChatServiceDep",
     config: ConfigDep,
 ) -> ConversationService:
-    return ConversationService(ai_service, message_service, chat_service, config)
-
-
-def get_ai_service(config: ConfigDep) -> AIService:
-    return AIService(config)
+    return ConversationService(llm_service, message_service, chat_service, config)
 
 
 def get_user_service(user_rep: UserRepoDep) -> UserService:
     return UserService(user_rep)
 
 
-AIServiceDep = Annotated[AIService, Depends(get_ai_service)]
+def get_llm_service(request: Request) -> LLMServiceBase:
+    return request.app.state.llm_service
+
+
+LLMServiceDep = Annotated[LLMServiceBase, Depends(get_llm_service)]
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 ChatServiceDep = Annotated[ChatService, Depends(get_chat_service)]
 MessageServiceDep = Annotated[MessageService, Depends(get_message_service)]
