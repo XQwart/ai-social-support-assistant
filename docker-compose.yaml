@@ -28,7 +28,7 @@ services:
     env_file:
       - .env
     volumes:
-      - pg_data:/var/lib/postgresql/data
+      - ./volumes/postgresql:/var/lib/postgresql
     ports:
       - "${POSTGRES_PORT}:5432"
     healthcheck:
@@ -53,11 +53,9 @@ services:
     ports:
       - "${QDRANT_PORT}:6333"
     volumes:
-      - qdrant_storage:/qdrant/storage
+      - ./volumes/qdrant:/qdrant/storage
 
   
 
 volumes:
-  pg_data:
   redis_data:
-  qdrant_storage:
