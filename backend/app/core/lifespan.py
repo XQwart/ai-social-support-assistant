@@ -8,7 +8,7 @@ from .database import create_engine, create_session_maker
 from .redis import create_redis
 from .logger import setup_logging
 from .http import create_sber_http_client
-from .llm import create_llm_service
+from .ai import create_ai_clients
 
 
 logger = logging.getLogger(__name__)
@@ -24,20 +24,26 @@ async def lifespan(app: FastAPI):
     session_maker = create_session_maker(engine)
     redis = create_redis(config)
     http_client = create_sber_http_client(config)
-    llm_service = create_llm_service(config)
+    chat_ai_client, compress_ai_client, embedding_ai_client = create_ai_clients(config)
 
     app.state.db_engine = engine
     app.state.session_maker = session_maker
     app.state.redis = redis
     app.state.sber_client = http_client
-    app.state.llm_service = llm_service
+
+    app.state.chat_ai_client = chat_ai_client
+    app.state.compress_ai_client = compress_ai_client
+    app.state.embedding_ai_client = embedding_ai_client
 
     logger.info("Application started successfully")
 
     try:
         yield
     finally:
-        await llm_service.aclose()
+        await chat_ai_client.aclose()
+        await compress_ai_client.aclose()
+        await embedding_ai_client.aclose()
+
         await http_client.aclose()
         await redis.aclose()
         await engine.dispose()
