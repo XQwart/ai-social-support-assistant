@@ -7,7 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from .constants import BASE_DIR, CERT_DIR
 
 
-class LLMProvider(str, Enum):
+class AIProvider(str, Enum):
     POLZA = "polza"
     GIGACHAT = "gigachat"
 
@@ -63,15 +63,19 @@ class Config(BaseSettings):
     code_ttl: timedelta = timedelta(seconds=30)
     oauth_ttl: timedelta = timedelta(minutes=10)
 
-    llm_provider: LLMProvider = LLMProvider.GIGACHAT
+    ai_provider: AIProvider = AIProvider.GIGACHAT
 
     polza_ai_api_key: str = ""
     polza_ai_base_url: str = "https://polza.ai/api/v1"
     polza_ai_model: str = "xiaomi/mimo-v2-flash"
+    polza_ai_compress_model: str | None = None
+    polza_ai_embedding_model: str = "text-embedding-3-large"
 
     gigachat_api_key: str = ""
     gigachat_scope: str = ""
     gigachat_model: str | None = None
+    gigachat_compress_model: str | None = None
+    gigachat_embedding_model: str = "EmbeddingsGigaR"
 
     llm_source_text_limit: int = 3000
     llm_fallback_context_limit: int = 1000

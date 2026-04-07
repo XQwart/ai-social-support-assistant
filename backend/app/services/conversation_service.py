@@ -5,20 +5,20 @@ from app.models.message_model import MessageRole
 from app.schemas.message_schemas import ConversationResult
 
 if TYPE_CHECKING:
-    from . import ChatService, MessageService, LLMServiceBase
+    from . import ChatService, MessageService, LLMService
     from app.core.config import Config
     from app.models import ChatModel, MessageModel
 
 
 class ConversationService:
-    _llm_service: LLMServiceBase
+    _llm_service: LLMService
     _message_service: MessageService
     _chat_service: ChatService
     _config: Config
 
     def __init__(
         self,
-        llm_service: LLMServiceBase,
+        llm_service: LLMService,
         message_service: MessageService,
         chat_service: ChatService,
         config: Config,

@@ -1,11 +1,11 @@
 from __future__ import annotations
-from abc import ABC, abstractmethod
 from pathlib import Path
 import json
 import logging
-from typing import Generic, TypeVar, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from app.core.constants import FAQ_JSON, CHUCK_JSON
+from app.clients.base_clients import LLMClient
 from .prompts import (
     build_system_prompt,
     COMPRESSED_CONTEXT_PREFIX,
@@ -20,15 +20,19 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_T = TypeVar("_T")
-
 
 # TODO: Заменить json на qdrant
-class LLMServiceBase(ABC, Generic[_T]):
+class LLMService:
     _config: Config
+    _chat_client: LLMClient
+    _compress_client: LLMClient
 
-    def __init__(self, config: Config):
+    def __init__(
+        self, config: Config, chat_client: LLMClient, compress_client: LLMClient
+    ):
         self._config = config
+        self._chat_client = chat_client
+        self._compress_client = compress_client
 
     def _load_knowledge_base(self) -> tuple[list[dict], list[dict]]:
         faq_data = self._load_json_file(FAQ_JSON, "faq.json")
@@ -61,25 +65,19 @@ class LLMServiceBase(ABC, Generic[_T]):
         faq_data, chuck_data = self._load_knowledge_base()
         system_prompt = build_system_prompt(faq_data, chuck_data)
 
-        messages: list[_T] = [
-            self._prepare_message({"role": "system", "content": system_prompt})
-        ]
+        messages: list[dict[str, str]] = [{"role": "system", "content": system_prompt}]
         if compressed_context:
             messages.append(
-                self._prepare_message(
-                    {
-                        "role": "system",
-                        "content": (f"{COMPRESSED_CONTEXT_PREFIX}{compressed_context}"),
-                    }
-                )
+                {
+                    "role": "system",
+                    "content": (f"{COMPRESSED_CONTEXT_PREFIX}{compressed_context}"),
+                }
             )
-        messages.extend([self._prepare_message(msg) for msg in chat_history])
-        messages.append(
-            self._prepare_message({"role": "user", "content": user_message})
-        )
+        messages.extend(chat_history)
+        messages.append({"role": "user", "content": user_message})
 
         try:
-            response_text = await self._get_completion(
+            response_text = await self._chat_client.get_completion(
                 messages,
                 max_tokens=self._config.llm_generate_max_tokens,
                 temperature=self._config.llm_generate_temperature,
@@ -103,15 +101,13 @@ class LLMServiceBase(ABC, Generic[_T]):
             for m in messages
         )
 
-        prepared_messages = self._prepare_messages(
-            [
-                {"role": "system", "content": COMPRESS_CONTEXT_SYSTEM},
-                {"role": "user", "content": messages_text},
-            ]
-        )
+        prepared_messages = [
+            {"role": "system", "content": COMPRESS_CONTEXT_SYSTEM},
+            {"role": "user", "content": messages_text},
+        ]
 
         try:
-            response = await self._get_completion(
+            response = await self._compress_client.get_completion(
                 prepared_messages,
                 max_tokens=self._config.llm_compress_max_tokens,
                 temperature=self._config.llm_compress_temperature,
@@ -120,23 +116,3 @@ class LLMServiceBase(ABC, Generic[_T]):
         except Exception as e:
             logger.error("Ошибка сжатия контекста: %s", e)
             return messages_text[: self._config.llm_fallback_context_limit]
-
-    def _prepare_messages(self, messages: list[dict[str, str]]) -> list[_T]:
-        return [self._prepare_message(msg) for msg in messages]
-
-    @abstractmethod
-    def _prepare_message(self, message: dict[str, str]) -> _T:
-        pass
-
-    @abstractmethod
-    async def _get_completion(
-        self,
-        messages: list[_T],
-        max_tokens: int = 512,
-        temperature: float = 0.2,
-    ) -> str | None:
-        pass
-
-    @abstractmethod
-    async def aclose(self) -> None:
-        pass

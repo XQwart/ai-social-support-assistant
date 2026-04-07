@@ -1,16 +1,8 @@
 from typing import Annotated
 
-from fastapi import Request, Depends
+from fastapi import Depends
 
-from app.services import (
-    AuthService,
-    ChatService,
-    ConversationService,
-    MessageService,
-    SberIdService,
-    UserService,
-    LLMServiceBase,
-)
+from app.dependencies.ai import ChatAIClientDep, CompressAIClientDep
 from app.dependencies.config import ConfigDep
 from app.dependencies.repositories import (
     UserRepoDep,
@@ -21,6 +13,15 @@ from app.dependencies.repositories import (
 )
 from app.dependencies.http import HTTPSberClientDep
 from app.dependencies.jwt import AccessTokenDep, RefreshTokenDep
+from app.services import (
+    AuthService,
+    ChatService,
+    ConversationService,
+    MessageService,
+    SberIdService,
+    UserService,
+    LLMService,
+)
 
 
 def get_auth_service(
@@ -71,11 +72,15 @@ def get_user_service(user_rep: UserRepoDep) -> UserService:
     return UserService(user_rep)
 
 
-def get_llm_service(request: Request) -> LLMServiceBase:
-    return request.app.state.llm_service
+def get_llm_service(
+    config: ConfigDep,
+    chat_client: ChatAIClientDep,
+    compress_client: CompressAIClientDep,
+) -> LLMService:
+    return LLMService(config, chat_client, compress_client)
 
 
-LLMServiceDep = Annotated[LLMServiceBase, Depends(get_llm_service)]
+LLMServiceDep = Annotated[LLMService, Depends(get_llm_service)]
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 ChatServiceDep = Annotated[ChatService, Depends(get_chat_service)]
 MessageServiceDep = Annotated[MessageService, Depends(get_message_service)]
