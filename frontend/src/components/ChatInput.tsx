@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/utils/cn";
 
 interface ChatInputProps {
-  onSend: (message: string) => void;
+  onSend: (message: string) => Promise<boolean>;
   isLoading: boolean;
   placeholder?: string;
   mode?: "hero" | "dock";
@@ -21,7 +21,10 @@ export default function ChatInput({
   onAuthRequired,
 }: ChatInputProps) {
   const [value, setValue] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const isBusy = isLoading || isSubmitting;
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -39,20 +42,28 @@ export default function ChatInput({
     }
   }, [autoFocus]);
 
-  const submit = () => {
+  const submit = async () => {
     const trimmed = value.trim();
-    if (!trimmed || isLoading) return;
+    if (!trimmed || isBusy) return;
 
     if (!isAuthenticated) {
       onAuthRequired?.();
       return;
     }
 
-    onSend(trimmed);
-    setValue("");
+    setIsSubmitting(true);
+
+    try {
+      const didSend = await onSend(trimmed);
+      if (didSend) {
+        setValue("");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const canSend = value.trim().length > 0 && !isLoading;
+  const canSend = value.trim().length > 0 && !isBusy;
 
   return (
     <div
@@ -88,12 +99,12 @@ export default function ChatInput({
             value={value}
             rows={1}
             placeholder={placeholder}
-            disabled={isLoading}
+            disabled={isBusy}
             onChange={(event) => setValue(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
-                submit();
+                void submit();
               }
             }}
             className={cn(
@@ -104,22 +115,24 @@ export default function ChatInput({
             aria-label="Поле ввода сообщения"
           />
 
-          <button
-            type="button"
-            onClick={submit}
-            aria-disabled={!canSend}
-            className={cn(
+            <button
+              type="button"
+              onClick={() => {
+                void submit();
+              }}
+              aria-disabled={!canSend}
+              className={cn(
               "relative z-10 inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-2xl transition-all",
               canSend
                 ? "bg-[linear-gradient(135deg,#12b981,#0ea5a4)] text-white shadow-[0_10px_30px_rgba(16,185,129,0.34)] hover:scale-[1.03] hover:shadow-[0_14px_34px_rgba(16,185,129,0.38)] active:scale-[0.97]"
                 : "bg-slate-200/82 text-slate-400 hover:scale-[1.03] hover:bg-slate-300/85 hover:text-slate-500 hover:shadow-[0_10px_24px_rgba(148,163,184,0.18)] active:scale-[0.97]"
             )}
             aria-label="Отправить сообщение"
-          >
-            {isLoading ? (
-              <span className="inline-flex items-center gap-1">
-                <span className="loading-dot" />
-                <span
+            >
+              {isBusy ? (
+                <span className="inline-flex items-center gap-1">
+                  <span className="loading-dot" />
+                  <span
                   className="loading-dot"
                   style={{ animationDelay: "120ms" }}
                 />

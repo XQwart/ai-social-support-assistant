@@ -9,6 +9,8 @@ interface ChatViewProps {
   chat: Chat;
   isLoading: boolean;
   animatedMessageId: string | null;
+  onRetryHistory: () => void;
+  onRetryPendingMessage: () => void;
 }
 
 const AUTO_SCROLL_THRESHOLD = 120;
@@ -28,6 +30,8 @@ export default function ChatView({
   chat,
   isLoading,
   animatedMessageId,
+  onRetryHistory,
+  onRetryPendingMessage,
 }: ChatViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -175,6 +179,52 @@ export default function ChatView({
         style={{ scrollPaddingBottom: "9rem" }}
       >
         <div ref={contentRef} className="mx-auto flex w-full max-w-4xl flex-col gap-4">
+          {chat.historyStatus === "loading" && (
+            <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 rounded-3xl border border-white/80 bg-white/78 px-5 py-4 text-sm text-slate-600 shadow-[0_18px_44px_rgba(15,23,42,0.08)] backdrop-blur-2xl">
+              <span>Загружаем полную историю диалога...</span>
+              <span className="inline-flex items-center gap-1.5 text-emerald-600">
+                <span className="loading-dot" />
+                <span className="loading-dot" style={{ animationDelay: "140ms" }} />
+                <span className="loading-dot" style={{ animationDelay: "280ms" }} />
+              </span>
+            </div>
+          )}
+
+          {chat.historyError && (
+            <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 rounded-3xl border border-amber-200/80 bg-amber-50/90 px-5 py-4 text-slate-700 shadow-[0_18px_44px_rgba(15,23,42,0.06)] backdrop-blur-2xl">
+              <div className="text-sm font-medium">
+                Не удалось загрузить историю: {chat.historyError}
+              </div>
+              <div>
+                <button
+                  type="button"
+                  onClick={onRetryHistory}
+                  className="inline-flex cursor-pointer items-center justify-center rounded-full bg-amber-500 px-4 py-2 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-amber-600 active:translate-y-0"
+                >
+                  Повторить загрузку
+                </button>
+              </div>
+            </div>
+          )}
+
+          {chat.sendError && chat.pendingMessageText && (
+            <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 rounded-3xl border border-rose-200/80 bg-rose-50/90 px-5 py-4 text-slate-700 shadow-[0_18px_44px_rgba(15,23,42,0.06)] backdrop-blur-2xl">
+              <div className="text-sm font-medium">{chat.sendError}</div>
+              <div className="rounded-2xl bg-white/70 px-4 py-3 text-sm text-slate-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]">
+                {chat.pendingMessageText}
+              </div>
+              <div>
+                <button
+                  type="button"
+                  onClick={onRetryPendingMessage}
+                  className="inline-flex cursor-pointer items-center justify-center rounded-full bg-rose-500 px-4 py-2 text-sm font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-rose-600 active:translate-y-0"
+                >
+                  Повторить отправку
+                </button>
+              </div>
+            </div>
+          )}
+
           {chat.messages.map((message) => (
             <ChatMessage
               key={message.id}

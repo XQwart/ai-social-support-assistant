@@ -1,6 +1,6 @@
 import { getApiBase } from "@/api/base";
 import type { Chat, Message } from "@/types";
-import { UnauthorizedError } from "@/api/errors";
+import { ApiError } from "@/api/errors";
 import { refreshRequest } from "@/api/authApi";
 
 const API_BASE = getApiBase();
@@ -23,7 +23,9 @@ function mergeAuthHeaders(initHeaders?: HeadersInit): Headers {
 
 async function getFreshAccessToken(): Promise<string> {
   if (!refreshPromise) {
-    refreshPromise = refreshRequest().finally(() => {
+    refreshPromise = refreshRequest()
+      .then((session) => session.token)
+      .finally(() => {
       refreshPromise = null;
     });
   }
@@ -40,7 +42,7 @@ async function authFetch(
     credentials: "include",
   });
 
-  if (res.status !== 401) {
+  if (res.status !== 401 && res.status !== 403) {
     return res;
   }
 
@@ -69,13 +71,45 @@ async function getErrorMessage(
 }
 
 async function ensureOk(res: Response, fallback: string): Promise<void> {
-  if (res.status === 401) {
-    throw new UnauthorizedError();
-  }
-
   if (!res.ok) {
-    throw new Error(await getErrorMessage(res, fallback));
+    throw new ApiError(res.status, await getErrorMessage(res, fallback));
   }
+}
+
+function createChatState(chat: {
+  id: number;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}): Chat {
+  return {
+    id: String(chat.id),
+    title: chat.title,
+    createdAt: ts(chat.created_at),
+    updatedAt: ts(chat.updated_at),
+    messages: [],
+    historyStatus: "idle",
+    historyError: null,
+    messagesOffset: 0,
+    hasOlderMessages: false,
+    isHistoryHydrated: false,
+    pendingMessageText: null,
+    sendError: null,
+  };
+}
+
+export interface ChatsPage {
+  items: Chat[];
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+}
+
+export interface MessagesPage {
+  messages: Message[];
+  limit: number;
+  offset: number;
+  hasMore: boolean;
 }
 
 export async function createChat(
@@ -93,11 +127,9 @@ export async function createChat(
   const data = await res.json();
 
   return {
-    id: String(data.id),
-    title: data.title,
-    createdAt: ts(data.created_at),
-    updatedAt: ts(data.updated_at),
-    messages: [],
+    ...createChatState(data),
+    historyStatus: "ready",
+    isHistoryHydrated: true,
   };
 }
 
@@ -105,7 +137,7 @@ export async function fetchChats(
   limit = 100,
   offset = 0,
   signal?: AbortSignal
-): Promise<Chat[]> {
+): Promise<ChatsPage> {
   const res = await authFetch(`${API_BASE}/chats/?limit=${limit}&offset=${offset}`, {
     signal,
   });
@@ -113,37 +145,41 @@ export async function fetchChats(
   await ensureOk(res, "Не удалось загрузить список чатов");
 
   const data = await res.json();
-
-  return (data.items || []).map(
+  const items = (data.items || []).map(
     (c: {
       id: number;
       user_id: number;
       title: string;
       created_at: string;
       updated_at: string;
-    }) => ({
-      id: String(c.id),
-      title: c.title,
-      createdAt: ts(c.created_at),
-      updatedAt: ts(c.updated_at),
-      messages: [],
-    })
+    }) => createChatState(c)
   );
+
+  return {
+    items,
+    limit: Number(data.limit ?? limit),
+    offset: Number(data.offset ?? offset),
+    hasMore: items.length >= Number(data.limit ?? limit),
+  };
 }
 
 export async function fetchMessages(
   chatId: string,
+  limit = 100,
+  offset = 0,
   signal?: AbortSignal
-): Promise<Message[]> {
-  const res = await authFetch(`${API_BASE}/chats/${chatId}/messages`, {
+): Promise<MessagesPage> {
+  const res = await authFetch(
+    `${API_BASE}/chats/${chatId}/messages?limit=${limit}&offset=${offset}`,
+    {
     signal,
-  });
+    }
+  );
 
   await ensureOk(res, "Не удалось загрузить сообщения");
 
   const data = await res.json();
-
-  return (data.messages || []).map(
+  const messages = (data.messages || []).map(
     (m: { id: number; role: string; content: string; created_at: string }) => ({
       id: String(m.id),
       role: m.role as "user" | "assistant" | "system",
@@ -151,6 +187,13 @@ export async function fetchMessages(
       timestamp: ts(m.created_at),
     })
   );
+
+  return {
+    messages,
+    limit,
+    offset,
+    hasMore: messages.length >= limit,
+  };
 }
 
 export async function sendMessageToChat(

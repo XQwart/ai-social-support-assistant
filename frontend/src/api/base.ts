@@ -28,7 +28,12 @@ export function getApiBase(): string {
     }
 
     apiUrl.hostname = currentHostname;
-    return apiUrl.toString().replace(/\/$/, "");
+    const baseUrl = apiUrl.toString().replace(/\/$/, "");
+
+    if (!baseUrl.endsWith("/api")) {
+      return `${baseUrl}/api`;
+    }
+    return baseUrl;
   } catch {
     return raw;
   }

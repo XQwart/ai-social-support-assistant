@@ -2,7 +2,7 @@ import AppDisclaimer from "@/components/AppDisclaimer";
 import ChatInput from "@/components/ChatInput";
 
 interface HomePageProps {
-  onSend: (message: string) => void;
+  onSend: (message: string) => Promise<boolean>;
   isLoading: boolean;
   isAuthenticated: boolean;
   onAuthRequired: () => void;
@@ -27,8 +27,14 @@ export default function HomePage({
       onAuthRequired();
       return;
     }
-    onSend(question);
+
+    if (isLoading) {
+      return;
+    }
+
+    void onSend(question);
   };
+
   return (
     <div className="relative flex flex-1 flex-col overflow-hidden px-4 pt-28">
       <div className="hero-aurora-wrap" aria-hidden="true">
@@ -71,8 +77,9 @@ export default function HomePage({
             <button
               key={question}
               type="button"
+              disabled={isLoading}
               onClick={() => handleQuestionClick(question)}
-              className="cursor-pointer rounded-full border border-white/78 bg-white/64 px-4 py-2.5 text-[13px] font-medium text-slate-700 shadow-[0_4px_18px_rgba(15,23,42,0.035)] backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:bg-white/82 hover:text-slate-900 active:translate-y-0"
+              className="cursor-pointer rounded-full border border-white/78 bg-white/64 px-4 py-2.5 text-[13px] font-medium text-slate-700 shadow-[0_4px_18px_rgba(15,23,42,0.035)] backdrop-blur-xl transition-all hover:-translate-y-0.5 hover:bg-white/82 hover:text-slate-900 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:translate-y-0 disabled:hover:bg-white/64 disabled:hover:text-slate-700"
             >
               {question}
             </button>

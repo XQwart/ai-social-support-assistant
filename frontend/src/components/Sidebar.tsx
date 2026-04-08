@@ -13,6 +13,12 @@ interface SidebarProps {
   userFullName: string;
   isAuthenticated: boolean;
   onLoginClick: () => void;
+  isLoadingChats: boolean;
+  isLoadingMoreChats: boolean;
+  hasMoreChats: boolean;
+  chatLoadError: string | null;
+  onLoadMoreChats: () => void;
+  onRetryLoadChats: () => void;
 }
 
 function getDateLabel(timestamp: number): string {
@@ -62,6 +68,12 @@ export default function Sidebar({
   userFullName,
   isAuthenticated,
   onLoginClick,
+  isLoadingChats,
+  isLoadingMoreChats,
+  hasMoreChats,
+  chatLoadError,
+  onLoadMoreChats,
+  onRetryLoadChats,
 }: SidebarProps) {
   const [search, setSearch] = useState("");
   const panelRef = useRef<HTMLDivElement>(null);
@@ -244,6 +256,25 @@ export default function Sidebar({
             </div>
 
             <div className="relative z-10 custom-scrollbar flex-1 overflow-y-auto px-3 pb-4">
+              {chatLoadError && (
+                <div className="mb-4 rounded-2xl border border-amber-200/80 bg-amber-50/90 px-4 py-3 text-sm text-slate-700 shadow-[0_10px_24px_rgba(15,23,42,0.04)]">
+                  <div>{chatLoadError}</div>
+                  <button
+                    type="button"
+                    onClick={onRetryLoadChats}
+                    className="mt-3 inline-flex cursor-pointer items-center justify-center rounded-full bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-amber-600 active:translate-y-0"
+                  >
+                    Повторить
+                  </button>
+                </div>
+              )}
+
+              {isLoadingChats && chats.length === 0 && (
+                <div className="px-2 pt-10 text-center text-sm text-slate-400">
+                  Загружаем чаты...
+                </div>
+              )}
+
               {Object.entries(groupedChats).map(([groupLabel, groupChats]) => (
                 <div key={groupLabel} className="mb-4">
                   <div className="mb-2 px-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
@@ -316,9 +347,22 @@ export default function Sidebar({
                 </div>
               ))}
 
-              {filteredChats.length === 0 && (
+              {!isLoadingChats && filteredChats.length === 0 && (
                 <div className="px-2 pt-10 text-center text-sm text-slate-400">
                   {search ? "Ничего не найдено" : "Пока нет сохранённых чатов"}
+                </div>
+              )}
+
+              {(hasMoreChats || isLoadingMoreChats) && (
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    disabled={isLoadingMoreChats}
+                    onClick={onLoadMoreChats}
+                    className="flex w-full cursor-pointer items-center justify-center rounded-2xl border border-white/70 bg-white/68 px-3 py-2.5 text-[13px] font-semibold text-slate-700 shadow-[0_10px_24px_rgba(15,23,42,0.04)] transition-all hover:-translate-y-0.5 hover:bg-white/82 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:bg-white/68"
+                  >
+                    {isLoadingMoreChats ? "Загружаем..." : "Показать ещё"}
+                  </button>
                 </div>
               )}
             </div>

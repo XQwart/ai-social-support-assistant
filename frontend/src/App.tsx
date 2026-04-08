@@ -6,16 +6,20 @@ import {
   fetchMessages,
   sendMessageToChat,
 } from "@/api/chatApi";
-import { preloadSberAuthParams } from "@/components/AuthModal";
-import AppDisclaimer from "@/components/AppDisclaimer";
-import AuthModal from "@/components/AuthModal";
 import {
+  clearStoredAuthSession,
   exchangeSberCodeRequest,
   logoutRequest,
+  refreshRequest,
+  storeAuthSession,
+  subscribeToAuthSession,
   type ExchangeSberCodeResponse,
   type UserInfo,
 } from "@/api/authApi";
-import { UnauthorizedError } from "@/api/errors";
+import { ApiError, UnauthorizedError } from "@/api/errors";
+import { preloadSberAuthParams } from "@/components/AuthModal";
+import AppDisclaimer from "@/components/AppDisclaimer";
+import AuthModal from "@/components/AuthModal";
 import ChatInput from "@/components/ChatInput";
 import ChatView from "@/components/ChatView";
 import HomePage from "@/components/HomePage";
@@ -26,6 +30,11 @@ import type { Chat, Message } from "@/types";
 
 const AUTH_TOKEN_KEY = "ai-social-support.auth.token";
 const AUTH_USER_KEY = "ai-social-support.auth.user";
+const CHAT_PAGE_LIMIT = 100;
+const MESSAGE_PAGE_LIMIT = 100;
+const RECENT_MESSAGE_WINDOW_MS = 15000;
+const CHAT_LIST_CONTROLLER_KEY = "chats:list";
+const NEW_CHAT_CONTROLLER_KEY = "send:new";
 
 type PendingSberCallback = {
   code: string | null;
@@ -42,28 +51,35 @@ let pendingSberExchange:
 
 const EMPTY_USER_INFO: UserInfo = { firstName: "", secondName: "", placeOfWork: "" };
 
+function getHistoryControllerKey(chatId: string): string {
+  return `history:${chatId}`;
+}
+
+function getSendControllerKey(chatId: string): string {
+  return `send:${chatId}`;
+}
+
+function getDeleteControllerKey(chatId: string): string {
+  return `delete:${chatId}`;
+}
+
 function readAuthState(): { token: string | null; userInfo: UserInfo } {
-  if (typeof window === "undefined") return { token: null, userInfo: EMPTY_USER_INFO };
+  if (typeof window === "undefined") {
+    return { token: null, userInfo: EMPTY_USER_INFO };
+  }
 
   const token = window.localStorage.getItem(AUTH_TOKEN_KEY);
   const raw = window.localStorage.getItem(AUTH_USER_KEY);
 
   let userInfo: UserInfo = EMPTY_USER_INFO;
+
   if (raw) {
     try {
       userInfo = JSON.parse(raw) as UserInfo;
-    } catch {
-      // legacy plain-string format — ignore, user will re-login
-    }
+    } catch {}
   }
 
   return { token: token ?? null, userInfo };
-}
-
-function saveUserInfo(userInfo: UserInfo) {
-  if (typeof window !== "undefined") {
-    window.localStorage.setItem(AUTH_USER_KEY, JSON.stringify(userInfo));
-  }
 }
 
 function clearSberCallbackParams() {
@@ -83,8 +99,7 @@ function resolveSberCallbackError(searchParams: URLSearchParams): string {
   if (!errorCode) return "";
 
   const description =
-    searchParams.get("description") ??
-    searchParams.get("error_description");
+    searchParams.get("description") ?? searchParams.get("error_description");
 
   if (description) {
     return description;
@@ -132,80 +147,429 @@ function getOrCreateSberExchange(code: string): Promise<ExchangeSberCodeResponse
   return promise;
 }
 
-function mergeUniqueMessages(
-  current: Message[],
-  incoming: Message[]
-): Message[] {
+function mergeUniqueMessages(current: Message[], incoming: Message[]): Message[] {
   const map = new Map<string, Message>();
 
-  [...current, ...incoming].forEach((msg) => {
-    map.set(msg.id, msg);
+  [...current, ...incoming].forEach((message) => {
+    map.set(message.id, message);
   });
 
   return Array.from(map.values()).sort((a, b) => a.timestamp - b.timestamp);
 }
 
+function sortChats(chats: Chat[]): Chat[] {
+  return [...chats].sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+function mergeIncomingChats(current: Chat[], incoming: Chat[]): Chat[] {
+  const map = new Map<string, Chat>();
+
+  current.forEach((chat) => {
+    map.set(chat.id, chat);
+  });
+
+  incoming.forEach((chat) => {
+    const existing = map.get(chat.id);
+
+    if (!existing) {
+      map.set(chat.id, chat);
+      return;
+    }
+
+    map.set(chat.id, {
+      ...chat,
+      messages: existing.messages,
+      historyStatus: existing.historyStatus,
+      historyError: existing.historyError,
+      messagesOffset: existing.messagesOffset,
+      hasOlderMessages: existing.hasOlderMessages,
+      isHistoryHydrated: existing.isHistoryHydrated,
+      pendingMessageText: existing.pendingMessageText,
+      sendError: existing.sendError,
+    });
+  });
+
+  return sortChats(Array.from(map.values()));
+}
+
+function wasMessagePersisted(messages: Message[], text: string, sentAt: number): boolean {
+  return messages.some(
+    (message) =>
+      message.role === "user" &&
+      message.content === text &&
+      message.timestamp >= sentAt - RECENT_MESSAGE_WINDOW_MS
+  );
+}
+
 export default function App() {
+  const initialAuthStateRef = useRef(readAuthState());
+  const controllersRef = useRef<Map<string, AbortController>>(new Map());
+  const requestEpochRef = useRef(0);
+  const chatListOffsetRef = useRef(0);
+
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [loadingChatIds, setLoadingChatIds] = useState<string[]>([]);
-  const [animatedMessageId, setAnimatedMessageId] = useState<string | null>(
-    null
-  );
-
+  const [animatedMessageId, setAnimatedMessageId] = useState<string | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(
-    () => readAuthState().token
+    () => initialAuthStateRef.current.token
   );
   const [userInfo, setUserInfo] = useState<UserInfo>(
-    () => readAuthState().userInfo
+    () => initialAuthStateRef.current.userInfo
   );
-
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [sberAuthError, setSberAuthError] = useState("");
   const [isFinalizingSberAuth, setIsFinalizingSberAuth] = useState(false);
-
-  const controllersRef = useRef<Map<string, AbortController>>(new Map());
+  const [isBootstrappingSession, setIsBootstrappingSession] = useState(
+    !initialAuthStateRef.current.token
+  );
+  const [chatListStatus, setChatListStatus] = useState<
+    "idle" | "loading" | "ready" | "error"
+  >("idle");
+  const [chatListError, setChatListError] = useState<string | null>(null);
+  const [hasMoreChats, setHasMoreChats] = useState(false);
+  const [isLoadingMoreChats, setIsLoadingMoreChats] = useState(false);
+  const [isCreatingChat, setIsCreatingChat] = useState(false);
 
   const isAuthenticated = !!authToken;
   const userFullName =
-    [userInfo.firstName, userInfo.secondName].filter(Boolean).join(" ") || "Пользователь";
+    [userInfo.firstName, userInfo.secondName].filter(Boolean).join(" ") ||
+    "Пользователь";
   const userInitial = userFullName.trim().charAt(0).toUpperCase() || "П";
 
   const activeChat = useMemo(
-    () => chats.find((c) => c.id === activeChatId) ?? null,
+    () => chats.find((chat) => chat.id === activeChatId) ?? null,
     [chats, activeChatId]
   );
 
   const showHome = !activeChat;
 
   const isCurrentChatLoading = useMemo(() => {
-    if (!activeChatId) return false;
+    if (!activeChatId) {
+      return false;
+    }
+
     return loadingChatIds.includes(activeChatId);
   }, [activeChatId, loadingChatIds]);
 
-  const handleSessionExpired = useCallback(() => {
-    controllersRef.current.forEach((c) => c.abort());
-    controllersRef.current.clear();
-
-    if (typeof window !== "undefined") {
-      window.localStorage.removeItem(AUTH_TOKEN_KEY);
-      window.localStorage.removeItem(AUTH_USER_KEY);
-    }
-
-    setAuthToken(null);
-    setUserInfo(EMPTY_USER_INFO);
-    setChats([]);
-    setActiveChatId(null);
-    setLoadingChatIds([]);
-    setAnimatedMessageId(null);
-    setIsSidebarOpen(false);
-    setIsSettingsModalOpen(false);
-    setSberAuthError("");
-    setIsFinalizingSberAuth(false);
-    setIsAuthModalOpen(true);
+  const updateChatListOffset = useCallback((nextOffset: number) => {
+    chatListOffsetRef.current = nextOffset;
   }, []);
+
+  const isRequestCurrent = useCallback((requestEpoch: number) => {
+    return requestEpochRef.current === requestEpoch;
+  }, []);
+
+  const registerController = useCallback(
+    (key: string, controller: AbortController) => {
+      controllersRef.current.get(key)?.abort();
+      controllersRef.current.set(key, controller);
+    },
+    []
+  );
+
+  const releaseController = useCallback(
+    (key: string, controller?: AbortController) => {
+      const current = controllersRef.current.get(key);
+
+      if (!current) {
+        return;
+      }
+
+      if (!controller || current === controller) {
+        controllersRef.current.delete(key);
+      }
+    },
+    []
+  );
+
+  const abortAllControllers = useCallback(() => {
+    controllersRef.current.forEach((controller) => controller.abort());
+    controllersRef.current.clear();
+  }, []);
+
+  const resetSessionState = useCallback(
+    (openAuthModal: boolean) => {
+      requestEpochRef.current += 1;
+      abortAllControllers();
+      clearStoredAuthSession();
+      updateChatListOffset(0);
+      setAuthToken(null);
+      setUserInfo(EMPTY_USER_INFO);
+      setChats([]);
+      setActiveChatId(null);
+      setLoadingChatIds([]);
+      setAnimatedMessageId(null);
+      setIsSidebarOpen(false);
+      setIsSettingsModalOpen(false);
+      setSberAuthError("");
+      setIsFinalizingSberAuth(false);
+      setIsBootstrappingSession(false);
+      setChatListStatus("idle");
+      setChatListError(null);
+      setHasMoreChats(false);
+      setIsLoadingMoreChats(false);
+      setIsCreatingChat(false);
+      setIsAuthModalOpen(openAuthModal);
+    },
+    [abortAllControllers, updateChatListOffset]
+  );
+
+  const handleSessionExpired = useCallback(() => {
+    resetSessionState(true);
+  }, [resetSessionState]);
+
+  const removeChatFromState = useCallback(
+    (chatId: string) => {
+      const historyKey = getHistoryControllerKey(chatId);
+      const sendKey = getSendControllerKey(chatId);
+      const deleteKey = getDeleteControllerKey(chatId);
+
+      controllersRef.current.get(historyKey)?.abort();
+      controllersRef.current.get(sendKey)?.abort();
+      controllersRef.current.get(deleteKey)?.abort();
+      releaseController(historyKey);
+      releaseController(sendKey);
+      releaseController(deleteKey);
+
+      setChats((prev) => prev.filter((chat) => chat.id !== chatId));
+      setLoadingChatIds((prev) => prev.filter((id) => id !== chatId));
+      setActiveChatId((prev) => (prev === chatId ? null : prev));
+      setAnimatedMessageId(null);
+      updateChatListOffset(Math.max(chatListOffsetRef.current - 1, 0));
+    },
+    [releaseController, updateChatListOffset]
+  );
+
+  const hydrateChatHistory = useCallback(
+    async (
+      chatId: string,
+      options?: { retryText?: string; sentAt?: number }
+    ) => {
+      if (!isAuthenticated) {
+        return;
+      }
+
+      const requestEpoch = requestEpochRef.current;
+      const controller = new AbortController();
+      const controllerKey = getHistoryControllerKey(chatId);
+
+      registerController(controllerKey, controller);
+      setChats((prev) =>
+        prev.map((chat) =>
+          chat.id === chatId
+            ? {
+                ...chat,
+                historyStatus: "loading",
+                historyError: null,
+                hasOlderMessages: true,
+                isHistoryHydrated: false,
+              }
+            : chat
+        )
+      );
+
+      let offset = 0;
+      let messages: Message[] = [];
+
+      try {
+        while (true) {
+          const page = await fetchMessages(
+            chatId,
+            MESSAGE_PAGE_LIMIT,
+            offset,
+            controller.signal
+          );
+
+          if (controller.signal.aborted || !isRequestCurrent(requestEpoch)) {
+            return;
+          }
+
+          messages = mergeUniqueMessages(messages, page.messages);
+          offset += page.messages.length;
+
+          setChats((prev) =>
+            prev.map((chat) =>
+              chat.id === chatId
+                ? {
+                    ...chat,
+                    historyStatus: page.hasMore ? "loading" : "ready",
+                    historyError: null,
+                    messagesOffset: offset,
+                    hasOlderMessages: page.hasMore,
+                    isHistoryHydrated: !page.hasMore,
+                  }
+                : chat
+            )
+          );
+
+          if (!page.hasMore) {
+            break;
+          }
+        }
+
+        const shouldExposeRetry = options?.retryText
+          ? !wasMessagePersisted(messages, options.retryText, options.sentAt ?? Date.now())
+          : false;
+        const lastMessage = messages[messages.length - 1];
+
+        setChats((prev) =>
+          sortChats(
+            prev.map((chat) =>
+              chat.id === chatId
+                ? {
+                    ...chat,
+                    messages,
+                    updatedAt: lastMessage?.timestamp ?? chat.updatedAt,
+                    historyStatus: "ready",
+                    historyError: null,
+                    messagesOffset: messages.length,
+                    hasOlderMessages: false,
+                    isHistoryHydrated: true,
+                    pendingMessageText: shouldExposeRetry
+                      ? options?.retryText ?? null
+                      : null,
+                    sendError: shouldExposeRetry
+                      ? "Не удалось отправить сообщение. Повторите попытку."
+                      : null,
+                  }
+                : chat
+            )
+          )
+        );
+      } catch (error) {
+        if (controller.signal.aborted || !isRequestCurrent(requestEpoch)) {
+          return;
+        }
+
+        if (error instanceof UnauthorizedError) {
+          handleSessionExpired();
+          return;
+        }
+
+        if (
+          error instanceof ApiError &&
+          (error.status === 403 || error.status === 404)
+        ) {
+          removeChatFromState(chatId);
+          return;
+        }
+
+        setChats((prev) =>
+          prev.map((chat) =>
+            chat.id === chatId
+              ? {
+                  ...chat,
+                  historyStatus: "error",
+                  historyError:
+                    error instanceof Error
+                      ? error.message
+                      : "Не удалось загрузить историю",
+                  hasOlderMessages: offset > 0,
+                  isHistoryHydrated: false,
+                  pendingMessageText:
+                    options?.retryText ?? chat.pendingMessageText,
+                  sendError: options?.retryText
+                    ? "Не удалось отправить сообщение. Повторите попытку."
+                    : chat.sendError,
+                }
+              : chat
+          )
+        );
+      } finally {
+        releaseController(controllerKey, controller);
+      }
+    },
+    [
+      handleSessionExpired,
+      isAuthenticated,
+      isRequestCurrent,
+      registerController,
+      releaseController,
+      removeChatFromState,
+    ]
+  );
+
+  const loadChatsPage = useCallback(
+    async (mode: "reset" | "more") => {
+      if (!isAuthenticated) {
+        return;
+      }
+
+      const requestEpoch = requestEpochRef.current;
+      const controller = new AbortController();
+      const isReset = mode === "reset";
+      const offset = isReset ? 0 : chatListOffsetRef.current;
+
+      registerController(CHAT_LIST_CONTROLLER_KEY, controller);
+
+      if (isReset) {
+        updateChatListOffset(0);
+        setChatListStatus("loading");
+        setChatListError(null);
+        setHasMoreChats(false);
+      } else {
+        setIsLoadingMoreChats(true);
+        setChatListError(null);
+      }
+
+      try {
+        const page = await fetchChats(CHAT_PAGE_LIMIT, offset, controller.signal);
+
+        if (controller.signal.aborted || !isRequestCurrent(requestEpoch)) {
+          return;
+        }
+
+        setChats((prev) => mergeIncomingChats(prev, page.items));
+        updateChatListOffset(
+          Math.max(chatListOffsetRef.current, offset + page.items.length)
+        );
+        setChatListStatus("ready");
+        setChatListError(null);
+        setHasMoreChats(page.hasMore);
+      } catch (error) {
+        if (controller.signal.aborted || !isRequestCurrent(requestEpoch)) {
+          return;
+        }
+
+        if (error instanceof UnauthorizedError) {
+          handleSessionExpired();
+          return;
+        }
+
+        if (error instanceof ApiError && error.status === 403) {
+          handleSessionExpired();
+          return;
+        }
+
+        setChatListError(
+          error instanceof Error
+            ? error.message
+            : "Не удалось загрузить список чатов"
+        );
+
+        if (isReset) {
+          setChatListStatus("error");
+        }
+      } finally {
+        releaseController(CHAT_LIST_CONTROLLER_KEY, controller);
+
+        if (!isReset && isRequestCurrent(requestEpoch)) {
+          setIsLoadingMoreChats(false);
+        }
+      }
+    },
+    [
+      handleSessionExpired,
+      isAuthenticated,
+      isRequestCurrent,
+      registerController,
+      releaseController,
+      updateChatListOffset,
+    ]
+  );
 
   const handleLogout = useCallback(async () => {
     try {
@@ -216,91 +580,113 @@ export default function App() {
       }
     }
 
-    if (typeof window !== "undefined") {
-      window.localStorage.removeItem(AUTH_TOKEN_KEY);
-      window.localStorage.removeItem(AUTH_USER_KEY);
+    resetSessionState(false);
+  }, [resetSessionState]);
+
+  useEffect(() => {
+    return subscribeToAuthSession((session) => {
+      setAuthToken(session.token);
+      setUserInfo(session.user);
+      setSberAuthError("");
+      setIsAuthModalOpen(false);
+    });
+  }, []);
+
+  useEffect(() => {
+    const requestEpoch = requestEpochRef.current;
+    const persistedAuthState = readAuthState();
+    const shouldBlock = !persistedAuthState.token;
+    let cancelled = false;
+
+    if (shouldBlock) {
+      setIsBootstrappingSession(true);
     }
 
-    setAuthToken(null);
-    setUserInfo(EMPTY_USER_INFO);
+    refreshRequest()
+      .catch((error: unknown) => {
+        if (cancelled || !isRequestCurrent(requestEpoch)) {
+          return;
+        }
+
+        if (error instanceof UnauthorizedError && !persistedAuthState.token) {
+          clearStoredAuthSession();
+          setAuthToken(null);
+          setUserInfo(EMPTY_USER_INFO);
+        }
+      })
+      .finally(() => {
+        if (cancelled || !isRequestCurrent(requestEpoch) || !shouldBlock) {
+          return;
+        }
+
+        setIsBootstrappingSession(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isRequestCurrent]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setChats([]);
+      setActiveChatId(null);
+      setLoadingChatIds([]);
+      setAnimatedMessageId(null);
+      updateChatListOffset(0);
+      setChatListStatus("idle");
+      setChatListError(null);
+      setHasMoreChats(false);
+      setIsLoadingMoreChats(false);
+      setIsCreatingChat(false);
+      return;
+    }
+
     setChats([]);
     setActiveChatId(null);
     setLoadingChatIds([]);
     setAnimatedMessageId(null);
-    setIsSettingsModalOpen(false);
-    setSberAuthError("");
-    setIsFinalizingSberAuth(false);
-  }, []);
+    updateChatListOffset(0);
+    void loadChatsPage("reset");
+  }, [isAuthenticated, loadChatsPage, updateChatListOffset]);
 
   useEffect(() => {
-    if (!authToken) {
-      setChats([]);
+    if (!activeChatId || !activeChat || !isAuthenticated) {
       return;
     }
 
-    const ctrl = new AbortController();
+    if (
+      activeChat.isHistoryHydrated ||
+      activeChat.historyStatus === "loading" ||
+      activeChat.historyStatus === "error" ||
+      loadingChatIds.includes(activeChatId)
+    ) {
+      return;
+    }
 
-    fetchChats(100, 0, ctrl.signal)
-      .then((list) => setChats(list.sort((a, b) => b.updatedAt - a.updatedAt)))
-      .catch((error: unknown) => {
-        if (error instanceof UnauthorizedError) {
-          handleSessionExpired();
-        }
-      });
-
-    return () => ctrl.abort();
-  }, [authToken, handleSessionExpired]);
-
-  useEffect(() => {
-    if (!activeChatId || !authToken) return;
-
-    const chat = chats.find((c) => c.id === activeChatId);
-    if (chat && chat.messages.length > 0) return;
-
-    // Важно: пока в этот чат идёт отправка первого сообщения,
-    // не подгружаем сообщения отдельно, иначе получаем дубли
-    if (loadingChatIds.includes(activeChatId)) return;
-
-    const ctrl = new AbortController();
-
-    fetchMessages(activeChatId, ctrl.signal)
-      .then((msgs) => {
-        setChats((prev) =>
-          prev.map((c) =>
-            c.id === activeChatId
-              ? { ...c, messages: mergeUniqueMessages(c.messages, msgs) }
-              : c
-          )
-        );
-      })
-      .catch((error: unknown) => {
-        if (error instanceof UnauthorizedError) {
-          handleSessionExpired();
-        }
-      });
-
-    return () => ctrl.abort();
+    void hydrateChatHistory(activeChatId);
   }, [
+    activeChat,
     activeChatId,
-    authToken,
-    chats,
+    hydrateChatHistory,
+    isAuthenticated,
     loadingChatIds,
-    handleSessionExpired,
   ]);
 
   useEffect(() => {
     return () => {
-      controllersRef.current.forEach((c) => c.abort());
-      controllersRef.current.clear();
+      abortAllControllers();
     };
-  }, []);
+  }, [abortAllControllers]);
 
   useEffect(() => {
     preloadSberAuthParams();
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined") {
+      return;
+    }
 
     const callbackData = readPendingSberCallback();
 
@@ -321,6 +707,7 @@ export default function App() {
       return;
     }
 
+    const requestEpoch = requestEpochRef.current;
     let cancelled = false;
 
     setSberAuthError("");
@@ -329,27 +716,19 @@ export default function App() {
 
     getOrCreateSberExchange(callbackData.code)
       .then(({ token, user }) => {
-        if (cancelled) return;
-
-        if (typeof window !== "undefined") {
-          window.localStorage.setItem(AUTH_TOKEN_KEY, token);
-          saveUserInfo(user);
+        if (cancelled || !isRequestCurrent(requestEpoch)) {
+          return;
         }
 
-        setAuthToken(token);
-        setUserInfo(user);
-        setSberAuthError("");
-        setIsAuthModalOpen(false);
+        storeAuthSession({ token, user });
         pendingSberCallback = null;
       })
       .catch((error: unknown) => {
-        if (cancelled) return;
-
-        if (typeof window !== "undefined") {
-          window.localStorage.removeItem(AUTH_TOKEN_KEY);
-          window.localStorage.removeItem(AUTH_USER_KEY);
+        if (cancelled || !isRequestCurrent(requestEpoch)) {
+          return;
         }
 
+        clearStoredAuthSession();
         setAuthToken(null);
         setUserInfo(EMPTY_USER_INFO);
         setSberAuthError(
@@ -361,7 +740,7 @@ export default function App() {
         pendingSberCallback = null;
       })
       .finally(() => {
-        if (cancelled) {
+        if (cancelled || !isRequestCurrent(requestEpoch)) {
           return;
         }
 
@@ -375,7 +754,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isRequestCurrent]);
 
   const handleOpenAuth = useCallback(() => {
     setSberAuthError("");
@@ -390,67 +769,106 @@ export default function App() {
   }, []);
 
   const handleMockLogin = useCallback((token: string, user: UserInfo) => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(AUTH_TOKEN_KEY, token);
-      saveUserInfo(user);
-    }
-    setAuthToken(token);
-    setUserInfo(user);
+    storeAuthSession({ token, user });
     setSberAuthError("");
     setIsAuthModalOpen(false);
   }, []);
 
   const handleSend = useCallback(
-    async (rawText: string) => {
+    async (rawText: string): Promise<boolean> => {
       const text = rawText.trim();
-      if (!text) return;
+
+      if (!text) {
+        return false;
+      }
 
       if (!authToken) {
         handleOpenAuth();
-        return;
+        return false;
       }
 
-      setAnimatedMessageId(null);
+      let targetChatId = activeChatId;
+      let controllerKey = targetChatId
+        ? getSendControllerKey(targetChatId)
+        : NEW_CHAT_CONTROLLER_KEY;
+      const requestEpoch = requestEpochRef.current;
+
+      if (controllersRef.current.has(controllerKey)) {
+        return false;
+      }
 
       const controller = new AbortController();
-      let targetChatId = activeChatId;
-
-
+      const requestStartedAt = Date.now();
       const optimisticUserMsg: Message = {
-        id: `optimistic-${Date.now()}`,
+        id: `optimistic-${requestStartedAt}`,
         role: "user",
         content: text,
-        timestamp: Date.now(),
+        timestamp: requestStartedAt,
       };
+
+      let shouldReloadHistoryAfterSend = false;
+
+      registerController(controllerKey, controller);
+      setAnimatedMessageId(null);
 
       try {
         if (!targetChatId) {
-          const newChat = await createChat(text, controller.signal);
-          targetChatId = newChat.id;
+          setIsCreatingChat(true);
 
-          controllersRef.current.set(targetChatId, controller);
+          const newChat = await createChat(text, controller.signal);
+
+          if (controller.signal.aborted || !isRequestCurrent(requestEpoch)) {
+            return false;
+          }
+
+          targetChatId = newChat.id;
+          releaseController(NEW_CHAT_CONTROLLER_KEY, controller);
+          controllerKey = getSendControllerKey(targetChatId);
+          controllersRef.current.set(controllerKey, controller);
+
+          const nextChat: Chat = {
+            ...newChat,
+            messages: [optimisticUserMsg],
+            messagesOffset: 1,
+            pendingMessageText: null,
+            sendError: null,
+          };
+
+          setChats((prev) => sortChats([nextChat, ...prev]));
+          updateChatListOffset(chatListOffsetRef.current + 1);
+          setChatListStatus("ready");
+          setChatListError(null);
           setLoadingChatIds((prev) =>
             prev.includes(targetChatId!) ? prev : [...prev, targetChatId!]
-          );
-
-          setChats((prev) =>
-            [{ ...newChat, messages: [optimisticUserMsg] }, ...prev].sort(
-              (a, b) => b.updatedAt - a.updatedAt
-            )
           );
           setActiveChatId(targetChatId);
         } else {
-          controllersRef.current.set(targetChatId, controller);
+          const currentChat = chats.find((chat) => chat.id === targetChatId) ?? null;
+          const historyKey = getHistoryControllerKey(targetChatId);
+
+          shouldReloadHistoryAfterSend = !!currentChat && !currentChat.isHistoryHydrated;
+          controllersRef.current.get(historyKey)?.abort();
+          releaseController(historyKey);
+
           setLoadingChatIds((prev) =>
             prev.includes(targetChatId!) ? prev : [...prev, targetChatId!]
           );
-
-          const chatId = targetChatId;
           setChats((prev) =>
-            prev.map((c) =>
-              c.id === chatId
-                ? { ...c, messages: [...c.messages, optimisticUserMsg] }
-                : c
+            prev.map((chat) =>
+              chat.id === targetChatId
+                ? {
+                    ...chat,
+                    historyStatus: shouldReloadHistoryAfterSend
+                      ? "idle"
+                      : chat.historyStatus,
+                    historyError: shouldReloadHistoryAfterSend
+                      ? null
+                      : chat.historyError,
+                    pendingMessageText: null,
+                    sendError: null,
+                    messages: [...chat.messages, optimisticUserMsg],
+                  }
+                : chat
             )
           );
         }
@@ -461,14 +879,18 @@ export default function App() {
           controller.signal
         );
 
-        const finalChatId = targetChatId;
+        if (controller.signal.aborted || !isRequestCurrent(requestEpoch)) {
+          return false;
+        }
+
         const newMessages: Message[] = [userMsg];
 
         if (contextCompressed) {
           newMessages.push({
             id: `system-compress-${Date.now()}`,
             role: "system",
-            content: "Контекст предыдущих сообщений был сжат для оптимизации. Я помню основные темы нашего разговора.",
+            content:
+              "Контекст предыдущих сообщений был сжат для оптимизации. Я помню основные темы нашего разговора.",
             timestamp: assistantMsg.timestamp - 1,
           });
         }
@@ -476,63 +898,113 @@ export default function App() {
         newMessages.push(assistantMsg);
 
         setChats((prev) =>
-          prev
-            .map((c) => {
-              if (c.id !== finalChatId) return c;
-              const withoutOptimistic = c.messages.filter(
-                (m) => m.id !== optimisticUserMsg.id
+          sortChats(
+            prev.map((chat) => {
+              if (chat.id !== targetChatId) {
+                return chat;
+              }
+
+              const withoutOptimistic = chat.messages.filter(
+                (message) => message.id !== optimisticUserMsg.id
               );
+              const mergedMessages = mergeUniqueMessages(withoutOptimistic, newMessages);
+
               return {
-                ...c,
+                ...chat,
                 updatedAt: assistantMsg.timestamp,
-                messages: mergeUniqueMessages(withoutOptimistic, newMessages),
+                messages: mergedMessages,
+                messagesOffset: Math.max(chat.messagesOffset, mergedMessages.length),
+                historyStatus: shouldReloadHistoryAfterSend
+                  ? "idle"
+                  : chat.historyStatus,
+                historyError: shouldReloadHistoryAfterSend
+                  ? null
+                  : chat.historyError,
+                hasOlderMessages: shouldReloadHistoryAfterSend
+                  ? true
+                  : chat.hasOlderMessages,
+                isHistoryHydrated: shouldReloadHistoryAfterSend
+                  ? false
+                  : chat.isHistoryHydrated,
+                pendingMessageText: null,
+                sendError: null,
               };
             })
-            .sort((a, b) => b.updatedAt - a.updatedAt)
+          )
         );
-
         setAnimatedMessageId(assistantMsg.id);
+
+        return true;
       } catch (error) {
         if (error instanceof UnauthorizedError) {
-          handleSessionExpired();
-          return;
-        }
-
-        if (!(error instanceof DOMException && error.name === "AbortError")) {
-          const fallback: Message = {
-            id: `error-${Date.now()}`,
-            role: "assistant",
-            content:
-              "Не удалось получить ответ. Проверьте соединение и попробуйте ещё раз.",
-            timestamp: Date.now(),
-            error: true,
-          };
-
-          if (targetChatId) {
-            const errChatId = targetChatId;
-            setChats((prev) =>
-              prev.map((c) => {
-                if (c.id !== errChatId) return c;
-                return {
-                  ...c,
-                  updatedAt: fallback.timestamp,
-                  messages: [...c.messages, fallback],
-                };
-              })
-            );
-            setAnimatedMessageId(fallback.id);
+          if (!isRequestCurrent(requestEpoch)) {
+            return false;
           }
+
+          handleSessionExpired();
+          return false;
         }
+
+        if (
+          targetChatId &&
+          error instanceof ApiError &&
+          (error.status === 403 || error.status === 404)
+        ) {
+          removeChatFromState(targetChatId);
+          return false;
+        }
+
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return false;
+        }
+
+        if (targetChatId && isRequestCurrent(requestEpoch)) {
+          setChats((prev) =>
+            prev.map((chat) =>
+              chat.id === targetChatId
+                ? {
+                    ...chat,
+                    messages: chat.messages.filter(
+                      (message) => message.id !== optimisticUserMsg.id
+                    ),
+                  }
+                : chat
+            )
+          );
+          await hydrateChatHistory(targetChatId, {
+            retryText: text,
+            sentAt: requestStartedAt,
+          });
+        }
+
+        return false;
       } finally {
         if (targetChatId) {
-          controllersRef.current.delete(targetChatId);
-          setLoadingChatIds((prev) =>
-            prev.filter((id) => id !== targetChatId)
-          );
+          releaseController(getSendControllerKey(targetChatId), controller);
+          if (isRequestCurrent(requestEpoch)) {
+            setLoadingChatIds((prev) => prev.filter((id) => id !== targetChatId));
+          }
+        } else {
+          releaseController(NEW_CHAT_CONTROLLER_KEY, controller);
+        }
+
+        if (isRequestCurrent(requestEpoch)) {
+          setIsCreatingChat(false);
         }
       }
     },
-    [activeChatId, authToken, handleOpenAuth, handleSessionExpired]
+    [
+      activeChatId,
+      authToken,
+      chats,
+      handleOpenAuth,
+      handleSessionExpired,
+      hydrateChatHistory,
+      registerController,
+      releaseController,
+      removeChatFromState,
+      updateChatListOffset,
+    ]
   );
 
   const handleSelectChat = useCallback((chatId: string) => {
@@ -548,34 +1020,143 @@ export default function App() {
   const handleDeleteChat = useCallback(
     async (chatId: string) => {
       const shouldDelete = window.confirm("Удалить этот чат?");
-      if (!shouldDelete) return;
 
-      const ctrl = controllersRef.current.get(chatId);
-      if (ctrl) {
-        ctrl.abort();
-        controllersRef.current.delete(chatId);
+      if (!shouldDelete) {
+        return;
       }
 
-      setChats((prev) => prev.filter((c) => c.id !== chatId));
+      const snapshot = chats.find((chat) => chat.id === chatId);
+
+      if (!snapshot) {
+        return;
+      }
+
+      const wasActive = activeChatId === chatId;
+      const requestEpoch = requestEpochRef.current;
+      const historyKey = getHistoryControllerKey(chatId);
+      const sendKey = getSendControllerKey(chatId);
+      const deleteKey = getDeleteControllerKey(chatId);
+      const controller = new AbortController();
+
+      controllersRef.current.get(historyKey)?.abort();
+      controllersRef.current.get(sendKey)?.abort();
+      releaseController(historyKey);
+      releaseController(sendKey);
+      registerController(deleteKey, controller);
+
+      setChats((prev) => prev.filter((chat) => chat.id !== chatId));
       setLoadingChatIds((prev) => prev.filter((id) => id !== chatId));
       setActiveChatId((prev) => (prev === chatId ? null : prev));
+      setAnimatedMessageId(null);
+      updateChatListOffset(Math.max(chatListOffsetRef.current - 1, 0));
 
       try {
-        await deleteChatApi(chatId);
+        await deleteChatApi(chatId, controller.signal);
       } catch (error) {
+        if (controller.signal.aborted || !isRequestCurrent(requestEpoch)) {
+          return;
+        }
+
         if (error instanceof UnauthorizedError) {
           handleSessionExpired();
+          return;
         }
+
+        if (
+          error instanceof ApiError &&
+          (error.status === 403 || error.status === 404)
+        ) {
+          return;
+        }
+
+        setChats((prev) => sortChats([...prev, snapshot]));
+        updateChatListOffset(chatListOffsetRef.current + 1);
+        setChatListError(
+          error instanceof Error ? error.message : "Не удалось удалить чат"
+        );
+
+        if (wasActive) {
+          setActiveChatId(chatId);
+        }
+      } finally {
+        releaseController(deleteKey, controller);
       }
     },
-    [handleSessionExpired]
+    [
+      activeChatId,
+      chats,
+      handleSessionExpired,
+      releaseController,
+      updateChatListOffset,
+    ]
   );
 
+  const handleLoadMoreChats = useCallback(() => {
+    if (!hasMoreChats || isLoadingMoreChats) {
+      return;
+    }
+
+    void loadChatsPage("more");
+  }, [hasMoreChats, isLoadingMoreChats, loadChatsPage]);
+
+  const handleRetryChats = useCallback(() => {
+    void loadChatsPage(chats.length > 0 ? "more" : "reset");
+  }, [chats.length, loadChatsPage]);
+
+  const handleRetryHistory = useCallback(() => {
+    if (!activeChatId) {
+      return;
+    }
+
+    void hydrateChatHistory(activeChatId);
+  }, [activeChatId, hydrateChatHistory]);
+
+  const handleRetryPendingMessage = useCallback(() => {
+    const text = activeChat?.pendingMessageText?.trim();
+
+    if (!text) {
+      return;
+    }
+
+    void handleSend(text);
+  }, [activeChat?.pendingMessageText, handleSend]);
+
   const handleToggleSidebar = useCallback(
-    () => setIsSidebarOpen((p) => !p),
+    () => setIsSidebarOpen((prev) => !prev),
     []
   );
   const handleCloseSidebar = useCallback(() => setIsSidebarOpen(false), []);
+
+  if (isBootstrappingSession) {
+    return (
+      <div className="relative flex h-[100dvh] min-h-screen flex-col overflow-hidden bg-[var(--app-bg)] text-slate-900">
+        <div className="app-background" aria-hidden="true">
+          <div className="app-bg-spot app-bg-spot-one" />
+          <div className="app-bg-spot app-bg-spot-two" />
+          <div className="app-bg-spot app-bg-spot-three" />
+        </div>
+
+        <div className="relative z-10 flex flex-1 items-center justify-center px-6">
+          <div className="w-full max-w-md rounded-[32px] border border-white/70 bg-white/78 px-8 py-10 text-center shadow-[0_28px_80px_rgba(15,23,42,0.12)] backdrop-blur-3xl">
+            <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#12b981,#0ea5a4)] text-white shadow-[0_18px_40px_rgba(16,185,129,0.26)]">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="loading-dot" />
+                <span className="loading-dot" style={{ animationDelay: "140ms" }} />
+                <span className="loading-dot" style={{ animationDelay: "280ms" }} />
+              </span>
+            </div>
+
+            <h1 className="text-2xl font-black tracking-[-0.03em] text-slate-900">
+              Восстанавливаем сессию
+            </h1>
+            <p className="mt-3 text-sm leading-6 text-slate-500">
+              Проверяем сохраненный вход и подготавливаем ваши чаты.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative flex h-[100dvh] min-h-screen flex-col overflow-hidden bg-[var(--app-bg)] text-slate-900">
@@ -596,6 +1177,12 @@ export default function App() {
         userFullName={userFullName}
         isAuthenticated={isAuthenticated}
         onLoginClick={handleOpenAuth}
+        isLoadingChats={chatListStatus === "loading" && chats.length === 0}
+        isLoadingMoreChats={isLoadingMoreChats}
+        hasMoreChats={hasMoreChats}
+        chatLoadError={chatListError}
+        onLoadMoreChats={handleLoadMoreChats}
+        onRetryLoadChats={handleRetryChats}
       />
 
       <TopBar
@@ -611,7 +1198,7 @@ export default function App() {
         {showHome ? (
           <HomePage
             onSend={handleSend}
-            isLoading={false}
+            isLoading={isCreatingChat}
             isAuthenticated={isAuthenticated}
             onAuthRequired={handleOpenAuth}
           />
@@ -623,6 +1210,8 @@ export default function App() {
                   chat={activeChat}
                   isLoading={isCurrentChatLoading}
                   animatedMessageId={animatedMessageId}
+                  onRetryHistory={handleRetryHistory}
+                  onRetryPendingMessage={handleRetryPendingMessage}
                 />
               )}
             </div>

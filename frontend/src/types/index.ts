@@ -1,5 +1,7 @@
 export type MessageRole = "user" | "assistant" | "system";
 
+export type AsyncStatus = "idle" | "loading" | "ready" | "error";
+
 export interface Message {
   id: string;
   role: MessageRole;
@@ -14,4 +16,11 @@ export interface Chat {
   createdAt: number;
   updatedAt: number;
   messages: Message[];
+  historyStatus: AsyncStatus;
+  historyError: string | null;
+  messagesOffset: number;
+  hasOlderMessages: boolean;
+  isHistoryHydrated: boolean;
+  pendingMessageText: string | null;
+  sendError: string | null;
 }
