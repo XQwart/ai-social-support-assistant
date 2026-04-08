@@ -50,8 +50,6 @@ services:
     image: qdrant/qdrant:v1.17.1
     env_file:
       - .env
-    ports:
-      - "${QDRANT_PORT}:6333"
     volumes:
       - ./volumes/qdrant:/qdrant/storage
 
