@@ -40,6 +40,10 @@ class Config(BaseSettings):
     def redis_url(self) -> str:
         return self._get_redis_url(0)
 
+    qdrant_url: str
+    qdrant_port: int = 6333
+    qdrant_collection: str = "chunk_collection"
+
     sber_token_url: str = ""
     sber_authorize_url: str = "https://id-ift.sber.ru/CSAFront/oidc/authorize.do"
     sber_redirect_uri: str = ""

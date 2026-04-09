@@ -12,8 +12,10 @@ if TYPE_CHECKING:
 
 class _GigaChatMixin:
     _client: GigaChat
+    _model_name: str | None
 
     def __init__(self, config: Config, model_name: str | None) -> None:
+        self._model_name = model_name
         self._client = GigaChat(
             credentials=config.gigachat_api_key,
             ca_bundle_file=config.rus_root_ca_cert_path,
@@ -45,17 +47,24 @@ class GigaChatLLMClient(_GigaChatMixin, LLMClient):
                 max_tokens=max_tokens,
             )
         )
-        print(f"Использованная для запроса модель: {response.model}")
 
         return response.choices[0].message.content
 
 
 class GigaChatEmbeddingClient(_GigaChatMixin, EmbeddingClient):
+    _model_name: str
+
+    def __init__(self, config: Config, model_name: str | None) -> None:
+        super().__init__(config, model_name)
+        self._model_name = model_name if model_name else "Embeddings"
+
     async def get_embeddings(self, texts: Sequence[str]) -> list[list[float]]:
         if not texts:
             return []
 
-        embeddings = await self._client.aembeddings(texts)
-        print(f"Использованная для эмбеддингов модель: {embeddings.model}")
+        embeddings = await self._client.aembeddings(texts, model=self._model_name)
 
         return [item.embedding for item in embeddings.data]
+
+    async def count_tokens(self, text: str) -> int:
+        return len(text) // 2

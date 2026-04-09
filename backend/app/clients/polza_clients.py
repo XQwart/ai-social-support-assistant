@@ -45,3 +45,6 @@ class PolzaLLMClient(_PolzaMixin, LLMClient):
 class PolzaEmbeddingClient(_PolzaMixin, EmbeddingClient):
     async def get_embeddings(self, texts: Sequence[str]) -> list[list[float]]:
         return await super().get_embeddings(texts)
+
+    async def count_tokens(self, text: str) -> int:
+        return await super().count_tokens(text)

@@ -19,4 +19,4 @@ def get_embedding_ai_client(request: Request) -> EmbeddingClient:
 
 ChatAIClientDep = Annotated[LLMClient, Depends(get_chat_ai_client)]
 CompressAIClientDep = Annotated[LLMClient, Depends(get_compress_ai_client)]
-EmbeddingAIClientDep = Annotated[LLMClient, Depends(get_embedding_ai_client)]
+EmbeddingAIClientDep = Annotated[EmbeddingClient, Depends(get_embedding_ai_client)]

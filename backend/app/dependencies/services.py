@@ -2,7 +2,11 @@ from typing import Annotated
 
 from fastapi import Depends
 
-from app.dependencies.ai import ChatAIClientDep, CompressAIClientDep
+from app.dependencies.ai import (
+    ChatAIClientDep,
+    CompressAIClientDep,
+    EmbeddingAIClientDep,
+)
 from app.dependencies.config import ConfigDep
 from app.dependencies.repositories import (
     UserRepoDep,
@@ -10,6 +14,8 @@ from app.dependencies.repositories import (
     OauthRepoDep,
     MessageRepoDep,
     ChatRepoDep,
+    DocumentRepoDep,
+    ChunkRepoDep,
 )
 from app.dependencies.http import HTTPSberClientDep
 from app.dependencies.jwt import AccessTokenDep, RefreshTokenDep
@@ -21,6 +27,7 @@ from app.services import (
     SberIdService,
     UserService,
     LLMService,
+    RAGService,
 )
 
 
@@ -76,8 +83,17 @@ def get_llm_service(
     config: ConfigDep,
     chat_client: ChatAIClientDep,
     compress_client: CompressAIClientDep,
+    rag_service: "RAGServiceDep",
 ) -> LLMService:
-    return LLMService(config, chat_client, compress_client)
+    return LLMService(config, chat_client, compress_client, rag_service)
+
+
+def get_rag_service(
+    client: EmbeddingAIClientDep,
+    document_repo: DocumentRepoDep,
+    chunk_repo: ChunkRepoDep,
+) -> RAGService:
+    return RAGService(client, document_repo, chunk_repo)
 
 
 LLMServiceDep = Annotated[LLMService, Depends(get_llm_service)]
@@ -89,3 +105,4 @@ ConversationServiceDep = Annotated[
 ]
 SberIdServiceDep = Annotated[SberIdService, Depends(get_sberid_service)]
 UserServiceDep = Annotated[UserService, Depends(get_user_service)]
+RAGServiceDep = Annotated[RAGService, Depends(get_rag_service)]

@@ -24,3 +24,7 @@ class EmbeddingClient(Client):
     @abstractmethod
     async def get_embeddings(self, texts: Sequence[str]) -> list[list[float]]:
         pass
+
+    @abstractmethod
+    async def count_tokens(self, text: str) -> int:
+        pass

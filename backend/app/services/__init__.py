@@ -5,3 +5,4 @@ from .message_service import MessageService
 from .sberid_service import SberIdService
 from .user_service import UserService
 from .llm.llm_service import LLMService
+from .rag_service import RAGService

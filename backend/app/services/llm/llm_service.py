@@ -16,40 +16,46 @@ from .prompts import (
 
 if TYPE_CHECKING:
     from app.core.config import Config
+    from .. import RagService
 
 
 logger = logging.getLogger(__name__)
 
 
-# TODO: Заменить json на qdrant
 class LLMService:
     _config: Config
     _chat_client: LLMClient
     _compress_client: LLMClient
+    _rag_service: RagService
 
     def __init__(
-        self, config: Config, chat_client: LLMClient, compress_client: LLMClient
+        self,
+        config: Config,
+        chat_client: LLMClient,
+        compress_client: LLMClient,
+        rag_service: RagService,
     ):
         self._config = config
         self._chat_client = chat_client
         self._compress_client = compress_client
+        self._rag_service = rag_service
 
-    def _load_knowledge_base(self) -> tuple[list[dict], list[dict]]:
-        faq_data = self._load_json_file(FAQ_JSON, "faq.json")
-        chuck_data = self._load_json_file(CHUCK_JSON, "chuck_data.json")
+    # def _load_knowledge_base(self) -> tuple[list[dict], list[dict]]:
+    #     faq_data = self._load_json_file(FAQ_JSON, "faq.json")
+    #     chuck_data = self._load_json_file(CHUCK_JSON, "chuck_data.json")
 
-        return faq_data, chuck_data
+    #     return faq_data, chuck_data
 
-    def _load_json_file(self, path: Path, label: str) -> list[dict]:
-        try:
-            if path.exists():
-                content = path.read_text(encoding="utf-8")
-                if content.strip():
-                    return json.loads(content)
-        except (json.JSONDecodeError, OSError) as e:
-            logger.warning("Не удалось загрузить %s: %s", label, e)
+    # def _load_json_file(self, path: Path, label: str) -> list[dict]:
+    #     try:
+    #         if path.exists():
+    #             content = path.read_text(encoding="utf-8")
+    #             if content.strip():
+    #                 return json.loads(content)
+    #     except (json.JSONDecodeError, OSError) as e:
+    #         logger.warning("Не удалось загрузить %s: %s", label, e)
 
-        return []
+    #     return []
 
     async def generate_response(
         self,
@@ -62,7 +68,10 @@ class LLMService:
             user_message[:100],
             len(chat_history),
         )
-        faq_data, chuck_data = self._load_knowledge_base()
+        # faq_data, chuck_data = self._load_knowledge_base()
+        faq_data = [""]  # TODO: Убрать заглушку
+        chuck_data = await self._get_chunks(user_message)
+
         system_prompt = build_system_prompt(faq_data, chuck_data)
 
         messages: list[dict[str, str]] = [{"role": "system", "content": system_prompt}]
@@ -94,6 +103,17 @@ class LLMService:
         except Exception:
             logger.exception("Критическая ошибка при обращении к ИИ")
             return FALLBACK_AI_UNAVAILABLE
+
+    async def _get_chunks(self, user_message: str) -> list[dict]:
+        chunks = await self._rag_service.retrieve(user_message)
+        return [
+            {
+                "source_name": chunk.source_name,
+                "source_url": chunk.source_url,
+                "text": chunk.text,
+            }
+            for chunk in chunks
+        ]
 
     async def compress_context(self, messages: list[dict[str, str]]) -> str:
         messages_text = "\n".join(
