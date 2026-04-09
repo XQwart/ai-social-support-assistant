@@ -1,6 +1,5 @@
 services:
   nginx:
-    profiles: ["prod"]
     build:
       context: .
       dockerfile: nginx/Dockerfile

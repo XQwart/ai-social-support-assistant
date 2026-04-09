@@ -1,10 +1,18 @@
 services:
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/conf.d/dev.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+      - frontend
+
   backend:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
       - ./backend:/code
-    ports:
-      - "${BACKEND_PORT}:8000"
 
   frontend:
     build:
@@ -12,8 +20,6 @@ services:
       dockerfile: Dockerfile.dev
     env_file:
       - .env
-    ports:
-      - "5173:5173"
     volumes:
       - ./frontend:/code
       - frontend_node_modules:/code/node_modules
