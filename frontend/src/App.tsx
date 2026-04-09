@@ -30,6 +30,7 @@ import type { Chat, Message } from "@/types";
 
 const AUTH_TOKEN_KEY = "ai-social-support.auth.token";
 const AUTH_USER_KEY = "ai-social-support.auth.user";
+const THEME_KEY = "ai-social-support.theme";
 const CHAT_PAGE_LIMIT = 100;
 const MESSAGE_PAGE_LIMIT = 100;
 const RECENT_MESSAGE_WINDOW_MS = 15000;
@@ -50,6 +51,16 @@ let pendingSberExchange:
   | null = null;
 
 const EMPTY_USER_INFO: UserInfo = { firstName: "", secondName: "", placeOfWork: "" };
+type ThemeMode = "light" | "dark";
+
+function readTheme(): ThemeMode {
+  if (typeof window === "undefined") {
+    return "dark";
+  }
+
+  const stored = window.localStorage.getItem(THEME_KEY);
+  return stored === "light" ? "light" : "dark";
+}
 
 function getHistoryControllerKey(chatId: string): string {
   return `history:${chatId}`;
@@ -203,6 +214,7 @@ function wasMessagePersisted(messages: Message[], text: string, sentAt: number):
 
 export default function App() {
   const initialAuthStateRef = useRef(readAuthState());
+  const initialThemeRef = useRef(readTheme());
   const controllersRef = useRef<Map<string, AbortController>>(new Map());
   const requestEpochRef = useRef(0);
   const chatListOffsetRef = useRef(0);
@@ -232,8 +244,10 @@ export default function App() {
   const [hasMoreChats, setHasMoreChats] = useState(false);
   const [isLoadingMoreChats, setIsLoadingMoreChats] = useState(false);
   const [isCreatingChat, setIsCreatingChat] = useState(false);
+  const [theme, setTheme] = useState<ThemeMode>(() => initialThemeRef.current);
 
   const isAuthenticated = !!authToken;
+  const isDarkTheme = theme === "dark";
   const userFullName =
     [userInfo.firstName, userInfo.secondName].filter(Boolean).join(" ") ||
     "Пользователь";
@@ -245,6 +259,11 @@ export default function App() {
   );
 
   const showHome = !activeChat;
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem(THEME_KEY, theme);
+  }, [theme]);
 
   const isCurrentChatLoading = useMemo(() => {
     if (!activeChatId) {
@@ -595,12 +614,12 @@ export default function App() {
   useEffect(() => {
     const requestEpoch = requestEpochRef.current;
     const persistedAuthState = readAuthState();
-    const shouldBlock = !persistedAuthState.token;
-    let cancelled = false;
-
-    if (shouldBlock) {
-      setIsBootstrappingSession(true);
+    if (!persistedAuthState.token) {
+      setIsBootstrappingSession(false);
+      return;
     }
+
+    let cancelled = false;
 
     refreshRequest()
       .catch((error: unknown) => {
@@ -608,14 +627,14 @@ export default function App() {
           return;
         }
 
-        if (error instanceof UnauthorizedError && !persistedAuthState.token) {
+        if (error instanceof UnauthorizedError) {
           clearStoredAuthSession();
           setAuthToken(null);
           setUserInfo(EMPTY_USER_INFO);
         }
       })
       .finally(() => {
-        if (cancelled || !isRequestCurrent(requestEpoch) || !shouldBlock) {
+        if (cancelled || !isRequestCurrent(requestEpoch)) {
           return;
         }
 
@@ -1129,7 +1148,10 @@ export default function App() {
 
   if (isBootstrappingSession) {
     return (
-      <div className="relative flex h-[100dvh] min-h-screen flex-col overflow-hidden bg-[var(--app-bg)] text-slate-900">
+      <div
+        className="relative flex h-[100dvh] min-h-screen flex-col overflow-hidden bg-[var(--app-bg)] text-[var(--text-main)]"
+        data-theme={theme}
+      >
         <div className="app-background" aria-hidden="true">
           <div className="app-bg-spot app-bg-spot-one" />
           <div className="app-bg-spot app-bg-spot-two" />
@@ -1137,7 +1159,18 @@ export default function App() {
         </div>
 
         <div className="relative z-10 flex flex-1 items-center justify-center px-6">
-          <div className="w-full max-w-md rounded-[32px] border border-white/70 bg-white/78 px-8 py-10 text-center shadow-[0_28px_80px_rgba(15,23,42,0.12)] backdrop-blur-3xl">
+          <div
+            className="w-full max-w-md rounded-[32px] px-8 py-10 text-center backdrop-blur-3xl"
+            style={{
+              border: isDarkTheme ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(255,255,255,0.7)",
+              background: isDarkTheme
+                ? "rgba(10,24,20,0.84)"
+                : "rgba(255,255,255,0.78)",
+              boxShadow: isDarkTheme
+                ? "0 28px 80px rgba(0,0,0,0.34)"
+                : "0 28px 80px rgba(15,23,42,0.12)",
+            }}
+          >
             <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#12b981,#0ea5a4)] text-white shadow-[0_18px_40px_rgba(16,185,129,0.26)]">
               <span className="inline-flex items-center gap-1.5">
                 <span className="loading-dot" />
@@ -1146,7 +1179,7 @@ export default function App() {
               </span>
             </div>
 
-            <h1 className="text-2xl font-black tracking-[-0.03em] text-slate-900">
+            <h1 className="text-2xl font-black tracking-[-0.03em] text-[var(--text-main)]">
               Восстанавливаем сессию
             </h1>
             <p className="mt-3 text-sm leading-6 text-slate-500">
@@ -1159,7 +1192,10 @@ export default function App() {
   }
 
   return (
-    <div className="relative flex h-[100dvh] min-h-screen flex-col overflow-hidden bg-[var(--app-bg)] text-slate-900">
+    <div
+      className="relative flex h-[100dvh] min-h-screen flex-col overflow-hidden bg-[var(--app-bg)] text-[var(--text-main)]"
+      data-theme={theme}
+    >
       <div className="app-background" aria-hidden="true">
         <div className="app-bg-spot app-bg-spot-one" />
         <div className="app-bg-spot app-bg-spot-two" />
@@ -1183,6 +1219,7 @@ export default function App() {
         chatLoadError={chatListError}
         onLoadMoreChats={handleLoadMoreChats}
         onRetryLoadChats={handleRetryChats}
+        theme={theme}
       />
 
       <TopBar
@@ -1201,6 +1238,7 @@ export default function App() {
             isLoading={isCreatingChat}
             isAuthenticated={isAuthenticated}
             onAuthRequired={handleOpenAuth}
+            theme={theme}
           />
         ) : (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -1216,7 +1254,18 @@ export default function App() {
               )}
             </div>
 
-            <div className="sticky bottom-0 z-20 shrink-0 border-t border-white/35 bg-[linear-gradient(180deg,rgba(239,248,243,0.22),rgba(239,248,243,0.92))] shadow-[0_-18px_48px_rgba(15,23,42,0.08)] backdrop-blur-2xl">
+            <div
+              className="sticky bottom-0 z-20 shrink-0 border-t shadow-[0_-18px_48px_rgba(15,23,42,0.08)] backdrop-blur-2xl"
+              style={{
+                borderColor: isDarkTheme ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.35)",
+                background: isDarkTheme
+                  ? "linear-gradient(180deg, rgba(7,19,17,0.12), rgba(7,19,17,0.92))"
+                  : "linear-gradient(180deg, rgba(239,248,243,0.22), rgba(239,248,243,0.92))",
+                boxShadow: isDarkTheme
+                  ? "0 -18px 48px rgba(0,0,0,0.22)"
+                  : "0 -18px 48px rgba(15,23,42,0.08)",
+              }}
+            >
               <ChatInput
                 onSend={handleSend}
                 isLoading={isCurrentChatLoading}
@@ -1224,6 +1273,7 @@ export default function App() {
                 mode="dock"
                 isAuthenticated={isAuthenticated}
                 onAuthRequired={handleOpenAuth}
+                theme={theme}
               />
 
               <AppDisclaimer className="px-4 pb-4" />
@@ -1245,6 +1295,8 @@ export default function App() {
         onClose={() => setIsSettingsModalOpen(false)}
         userName={userFullName}
         onLogout={handleLogout}
+        theme={theme}
+        onThemeChange={setTheme}
       />
     </div>
   );

@@ -5,6 +5,8 @@ interface SettingsModalProps {
   onClose: () => void;
   userName: string;
   onLogout: () => void;
+  theme: "light" | "dark";
+  onThemeChange: (theme: "light" | "dark") => void;
 }
 
 type SettingsTab = "general" | "privacy" | "about";
@@ -14,9 +16,12 @@ export default function SettingsModal({
   onClose,
   userName,
   onLogout,
+  theme,
+  onThemeChange,
 }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const [notifications, setNotifications] = useState(false);
+  const isDark = theme === "dark";
 
   if (!isOpen) return null;
 
@@ -64,15 +69,22 @@ export default function SettingsModal({
       <div
         className="relative z-10 mx-4 flex w-full max-w-[720px] overflow-hidden rounded-[24px] shadow-[0_24px_60px_rgba(15,23,42,0.14)] fade-in-up"
         style={{
-          background:
-            "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.88) 100%)",
-          backdropFilter: "blur(30px) saturate(180%)",
-          WebkitBackdropFilter: "blur(30px) saturate(180%)",
-          border: "1px solid rgba(255,255,255,0.7)",
+          background: isDark
+            ? "linear-gradient(180deg, rgba(11,31,27,0.96) 0%, rgba(8,24,21,0.92) 100%)"
+            : "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.88) 100%)",
+          backdropFilter: isDark ? "blur(30px) saturate(140%)" : "blur(30px) saturate(180%)",
+          WebkitBackdropFilter: isDark ? "blur(30px) saturate(140%)" : "blur(30px) saturate(180%)",
+          border: isDark ? "1px solid #233230" : "1px solid rgba(255,255,255,0.7)",
           height: "560px",
         }}
       >
-        <div className="flex w-[200px] flex-shrink-0 flex-col border-r border-slate-100/80 bg-white/30 p-4">
+        <div
+          className="flex w-[200px] flex-shrink-0 flex-col p-4"
+          style={{
+            borderRight: isDark ? "1px solid #233230" : "1px solid rgba(226,232,240,0.8)",
+            background: isDark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.3)",
+          }}
+        >
           <button
             onClick={onClose}
             className="mb-4 flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-100/60 hover:text-slate-600"
@@ -138,8 +150,20 @@ export default function SettingsModal({
                   <span className="text-[14px] font-medium text-slate-700">
                     Внешний вид
                   </span>
-                  <select className="cursor-pointer rounded-xl border border-slate-200/80 bg-white/70 px-4 py-2 text-[13px] text-slate-600 outline-none">
-                    <option>Светлая</option>
+                  <select
+                    value={theme}
+                    onChange={(event) => onThemeChange(event.target.value as "light" | "dark")}
+                    className="cursor-pointer rounded-xl border bg-white/70 px-4 py-2 text-[13px] text-slate-600 outline-none"
+                    style={{
+                      borderColor: isDark
+                        ? "#233230"
+                        : "rgba(148, 163, 184, 0.55)",
+                      backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.70)",
+                      color: isDark ? "#ecfdf5" : "#475569",
+                    }}
+                  >
+                    <option value="light">Светлая</option>
+                    <option value="dark">Тёмная</option>
                   </select>
                 </div>
 
@@ -154,7 +178,14 @@ export default function SettingsModal({
                       Настройка будет доступна после подключения бэкенда
                     </div>
                   </div>
-                  <select className="cursor-pointer rounded-xl border border-slate-200/80 bg-white/70 px-4 py-2 text-[13px] text-slate-600 outline-none">
+                  <select
+                    className="cursor-pointer rounded-xl border border-slate-200/80 bg-white/70 px-4 py-2 text-[13px] text-slate-600 outline-none"
+                    style={{
+                      borderColor: isDark ? "#233230" : "rgba(148, 163, 184, 0.55)",
+                      backgroundColor: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.70)",
+                      color: isDark ? "#ecfdf5" : "#475569",
+                    }}
+                  >
                     <option>По умолчанию</option>
                   </select>
                 </div>
@@ -195,7 +226,13 @@ export default function SettingsModal({
               </h3>
 
               <div className="space-y-4">
-                <div className="rounded-2xl border border-slate-100/80 bg-white/50 p-4">
+                <div
+                  className="rounded-2xl border p-4"
+                  style={{
+                    borderColor: isDark ? "#233230" : "rgba(226,232,240,0.8)",
+                    background: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.50)",
+                  }}
+                >
                   <div className="text-[14px] font-medium text-slate-700">
                     Аккаунт
                   </div>
@@ -204,7 +241,13 @@ export default function SettingsModal({
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-slate-100/80 bg-white/50 p-4">
+                <div
+                  className="rounded-2xl border p-4"
+                  style={{
+                    borderColor: isDark ? "#233230" : "rgba(226,232,240,0.8)",
+                    background: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.50)",
+                  }}
+                >
                   <div className="text-[14px] font-medium text-slate-700">
                     Политика конфиденциальности
                   </div>
@@ -213,7 +256,13 @@ export default function SettingsModal({
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-slate-100/80 bg-white/50 p-4">
+                <div
+                  className="rounded-2xl border p-4"
+                  style={{
+                    borderColor: isDark ? "#233230" : "rgba(226,232,240,0.8)",
+                    background: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.50)",
+                  }}
+                >
                   <div className="text-[14px] font-medium text-slate-700">
                     Удалить данные
                   </div>
@@ -232,7 +281,13 @@ export default function SettingsModal({
               </h3>
 
               <div className="space-y-4">
-                <div className="rounded-2xl border border-slate-100/80 bg-white/50 p-4">
+                <div
+                  className="rounded-2xl border p-4"
+                  style={{
+                    borderColor: isDark ? "#233230" : "rgba(226,232,240,0.8)",
+                    background: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.50)",
+                  }}
+                >
                   <div className="text-[14px] font-medium text-slate-700">
                     ИИ-помощник по социальной поддержке
                   </div>
@@ -241,7 +296,13 @@ export default function SettingsModal({
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-slate-100/80 bg-white/50 p-4">
+                <div
+                  className="rounded-2xl border p-4"
+                  style={{
+                    borderColor: isDark ? "#233230" : "rgba(226,232,240,0.8)",
+                    background: isDark ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.50)",
+                  }}
+                >
                   <div className="text-[14px] font-medium text-slate-700">
                     Разработчики
                   </div>

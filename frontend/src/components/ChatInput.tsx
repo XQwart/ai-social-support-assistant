@@ -9,6 +9,7 @@ interface ChatInputProps {
   autoFocus?: boolean;
   isAuthenticated?: boolean;
   onAuthRequired?: () => void;
+  theme?: "light" | "dark";
 }
 
 export default function ChatInput({
@@ -19,6 +20,7 @@ export default function ChatInput({
   autoFocus = false,
   isAuthenticated = true,
   onAuthRequired,
+  theme = "light",
 }: ChatInputProps) {
   const [value, setValue] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -64,6 +66,7 @@ export default function ChatInput({
   };
 
   const canSend = value.trim().length > 0 && !isBusy;
+  const isDark = theme === "dark";
 
   return (
     <div
@@ -77,9 +80,13 @@ export default function ChatInput({
       <div
         className={cn(
           "relative flex min-h-[58px] items-center gap-3 overflow-hidden rounded-[28px] border px-4 py-2.5 shadow-[0_10px_35px_rgba(15,23,42,0.05)] backdrop-blur-2xl transition-all",
-          mode === "hero"
-            ? "bg-white/84 border-white/80"
-            : "bg-white/86 border-white/84 shadow-[0_16px_40px_rgba(15,23,42,0.08)]"
+          isDark
+            ? mode === "hero"
+              ? "border-white/10 bg-[rgba(10,24,20,0.82)]"
+              : "border-white/10 bg-[rgba(10,24,20,0.9)] shadow-[0_16px_40px_rgba(0,0,0,0.24)]"
+            : mode === "hero"
+              ? "bg-white/84 border-white/80"
+              : "bg-white/86 border-white/84 shadow-[0_16px_40px_rgba(15,23,42,0.08)]"
         )}
       >
         <div
@@ -87,9 +94,13 @@ export default function ChatInput({
           aria-hidden="true"
           style={{
             background:
-              mode === "hero"
-                ? "linear-gradient(180deg, rgba(255,255,255,0.56) 0%, rgba(255,255,255,0.12) 100%)"
-                : "linear-gradient(180deg, rgba(255,255,255,0.68) 0%, rgba(255,255,255,0.18) 100%)",
+              isDark
+                ? mode === "hero"
+                  ? "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)"
+                  : "linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%)"
+                : mode === "hero"
+                  ? "linear-gradient(180deg, rgba(255,255,255,0.56) 0%, rgba(255,255,255,0.12) 100%)"
+                  : "linear-gradient(180deg, rgba(255,255,255,0.68) 0%, rgba(255,255,255,0.18) 100%)",
           }}
         />
 
@@ -109,37 +120,33 @@ export default function ChatInput({
             }}
             className={cn(
               "custom-scrollbar block max-h-40 min-h-[24px] flex-1 resize-none bg-transparent py-[8px] align-middle outline-none",
-              "text-[15px] leading-6 text-slate-800 placeholder:text-slate-400",
+              isDark ? "text-[15px] leading-6 text-slate-100 placeholder:text-slate-500" : "text-[15px] leading-6 text-slate-800 placeholder:text-slate-400",
               mode === "hero" ? "md:text-base" : ""
             )}
             aria-label="Поле ввода сообщения"
           />
 
-            <button
-              type="button"
-              onClick={() => {
-                void submit();
-              }}
-              aria-disabled={!canSend}
-              className={cn(
+          <button
+            type="button"
+            onClick={() => {
+              void submit();
+            }}
+            aria-disabled={!canSend}
+            className={cn(
               "relative z-10 inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-2xl transition-all",
               canSend
                 ? "bg-[linear-gradient(135deg,#12b981,#0ea5a4)] text-white shadow-[0_10px_30px_rgba(16,185,129,0.34)] hover:scale-[1.03] hover:shadow-[0_14px_34px_rgba(16,185,129,0.38)] active:scale-[0.97]"
-                : "bg-slate-200/82 text-slate-400 hover:scale-[1.03] hover:bg-slate-300/85 hover:text-slate-500 hover:shadow-[0_10px_24px_rgba(148,163,184,0.18)] active:scale-[0.97]"
+                : isDark
+                  ? "bg-white/8 text-slate-500 hover:scale-[1.03] hover:bg-white/12 hover:text-slate-300 hover:shadow-[0_10px_24px_rgba(0,0,0,0.14)] active:scale-[0.97]"
+                  : "bg-slate-200/82 text-slate-400 hover:scale-[1.03] hover:bg-slate-300/85 hover:text-slate-500 hover:shadow-[0_10px_24px_rgba(148,163,184,0.18)] active:scale-[0.97]"
             )}
             aria-label="Отправить сообщение"
-            >
-              {isBusy ? (
-                <span className="inline-flex items-center gap-1">
-                  <span className="loading-dot" />
-                  <span
-                  className="loading-dot"
-                  style={{ animationDelay: "120ms" }}
-                />
-                <span
-                  className="loading-dot"
-                  style={{ animationDelay: "240ms" }}
-                />
+          >
+            {isBusy ? (
+              <span className="inline-flex items-center gap-1">
+                <span className="loading-dot" />
+                <span className="loading-dot" style={{ animationDelay: "120ms" }} />
+                <span className="loading-dot" style={{ animationDelay: "240ms" }} />
               </span>
             ) : (
               <svg

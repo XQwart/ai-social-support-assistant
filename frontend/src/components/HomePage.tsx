@@ -6,6 +6,7 @@ interface HomePageProps {
   isLoading: boolean;
   isAuthenticated: boolean;
   onAuthRequired: () => void;
+  theme: "light" | "dark";
 }
 
 const POPULAR_QUESTIONS = [
@@ -21,6 +22,7 @@ export default function HomePage({
   isLoading,
   isAuthenticated,
   onAuthRequired,
+  theme,
 }: HomePageProps) {
   const handleQuestionClick = (question: string) => {
     if (!isAuthenticated) {
@@ -70,6 +72,7 @@ export default function HomePage({
           autoFocus
           isAuthenticated={isAuthenticated}
           onAuthRequired={onAuthRequired}
+          theme={theme}
         />
 
         <div className="mt-14 flex max-w-3xl flex-wrap justify-center gap-2.5">

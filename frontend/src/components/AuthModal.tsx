@@ -140,6 +140,9 @@ export default function AuthModal({
   isFinalizing = false,
   onMockLogin,
 }: AuthModalProps) {
+  const isDark =
+    typeof document !== "undefined" &&
+    document.documentElement.dataset.theme === "dark";
   const [initError, setInitError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [authUrl, setAuthUrl] = useState("");
@@ -229,11 +232,12 @@ export default function AuthModal({
       <div
         className="relative z-10 mx-4 w-full max-w-[420px] rounded-[24px] p-6 shadow-[0_24px_60px_rgba(15,23,42,0.14)] fade-in-up"
         style={{
-          background:
-            "linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.82) 100%)",
-          backdropFilter: "blur(30px) saturate(180%)",
-          WebkitBackdropFilter: "blur(30px) saturate(180%)",
-          border: "1px solid rgba(255,255,255,0.7)",
+          background: isDark
+            ? "linear-gradient(180deg, rgba(11,31,27,0.96) 0%, rgba(8,24,21,0.92) 100%)"
+            : "linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.82) 100%)",
+          backdropFilter: isDark ? "blur(30px) saturate(140%)" : "blur(30px) saturate(180%)",
+          WebkitBackdropFilter: isDark ? "blur(30px) saturate(140%)" : "blur(30px) saturate(180%)",
+          border: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(255,255,255,0.7)",
         }}
       >
         <div className="mb-4 flex items-center justify-between">

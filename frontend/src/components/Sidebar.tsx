@@ -19,6 +19,7 @@ interface SidebarProps {
   chatLoadError: string | null;
   onLoadMoreChats: () => void;
   onRetryLoadChats: () => void;
+  theme: "light" | "dark";
 }
 
 function getDateLabel(timestamp: number): string {
@@ -74,9 +75,11 @@ export default function Sidebar({
   chatLoadError,
   onLoadMoreChats,
   onRetryLoadChats,
+  theme,
 }: SidebarProps) {
   const [search, setSearch] = useState("");
   const panelRef = useRef<HTMLDivElement>(null);
+  const isDark = theme === "dark";
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
@@ -134,11 +137,15 @@ export default function Sidebar({
     <>
       <div
         className={cn(
-          "fixed inset-0 z-40 bg-slate-900/10 backdrop-blur-[2px] transition-opacity duration-300",
+          "fixed inset-0 z-40 transition-opacity duration-300",
           isOpen
             ? "pointer-events-auto opacity-100"
             : "pointer-events-none opacity-0"
         )}
+        style={{
+          backgroundColor: isDark ? "rgba(0,0,0,0.45)" : "rgba(15,23,42,0.10)",
+          backdropFilter: isDark ? "blur(3px)" : "blur(2px)",
+        }}
       />
 
       <aside
@@ -149,14 +156,18 @@ export default function Sidebar({
         )}
         style={{
           background:
-            "linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.54) 100%)",
-          backdropFilter: "blur(30px) saturate(180%)",
-          WebkitBackdropFilter: "blur(30px) saturate(180%)",
-          borderRight: "1px solid rgba(255,255,255,0.78)",
+            isDark
+              ? "linear-gradient(180deg, rgba(11,31,27,0.96) 0%, rgba(8,24,21,0.92) 100%)"
+              : "linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.54) 100%)",
+          backdropFilter: isDark ? "blur(28px) saturate(140%)" : "blur(30px) saturate(180%)",
+          WebkitBackdropFilter: isDark ? "blur(28px) saturate(140%)" : "blur(30px) saturate(180%)",
+          borderRight: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(255,255,255,0.78)",
           borderTopRightRadius: "28px",
           borderBottomRightRadius: "28px",
           boxShadow:
-            "0 24px 60px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.65)",
+            isDark
+              ? "0 24px 60px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04)"
+              : "0 24px 60px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.65)",
         }}
       >
         <div
@@ -164,7 +175,9 @@ export default function Sidebar({
           aria-hidden="true"
           style={{
             background:
-              "linear-gradient(160deg, rgba(255,255,255,0.48) 0%, rgba(255,255,255,0.12) 38%, rgba(255,255,255,0) 60%)",
+              isDark
+                ? "linear-gradient(160deg, rgba(45,212,191,0.08) 0%, rgba(255,255,255,0.04) 38%, rgba(255,255,255,0) 60%)"
+                : "linear-gradient(160deg, rgba(255,255,255,0.48) 0%, rgba(255,255,255,0.12) 38%, rgba(255,255,255,0) 60%)",
             borderTopRightRadius: "28px",
             borderBottomRightRadius: "28px",
           }}
@@ -172,10 +185,10 @@ export default function Sidebar({
 
         <div className="relative z-10 flex items-center justify-between px-5 pb-3 pt-5">
           <div>
-            <div className="text-[15px] font-semibold text-slate-800">
+            <div className={isDark ? "text-[15px] font-semibold text-slate-50" : "text-[15px] font-semibold text-slate-800"}>
               История чатов
             </div>
-            <div className="mt-1 text-xs text-slate-500">
+            <div className={isDark ? "mt-1 text-xs text-slate-400" : "mt-1 text-xs text-slate-500"}>
               Быстрый доступ к прошлым диалогам
             </div>
           </div>
@@ -183,7 +196,12 @@ export default function Sidebar({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-2xl border border-white/60 bg-white/45 text-slate-500 transition-colors hover:bg-white/75"
+            className={cn(
+              "inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-2xl transition-colors",
+              isDark
+                ? "border border-white/10 bg-white/6 text-slate-300 hover:bg-white/12"
+                : "border border-white/60 bg-white/45 text-slate-500 hover:bg-white/75"
+            )}
             aria-label="Закрыть меню"
           >
             <svg
@@ -205,7 +223,16 @@ export default function Sidebar({
         {isAuthenticated ? (
           <>
             <div className="relative z-10 px-4 pb-3">
-              <div className="flex items-center gap-2 rounded-2xl border border-white/65 bg-white/50 px-3 py-2.5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.45)]">
+              <div
+                className="flex items-center gap-2 rounded-2xl px-3 py-2.5"
+                style={{
+                  border: isDark ? "1px solid rgba(255,255,255,0.10)" : "1px solid rgba(255,255,255,0.65)",
+                  background: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.50)",
+                  boxShadow: isDark
+                    ? "inset 0 1px 1px rgba(255,255,255,0.04)"
+                    : "inset 0 1px 1px rgba(255,255,255,0.45)",
+                }}
+              >
                 <svg
                   width="15"
                   height="15"
@@ -224,7 +251,10 @@ export default function Sidebar({
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder="Поиск по чатам"
-                  className="w-full bg-transparent text-[14px] text-slate-700 outline-none placeholder:text-slate-400"
+                  className={cn(
+                    "w-full bg-transparent text-[14px] outline-none",
+                    isDark ? "text-slate-100 placeholder:text-slate-500" : "text-slate-700 placeholder:text-slate-400"
+                  )}
                 />
               </div>
             </div>
@@ -236,7 +266,12 @@ export default function Sidebar({
                   onNewChat();
                   onClose();
                 }}
-                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-emerald-200/80 bg-emerald-500/12 px-3 py-2.5 text-[13px] font-semibold text-emerald-700 transition-all hover:-translate-y-0.5 hover:bg-emerald-500/16"
+                className={cn(
+                  "flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl px-3 py-2.5 text-[13px] font-semibold transition-all hover:-translate-y-0.5",
+                  isDark
+                    ? "border border-emerald-400/20 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/14"
+                    : "border border-emerald-200/80 bg-emerald-500/12 text-emerald-700 hover:bg-emerald-500/16"
+                )}
               >
                 <svg
                   width="15"
@@ -257,7 +292,14 @@ export default function Sidebar({
 
             <div className="relative z-10 custom-scrollbar flex-1 overflow-y-auto px-3 pb-4">
               {chatLoadError && (
-                <div className="mb-4 rounded-2xl border border-amber-200/80 bg-amber-50/90 px-4 py-3 text-sm text-slate-700 shadow-[0_10px_24px_rgba(15,23,42,0.04)]">
+                <div
+                  className="mb-4 rounded-2xl px-4 py-3 text-sm shadow-[0_10px_24px_rgba(15,23,42,0.04)]"
+                  style={{
+                    border: isDark ? "1px solid rgba(251,191,36,0.20)" : "1px solid rgba(251,191,36,0.80)",
+                    background: isDark ? "rgba(245,158,11,0.10)" : "rgba(255,251,235,0.90)",
+                    color: isDark ? "#fde68a" : "#334155",
+                  }}
+                >
                   <div>{chatLoadError}</div>
                   <button
                     type="button"
@@ -270,7 +312,7 @@ export default function Sidebar({
               )}
 
               {isLoadingChats && chats.length === 0 && (
-                <div className="px-2 pt-10 text-center text-sm text-slate-400">
+                <div className={isDark ? "px-2 pt-10 text-center text-sm text-slate-500" : "px-2 pt-10 text-center text-sm text-slate-400"}>
                   Загружаем чаты...
                 </div>
               )}
@@ -294,19 +336,29 @@ export default function Sidebar({
                             className={cn(
                               "w-full cursor-pointer rounded-2xl px-3 py-3 text-left transition-all",
                               isActive
-                                ? "border border-white/75 bg-white/72 shadow-[0_10px_25px_rgba(15,23,42,0.05)]"
-                                : "border border-transparent bg-transparent hover:bg-white/45"
+                                ? isDark
+                                  ? "border border-white/10 bg-white/10 shadow-[0_10px_25px_rgba(0,0,0,0.18)]"
+                                  : "border border-white/75 bg-white/72 shadow-[0_10px_25px_rgba(15,23,42,0.05)]"
+                                : isDark
+                                  ? "border border-transparent bg-transparent hover:bg-white/6"
+                                  : "border border-transparent bg-transparent hover:bg-white/45"
                             )}
                           >
                             <div
                               className={cn(
                                 "truncate pr-8 text-[13px] font-medium",
-                                isActive ? "text-slate-900" : "text-slate-700"
+                                isActive
+                                  ? isDark
+                                    ? "text-slate-50"
+                                    : "text-slate-900"
+                                  : isDark
+                                    ? "text-slate-200"
+                                    : "text-slate-700"
                               )}
                             >
                               {chat.title}
                             </div>
-                            <div className="mt-1 text-[11px] text-slate-400">
+                            <div className={isDark ? "mt-1 text-[11px] text-slate-500" : "mt-1 text-[11px] text-slate-400"}>
                               {new Date(chat.updatedAt).toLocaleTimeString(
                                 "ru-RU",
                                 {
@@ -317,13 +369,18 @@ export default function Sidebar({
                             </div>
                           </button>
 
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onDeleteChat(chat.id);
-                            }}
-                            className="absolute right-2 top-1/2 hidden h-8 w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-xl border border-white/60 bg-white/70 text-slate-400 transition-colors hover:text-rose-500 group-hover:flex"
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                onDeleteChat(chat.id);
+                              }}
+                            className={cn(
+                              "absolute right-2 top-1/2 hidden h-8 w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-xl transition-colors group-hover:flex",
+                              isDark
+                                ? "border border-white/10 bg-white/8 text-slate-400 hover:text-rose-400"
+                                : "border border-white/60 bg-white/70 text-slate-400 hover:text-rose-500"
+                            )}
                             aria-label="Удалить чат"
                           >
                             <svg
@@ -348,7 +405,7 @@ export default function Sidebar({
               ))}
 
               {!isLoadingChats && filteredChats.length === 0 && (
-                <div className="px-2 pt-10 text-center text-sm text-slate-400">
+                <div className={isDark ? "px-2 pt-10 text-center text-sm text-slate-500" : "px-2 pt-10 text-center text-sm text-slate-400"}>
                   {search ? "Ничего не найдено" : "Пока нет сохранённых чатов"}
                 </div>
               )}
@@ -359,7 +416,12 @@ export default function Sidebar({
                     type="button"
                     disabled={isLoadingMoreChats}
                     onClick={onLoadMoreChats}
-                    className="flex w-full cursor-pointer items-center justify-center rounded-2xl border border-white/70 bg-white/68 px-3 py-2.5 text-[13px] font-semibold text-slate-700 shadow-[0_10px_24px_rgba(15,23,42,0.04)] transition-all hover:-translate-y-0.5 hover:bg-white/82 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:bg-white/68"
+                    className={cn(
+                      "flex w-full cursor-pointer items-center justify-center rounded-2xl px-3 py-2.5 text-[13px] font-semibold shadow-[0_10px_24px_rgba(15,23,42,0.04)] transition-all hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0",
+                      isDark
+                        ? "border border-white/10 bg-white/8 text-slate-200 hover:bg-white/12 disabled:hover:bg-white/8"
+                        : "border border-white/70 bg-white/68 text-slate-700 hover:bg-white/82 disabled:hover:bg-white/68"
+                    )}
                   >
                     {isLoadingMoreChats ? "Загружаем..." : "Показать ещё"}
                   </button>
@@ -367,16 +429,22 @@ export default function Sidebar({
               )}
             </div>
 
-            <div className="relative z-10 border-t border-white/55 px-4 py-4">
-              <div className="flex items-center gap-3 rounded-2xl border border-white/70 bg-white/58 p-3 shadow-[0_10px_25px_rgba(15,23,42,0.04)] backdrop-blur-xl">
+            <div className={cn("relative z-10 border-t px-4 py-4", isDark ? "border-white/10" : "border-white/55")}>
+              <div
+                className="flex items-center gap-3 rounded-2xl p-3 shadow-[0_10px_25px_rgba(15,23,42,0.04)] backdrop-blur-xl"
+                style={{
+                  border: isDark ? "1px solid rgba(255,255,255,0.10)" : "1px solid rgba(255,255,255,0.70)",
+                  background: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.58)",
+                }}
+              >
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,#34d399_0%,#14b8a6_100%)] text-sm font-bold text-white shadow-[0_10px_24px_rgba(16,185,129,0.24)]">
                   {userInitial}
                 </div>
                 <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold text-slate-800">
+                  <div className={isDark ? "truncate text-sm font-semibold text-slate-50" : "truncate text-sm font-semibold text-slate-800"}>
                     {userFullName}
                   </div>
-                  <div className="truncate text-xs text-slate-500">
+                  <div className={isDark ? "truncate text-xs text-slate-400" : "truncate text-xs text-slate-500"}>
                     Пользователь системы
                   </div>
                 </div>
@@ -401,7 +469,13 @@ export default function Sidebar({
             </div>
 
             <div className="relative z-10 flex flex-col items-center text-center">
-              <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/60 bg-white/50">
+              <div
+                className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl"
+                style={{
+                  border: isDark ? "1px solid rgba(255,255,255,0.10)" : "1px solid rgba(255,255,255,0.60)",
+                  background: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.50)",
+                }}
+              >
                 <svg
                   width="24"
                   height="24"
@@ -417,10 +491,10 @@ export default function Sidebar({
                 </svg>
               </div>
 
-              <p className="mb-1 text-[15px] font-semibold text-slate-700">
+              <p className={isDark ? "mb-1 text-[15px] font-semibold text-slate-100" : "mb-1 text-[15px] font-semibold text-slate-700"}>
                 Войдите в аккаунт
               </p>
-              <p className="mb-5 text-[13px] leading-5 text-slate-400">
+              <p className={isDark ? "mb-5 text-[13px] leading-5 text-slate-500" : "mb-5 text-[13px] leading-5 text-slate-400"}>
                 чтобы увидеть историю чатов
               </p>
 
