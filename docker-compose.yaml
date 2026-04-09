@@ -5,6 +5,8 @@ services:
       dockerfile: nginx/Dockerfile
     ports:
       - "80:80"
+    volumes:
+      - ./ssl:/etc/nginx/ssl:ro
     depends_on:
       backend:
         condition: service_started
@@ -61,7 +63,6 @@ services:
     volumes:
       - ./volumes/qdrant:/qdrant/storage
 
-  
 
 volumes:
   redis_data:
