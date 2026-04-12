@@ -1,0 +1,57 @@
+import logging
+
+from celery import Celery
+from celery.schedules import crontab
+from celery.signals import setup_logging, worker_shutdown
+from worker.core.config import get_config
+
+
+@setup_logging.connect
+def on_setup_logging(**kwargs):
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        force=True,
+    )
+
+
+config = get_config()
+
+
+app = Celery(
+    "worker",
+    broker=config.redis_celery_url,
+    backend=config.redis_celery_url,
+    include=["worker.tasks.update_knowledge_task", "worker.tasks.scheduler_task"],
+)
+
+app.conf.update(
+    task_serializer="json",
+    accept_content=["json"],
+    result_serializer="json",
+    timezone="UTC",
+    enable_utc=True,
+    task_acks_late=True,
+    worker_prefetch_multiplier=1,
+    result_expires=3600,
+)
+
+app.conf.beat_schedule = {
+    "dispatch-due-crawls-every-5-minutes": {
+        "task": "worker.tasks.scheduler_task.dispatch_due_crawls",
+        "schedule": crontab(minute="*/5"),
+        "options": {"queue": "default"},
+    },
+    "reap-stale-locks-every-25-minutes": {
+        "task": "worker.tasks.scheduler_task.reap_stale_locks",
+        "schedule": crontab(minute="*/25"),
+        "options": {"queue": "default"},
+    },
+}
+
+
+@worker_shutdown.connect
+def cleanup_on_shutdown(**kwargs):
+    from worker.dependencies.build import WorkerDependencies
+
+    WorkerDependencies.reset()

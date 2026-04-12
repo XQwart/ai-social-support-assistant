@@ -1,0 +1,31 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
+
+
+if TYPE_CHECKING:
+    from app.repositories import MessageRepository
+    from app.models.message_model import MessageModel, MessageRole
+
+
+class MessageService:
+    _message_repo: MessageRepository
+
+    def __init__(self, message_repo: MessageRepository):
+        self._message_repo = message_repo
+
+    async def get_messages(
+        self, chat_id: int, limit: int, offset: int, asc: bool = True
+    ) -> list[MessageModel]:
+        messages = await self._message_repo.get_by_chat(chat_id, limit, offset, asc)
+
+        return messages
+
+    async def send_message(
+        self, chat_id: int, message: str, role: MessageRole
+    ) -> MessageModel:
+        return await self._message_repo.create(
+            chat_id=chat_id, role=role, content=message
+        )
+
+    async def count_messages(self, chat_id: int) -> int:
+        return await self._message_repo.count_messages_by_chat(chat_id)
