@@ -8,3 +8,4 @@ frontend/dist/
 *.key
 *client_cert*
 *.old*
+ssl/*

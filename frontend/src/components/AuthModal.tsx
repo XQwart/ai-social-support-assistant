@@ -32,6 +32,27 @@ type CachedSberParams = {
 let cachedSberParams: CachedSberParams | null = null;
 let sberParamsPromise: Promise<SberParamsResponse> | null = null;
 
+function makeUrl(value: string): URL {
+  try {
+    return new URL(value);
+  } catch {
+    if (typeof window !== "undefined") {
+      return new URL(value, window.location.origin);
+    }
+    throw new Error("Invalid URL");
+  }
+}
+
+function normalizeAuthError(err: unknown, fallbackMessage: string): string {
+  const rawMessage = err instanceof Error ? err.message : String(err);
+
+  if (/Failed to construct 'URL'|Invalid URL/i.test(rawMessage)) {
+    return "Не удалось подготовить ссылку для входа в Sber ID. Попробуйте обновить страницу или повторите позже.";
+  }
+
+  return err instanceof Error && err.message ? err.message : fallbackMessage;
+}
+
 function hasFreshCachedParams() {
   return (
     cachedSberParams !== null &&
@@ -46,7 +67,7 @@ async function requestSberParams(
     typeof window === "undefined"
       ? ""
       : `${window.location.origin}${window.location.pathname}`;
-  const paramsUrl = new URL(`${API_BASE}/auth/sber/params`);
+  const paramsUrl = makeUrl(`${API_BASE}/auth/sber/params`);
 
   if (frontendUrl) {
     paramsUrl.searchParams.set("frontend_url", frontendUrl);
@@ -93,7 +114,7 @@ async function getSberParams(signal?: AbortSignal): Promise<SberParamsResponse> 
 }
 
 function buildSberAuthUrl(params: SberParamsResponse): string {
-  const url = new URL(params.authorize_url);
+  const url = makeUrl(params.authorize_url);
 
   url.searchParams.set("client_id", params.client_id);
   url.searchParams.set("client_type", "PRIVATE");
@@ -169,12 +190,10 @@ export default function AuthModal({
           return;
         }
 
+        console.error("AuthModal: failed to init Sber auth params", err);
+
         setAuthUrl("");
-        setInitError(
-          err instanceof Error
-            ? err.message
-            : "Не удалось инициализировать Сбер ID"
-        );
+        setInitError(normalizeAuthError(err, "Не удалось инициализировать Сбер ID"));
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -273,8 +292,9 @@ export default function AuthModal({
                       const result = await mockLoginRequest();
                       onMockLogin(result.token, result.user);
                     } catch (err: unknown) {
+                      console.error("AuthModal: mock login failed", err);
                       setMockError(
-                        err instanceof Error ? err.message : "Не удалось выполнить временный вход"
+                        normalizeAuthError(err, "Не удалось выполнить временный вход")
                       );
                     } finally {
                       setIsMockLoading(false);
