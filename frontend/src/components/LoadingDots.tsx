@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 
-import { AssistantAvatar } from "@/components/AssistantAvatar";
-
 const ROLE_LABEL = "Помощник";
 
 const FUN_STATUSES = [
@@ -123,9 +121,7 @@ export default function LoadingDots({ chatId }: LoadingDotsProps) {
 
   return (
     <div className="fade-in-up flex w-full justify-start">
-      <div className="flex max-w-[88%] items-start gap-3 md:max-w-[78%]">
-        <AssistantAvatar />
-
+      <div className="flex max-w-[88%] items-start md:max-w-[78%]">
         <div className="rounded-[24px] rounded-bl-[8px] border border-white/80 bg-white/74 px-4 py-3.5 text-slate-800 shadow-[0_10px_30px_rgba(15,23,42,0.05)] backdrop-blur-2xl">
           <div className="mb-1 text-[11px] font-semibold tracking-[0.12em] text-emerald-600/90">
             {ROLE_LABEL}

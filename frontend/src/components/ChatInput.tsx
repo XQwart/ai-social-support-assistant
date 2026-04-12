@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/utils/cn";
 
+const WORD_LIMIT = 3500;
+
+function countWords(value: string): number {
+  return value.trim().split(/\s+/).filter(Boolean).length;
+}
+
 interface ChatInputProps {
   onSend: (message: string) => Promise<boolean>;
   isLoading: boolean;
@@ -24,6 +30,7 @@ export default function ChatInput({
 }: ChatInputProps) {
   const [value, setValue] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [validationError, setValidationError] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const isBusy = isLoading || isSubmitting;
@@ -48,10 +55,18 @@ export default function ChatInput({
     const trimmed = value.trim();
     if (!trimmed || isBusy) return;
 
+    const wordCount = countWords(trimmed);
+    if (wordCount > WORD_LIMIT) {
+      setValidationError(`Сообщение не должно превышать ${WORD_LIMIT} слов.`);
+      return;
+    }
+
     if (!isAuthenticated) {
       onAuthRequired?.();
       return;
     }
+
+    setValidationError("");
 
     setIsSubmitting(true);
 
@@ -65,7 +80,8 @@ export default function ChatInput({
     }
   };
 
-  const canSend = value.trim().length > 0 && !isBusy;
+  const wordCount = countWords(value);
+  const canSend = value.trim().length > 0 && !isBusy && wordCount <= WORD_LIMIT;
   const isDark = theme === "dark";
 
   return (
@@ -111,7 +127,12 @@ export default function ChatInput({
             rows={1}
             placeholder={placeholder}
             disabled={isBusy}
-            onChange={(event) => setValue(event.target.value)}
+            onChange={(event) => {
+              setValue(event.target.value);
+              if (validationError) {
+                setValidationError("");
+              }
+            }}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
@@ -166,6 +187,15 @@ export default function ChatInput({
           </button>
         </div>
       </div>
+
+      {(validationError || wordCount > WORD_LIMIT) && (
+        <div className={cn(
+          "mt-2 px-2 text-xs",
+          isDark ? "text-rose-300" : "text-rose-600"
+        )}>
+          {validationError || `Превышен лимит: ${wordCount}/${WORD_LIMIT} слов.`}
+        </div>
+      )}
 
       {mode === "hero" && (
         <div className="mt-3 text-center text-xs text-slate-500">

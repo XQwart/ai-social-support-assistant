@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 
-import { AssistantAvatar } from "@/components/AssistantAvatar";
 import TypingAnimation from "@/components/TypingAnimation";
 
 import type { Message } from "@/types";
@@ -345,13 +344,9 @@ export default function ChatMessage({
       <div
         className={cn(
           "max-w-[92%] min-w-0 md:max-w-[82%]",
-          !isUser && "flex items-start gap-4"
+          !isUser && "flex items-start"
         )}
       >
-        {!isUser && (
-          <AssistantAvatar className="mt-0.5" variant={isError ? "error" : "default"} />
-        )}
-
         <div className="min-w-0">
           <div
             className={cn(

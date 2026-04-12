@@ -53,13 +53,33 @@ let pendingSberExchange:
 const EMPTY_USER_INFO: UserInfo = { firstName: "", secondName: "", placeOfWork: "" };
 type ThemeMode = "light" | "dark";
 
-function readTheme(): ThemeMode {
+function readStoredTheme(): ThemeMode | null {
   if (typeof window === "undefined") {
-    return "dark";
+    return null;
   }
 
   const stored = window.localStorage.getItem(THEME_KEY);
-  return stored === "light" ? "light" : "dark";
+  return stored === "light" || stored === "dark" ? stored : null;
+}
+
+function readSystemTheme(): ThemeMode {
+  if (
+    typeof window !== "undefined" &&
+    window.matchMedia &&
+    window.matchMedia("(prefers-color-scheme: dark)").matches
+  ) {
+    return "dark";
+  }
+
+  return "light";
+}
+
+function readTheme(): ThemeMode {
+  if (typeof window === "undefined") {
+    return "light";
+  }
+
+  return readStoredTheme() ?? readSystemTheme();
 }
 
 function getHistoryControllerKey(chatId: string): string {
@@ -224,6 +244,7 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [loadingChatIds, setLoadingChatIds] = useState<string[]>([]);
   const [animatedMessageId, setAnimatedMessageId] = useState<string | null>(null);
+  const [pendingDeleteChatId, setPendingDeleteChatId] = useState<string | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(
     () => initialAuthStateRef.current.token
   );
@@ -257,13 +278,33 @@ export default function App() {
     () => chats.find((chat) => chat.id === activeChatId) ?? null,
     [chats, activeChatId]
   );
+  const pendingDeleteChat = useMemo(
+    () => chats.find((chat) => chat.id === pendingDeleteChatId) ?? null,
+    [chats, pendingDeleteChatId]
+  );
 
   const showHome = !activeChat;
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
     window.localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = () => {
+      if (!readStoredTheme()) {
+        setTheme(mediaQuery.matches ? "dark" : "light");
+      }
+    };
+
+    handleChange();
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []);
 
   const isCurrentChatLoading = useMemo(() => {
     if (!activeChatId) {
@@ -1036,14 +1077,12 @@ export default function App() {
     setAnimatedMessageId(null);
   }, []);
 
-  const handleDeleteChat = useCallback(
+  const handleDeleteChat = useCallback((chatId: string) => {
+    setPendingDeleteChatId(chatId);
+  }, []);
+
+  const performDeleteChat = useCallback(
     async (chatId: string) => {
-      const shouldDelete = window.confirm("Удалить этот чат?");
-
-      if (!shouldDelete) {
-        return;
-      }
-
       const snapshot = chats.find((chat) => chat.id === chatId);
 
       if (!snapshot) {
@@ -1281,6 +1320,90 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {pendingDeleteChat && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/55 backdrop-blur-[4px]"
+            onClick={() => setPendingDeleteChatId(null)}
+          />
+
+          <div
+            className="relative z-10 w-full max-w-[360px] rounded-[24px] border p-5 shadow-[0_30px_80px_rgba(0,0,0,0.36)]"
+            style={{
+              borderColor: theme === "dark" ? "#233230" : "rgba(226,232,240,0.8)",
+              background: theme === "dark"
+                ? "linear-gradient(180deg, rgba(13,36,31,0.98) 0%, rgba(9,28,24,0.98) 100%)"
+                : "linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.98) 100%)",
+            }}
+          >
+            <div className="mb-5 flex items-start gap-3">
+              <div
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
+                style={{
+                  background: theme === "dark" ? "rgba(251, 113, 133, 0.15)" : "rgba(254, 202, 202, 0.55)",
+                }}
+              >
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke={theme === "dark" ? "#fb7185" : "#ef4444"}
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M3 6h18" />
+                  <path d="M8 6V4h8v2" />
+                  <path d="M6 6l1 14h10l1-14" />
+                  <path d="M10 11v5" />
+                  <path d="M14 11v5" />
+                </svg>
+              </div>
+
+              <div className="min-w-0 pt-1">
+                <div className={theme === "dark" ? "text-[22px] font-bold text-slate-50" : "text-[22px] font-bold text-slate-900"}>
+                  Удалить чат?
+                </div>
+                <div className={theme === "dark" ? "mt-3 text-[16px] leading-7 text-slate-400" : "mt-3 text-[16px] leading-7 text-slate-600"}>
+                  Этот чат и вся история сообщений будут удалены без возможности восстановления.
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setPendingDeleteChatId(null)}
+                className="flex h-14 flex-1 cursor-pointer items-center justify-center rounded-2xl border text-[16px] font-semibold transition-all hover:-translate-y-0.5"
+                style={{
+                  borderColor: theme === "dark" ? "#233230" : "rgba(226,232,240,0.8)",
+                  background: theme === "dark" ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.78)",
+                  color: theme === "dark" ? "#d1d5db" : "#475569",
+                }}
+              >
+                Отмена
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const chatId = pendingDeleteChatId;
+                  setPendingDeleteChatId(null);
+                  if (chatId) {
+                    void performDeleteChat(chatId);
+                  }
+                }}
+                className="flex h-14 flex-1 cursor-pointer items-center justify-center rounded-2xl text-[16px] font-semibold text-white transition-all hover:-translate-y-0.5"
+                style={{ background: "#ff275a" }}
+              >
+                Удалить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <AuthModal
         isOpen={isAuthModalOpen}

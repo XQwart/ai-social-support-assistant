@@ -216,15 +216,15 @@ textarea {
 .loading-status-text {
   background: linear-gradient(
     90deg,
-    #064e3b 0%,
-    #065f46 28%,
-    #0f766e 56%,
-    #1e3a8a 82%,
-    #1e40af 100%
+    #159a2e 0%,
+    #21b858 34%,
+    #2597b9 68%,
+    #1d4ed8 100%
   );
   -webkit-background-clip: text;
   background-clip: text;
-  color: #0f766e;
+  color: #159a2e;
+  display: inline-block;
 }
 
 @supports ((-webkit-background-clip: text) or (background-clip: text)) {
@@ -235,12 +235,17 @@ textarea {
 }
 
 [data-theme="dark"] .loading-status-text {
-  background: none;
-  -webkit-background-clip: initial;
-  background-clip: initial;
-  -webkit-text-fill-color: initial !important;
-  color: #6ee7b7 !important;
-  text-shadow: 0 0 10px rgba(110, 231, 183, 0.18);
+  background: linear-gradient(
+    90deg,
+    #30e05f 0%,
+    #3be27b 34%,
+    #42c9df 68%,
+    #3b82f6 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
 }
 
 .typing-cursor {
