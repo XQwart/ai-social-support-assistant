@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 import logging
 
@@ -40,7 +40,5 @@ class ChatService:
     async def get_chat(self, chat_id: int) -> ChatModel:
         return await self._chat_rep.get_by_id(chat_id=chat_id)
 
-    async def update_chat(
-        self, chat: ChatModel, compressed_context: str | None = None
-    ) -> None:
-        await self._chat_rep.update(chat=chat, compressed_context=compressed_context)
+    async def update_chat(self, chat: ChatModel, **fields: Any) -> None:
+        await self._chat_rep.update(chat=chat, **fields)

@@ -5,14 +5,23 @@ from app.models.message_model import MessageRole
 from app.schemas.message_schemas import ConversationResult
 
 if TYPE_CHECKING:
-    from . import ChatService, MessageService, LLMService
+    from . import (
+        ChatService,
+        ContextBudgetService,
+        ContextStatsService,
+        MessageService,
+        LLMService,
+    )
     from app.core.config import Config
     from app.models import ChatModel, MessageModel
+    from app.schemas.chat_schemas import ChatContextStats
 
 
 class ConversationService:
     _llm_service: LLMService
     _message_service: MessageService
+    _ctx_budget_service: ContextBudgetService
+    _ctx_stats_service: ContextStatsService
     _chat_service: ChatService
     _config: Config
 
@@ -20,11 +29,15 @@ class ConversationService:
         self,
         llm_service: LLMService,
         message_service: MessageService,
+        ctx_budget_service: ContextBudgetService,
+        ctx_stats_service: ContextStatsService,
         chat_service: ChatService,
         config: Config,
     ):
         self._llm_service = llm_service
         self._message_service = message_service
+        self._ctx_budget_service = ctx_budget_service
+        self._ctx_stats_service = ctx_stats_service
         self._chat_service = chat_service
         self._config = config
 
@@ -33,16 +46,27 @@ class ConversationService:
             chat_id=chat.id, message=content, role=MessageRole.USER
         )
 
+        ctx_stats = await self._ctx_stats_service.get_chat_stats(chat)
         chat_history, compressed_context, was_compressed = await self._prepare_context(
-            chat=chat
+            chat=chat, ctx_stats=ctx_stats, current_user_message_id=user_msg.id
         )
-        ai_response = await self._llm_service.generate_response(
+
+        completion = await self._llm_service.generate_response(
             user_message=content,
             chat_history=chat_history,
             compressed_context=compressed_context,
         )
+
+        usage_updates = self._ctx_budget_service.build_usage_updates(
+            ctx_stats=ctx_stats,
+            usage=completion.usage,
+            was_compressed_before_request=was_compressed,
+        )
+        if usage_updates:
+            await self._ctx_stats_service.update_chat_stats(chat, **usage_updates)
+
         assistant_msg = await self._message_service.send_message(
-            chat_id=chat.id, message=ai_response, role=MessageRole.ASSISTANT
+            chat_id=chat.id, message=completion.text or "", role=MessageRole.ASSISTANT
         )
 
         await self._chat_service.update_chat(chat)
@@ -54,40 +78,58 @@ class ConversationService:
         )
 
     async def _prepare_context(
-        self, chat: ChatModel
+        self, chat: ChatModel, ctx_stats: ChatContextStats, current_user_message_id: int
     ) -> tuple[list[dict[str, str]], str | None, bool]:
-        messages_count = await self._message_service.count_messages(chat.id)
-        mesasges_count_without_user = messages_count - 1
-        if messages_count <= self._config.summary_limit:
-            messages = await self._message_service.get_messages(
-                chat_id=chat.id, limit=mesasges_count_without_user, offset=0
-            )
-
-            return self._to_history(messages), None, False
-
-        if messages_count % self._config.summary_limit <= 1:
-            messages = await self._message_service.get_messages(
-                chat_id=chat.id, limit=self._config.context_size, offset=1, asc=False
-            )
-            compressed = await self._compress_and_save(chat, messages[::-1])
-
-            return [], compressed, True
-
-        messages = await self._message_service.get_messages(
+        unsummarized_messages = await self._message_service.get_messages_after_id(
             chat_id=chat.id,
-            limit=self._config.summary_limit,
-            offset=mesasges_count_without_user - self._config.summary_limit,
+            after_id=chat.compressed_up_to_message_id,
+            before_id=current_user_message_id,
         )
-        return self._to_history(messages), chat.compressed_context, False
+
+        if not unsummarized_messages:
+            return [], chat.compressed_context, False
+
+        should_compress = self._ctx_budget_service.should_compress(ctx_stats)
+        if not should_compress:
+            return (
+                self._to_history(unsummarized_messages),
+                chat.compressed_context,
+                False,
+            )
+
+        keep_msgs = self._config.llm_summary_keep_recent_messages
+        if len(unsummarized_messages) <= keep_msgs:
+            return (
+                self._to_history(unsummarized_messages),
+                chat.compressed_context,
+                False,
+            )
+
+        messages_to_compress = unsummarized_messages[:-keep_msgs]
+
+        compressed = await self._compress_and_save(
+            chat=chat,
+            messages=messages_to_compress,
+            compressed_up_to_message_id=messages_to_compress[-1].id,
+        )
+
+        return self._to_history(unsummarized_messages[-keep_msgs:]), compressed, True
 
     async def _compress_and_save(
-        self, chat: ChatModel, messages: list[MessageModel]
+        self,
+        chat: ChatModel,
+        messages: list[MessageModel],
+        compressed_up_to_message_id: int,
     ) -> str:
         history = self._to_history(messages)
-        compressed_context = await self._llm_service.compress_context(history)
+        compressed_context = await self._llm_service.compress_context(
+            history, previous_summary=chat.compressed_context
+        )
 
         await self._chat_service.update_chat(
-            chat=chat, compressed_context=compressed_context
+            chat=chat,
+            compressed_context=compressed_context,
+            compressed_up_to_message_id=compressed_up_to_message_id,
         )
 
         return compressed_context
