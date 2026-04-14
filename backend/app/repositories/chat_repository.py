@@ -44,8 +44,8 @@ class ChatRepository:
         return list(result.scalars().all())
 
     async def update(self, chat: ChatModel, **fields) -> ChatModel | None:
-        for field in fields:
-            setattr(chat, field, field)
+        for field, value in fields.items():
+            setattr(chat, field, value)
 
         await self._session.commit()
         await self._session.refresh(chat)
