@@ -1,6 +1,20 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import Sequence
+
+
+@dataclass(slots=True)
+class LLMUsage:
+    input_tokens: int
+    output_tokens: int
+    total_tokens: int
+
+
+@dataclass(slots=True)
+class LLMCompletion:
+    text: str | None
+    usage: LLMUsage | None = None
 
 
 class Client(ABC):
@@ -16,7 +30,7 @@ class LLMClient(Client):
         messages: list[dict[str, str]],
         max_tokens: int = 512,
         temperature: float = 0.2,
-    ) -> str | None:
+    ) -> LLMCompletion:
         pass
 
 

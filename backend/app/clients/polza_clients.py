@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Sequence
 
 from openai import AsyncOpenAI
 
-from .base_clients import LLMClient, EmbeddingClient
+from .base_clients import LLMClient, EmbeddingClient, LLMCompletion
 
 if TYPE_CHECKING:
     from app.core.config import Config
@@ -31,7 +31,7 @@ class PolzaLLMClient(_PolzaMixin, LLMClient):
         messages: list[dict[str, str]],
         max_tokens: int = 512,
         temperature: float = 0.2,
-    ) -> str | None:
+    ) -> LLMCompletion:
         response = await self._client.chat.completions.create(
             model=self._model_name,
             messages=messages,
@@ -39,7 +39,7 @@ class PolzaLLMClient(_PolzaMixin, LLMClient):
             max_tokens=max_tokens,
         )
 
-        return response.choices[0].message.content
+        return LLMCompletion(text=response.choices[0].message.content)
 
 
 class PolzaEmbeddingClient(_PolzaMixin, EmbeddingClient):

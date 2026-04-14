@@ -1,6 +1,6 @@
 from datetime import timedelta
 from enum import Enum
-from functools import lru_cache
+from functools import lru_cache, cached_property
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -93,6 +93,19 @@ class Config(BaseSettings):
 
     context_size: int = 64
     summary_limit: int = 10
+
+    llm_context_window_tokens: int = 128000
+    llm_summary_trigger_ratio: float = 0.8
+    llm_default_input_reserve_tokens: int = 800
+    llm_reserve_history_size: int = 30
+
+    @cached_property
+    def llm_context_threshold(self) -> int:
+        return int(self.llm_context_window_tokens * self.llm_summary_trigger_ratio)
+
+    llm_recent_input_deltas_ttl: timedelta = timedelta(days=7)
+
+    llm_summary_keep_recent_messages: int = 12
 
     def _get_redis_url(self, database_num: int) -> str:
         return f"redis://{self.redis_host}:{self.redis_port}/{database_num}"

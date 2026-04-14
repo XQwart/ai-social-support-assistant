@@ -16,6 +16,7 @@ from app.dependencies.repositories import (
     ChatRepoDep,
     DocumentRepoDep,
     ChunkRepoDep,
+    ContextStatsRepoDep,
 )
 from app.dependencies.http import HTTPSberClientDep
 from app.dependencies.jwt import AccessTokenDep, RefreshTokenDep
@@ -28,6 +29,8 @@ from app.services import (
     UserService,
     LLMService,
     RAGService,
+    ContextBudgetService,
+    ContextStatsService,
 )
 
 
@@ -66,17 +69,26 @@ def get_chat_service(chat_rep: ChatRepoDep) -> ChatService:
     return ChatService(chat_rep)
 
 
+def get_user_service(user_rep: UserRepoDep) -> UserService:
+    return UserService(user_rep)
+
+
 def get_conversation_service(
     llm_service: "LLMServiceDep",
     message_service: "MessageServiceDep",
+    ctx_budget_service: "ContextBudgetServiceDep",
+    ctx_stats_service: "ContextStatsServiceDep",
     chat_service: "ChatServiceDep",
     config: ConfigDep,
 ) -> ConversationService:
-    return ConversationService(llm_service, message_service, chat_service, config)
-
-
-def get_user_service(user_rep: UserRepoDep) -> UserService:
-    return UserService(user_rep)
+    return ConversationService(
+        llm_service,
+        message_service,
+        ctx_budget_service,
+        ctx_stats_service,
+        chat_service,
+        config,
+    )
 
 
 def get_llm_service(
@@ -96,6 +108,16 @@ def get_rag_service(
     return RAGService(client, document_repo, chunk_repo)
 
 
+def get_ctx_budget_service(config: ConfigDep) -> ContextBudgetService:
+    return ContextBudgetService(config)
+
+
+def get_ctx_stats_service(
+    ctx_stats_rep: ContextStatsRepoDep, chat_rep: ChatRepoDep
+) -> ContextStatsService:
+    return ContextStatsService(ctx_stats_rep, chat_rep)
+
+
 LLMServiceDep = Annotated[LLMService, Depends(get_llm_service)]
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 ChatServiceDep = Annotated[ChatService, Depends(get_chat_service)]
@@ -106,3 +128,7 @@ ConversationServiceDep = Annotated[
 SberIdServiceDep = Annotated[SberIdService, Depends(get_sberid_service)]
 UserServiceDep = Annotated[UserService, Depends(get_user_service)]
 RAGServiceDep = Annotated[RAGService, Depends(get_rag_service)]
+ContextBudgetServiceDep = Annotated[
+    ContextBudgetService, Depends(get_ctx_budget_service)
+]
+ContextStatsServiceDep = Annotated[ContextStatsService, Depends(get_ctx_stats_service)]

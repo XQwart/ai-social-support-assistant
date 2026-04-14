@@ -43,11 +43,9 @@ class ChatRepository:
 
         return list(result.scalars().all())
 
-    async def update(
-        self, chat: ChatModel, compressed_context: str | None = None
-    ) -> ChatModel | None:
-        if compressed_context is not None:
-            chat.compressed_context = compressed_context
+    async def update(self, chat: ChatModel, **fields) -> ChatModel | None:
+        for field in fields:
+            setattr(chat, field, field)
 
         await self._session.commit()
         await self._session.refresh(chat)

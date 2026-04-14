@@ -1,11 +1,8 @@
 from __future__ import annotations
-from pathlib import Path
-import json
 import logging
 from typing import TYPE_CHECKING
 
-from app.core.constants import FAQ_JSON, CHUCK_JSON
-from app.clients.base_clients import LLMClient
+from app.clients.base_clients import LLMClient, LLMCompletion
 from .prompts import (
     build_system_prompt,
     COMPRESSED_CONTEXT_PREFIX,
@@ -16,7 +13,7 @@ from .prompts import (
 
 if TYPE_CHECKING:
     from app.core.config import Config
-    from .. import RagService
+    from .. import RAGService
 
 
 logger = logging.getLogger(__name__)
@@ -26,49 +23,31 @@ class LLMService:
     _config: Config
     _chat_client: LLMClient
     _compress_client: LLMClient
-    _rag_service: RagService
+    _rag_service: RAGService
 
     def __init__(
         self,
         config: Config,
         chat_client: LLMClient,
         compress_client: LLMClient,
-        rag_service: RagService,
+        rag_service: RAGService,
     ):
         self._config = config
         self._chat_client = chat_client
         self._compress_client = compress_client
         self._rag_service = rag_service
 
-    # def _load_knowledge_base(self) -> tuple[list[dict], list[dict]]:
-    #     faq_data = self._load_json_file(FAQ_JSON, "faq.json")
-    #     chuck_data = self._load_json_file(CHUCK_JSON, "chuck_data.json")
-
-    #     return faq_data, chuck_data
-
-    # def _load_json_file(self, path: Path, label: str) -> list[dict]:
-    #     try:
-    #         if path.exists():
-    #             content = path.read_text(encoding="utf-8")
-    #             if content.strip():
-    #                 return json.loads(content)
-    #     except (json.JSONDecodeError, OSError) as e:
-    #         logger.warning("Не удалось загрузить %s: %s", label, e)
-
-    #     return []
-
     async def generate_response(
         self,
         user_message: str,
         chat_history: list[dict[str, str]],
         compressed_context: str | None = None,
-    ) -> str:
+    ) -> LLMCompletion:
         logger.info(
             "Запрос к ИИ: user_message='%s', history_len=%d",
             user_message[:100],
             len(chat_history),
         )
-        # faq_data, chuck_data = self._load_knowledge_base()
         faq_data = [""]  # TODO: Убрать заглушку
         chuck_data = await self._get_chunks(user_message)
 
@@ -86,23 +65,23 @@ class LLMService:
         messages.append({"role": "user", "content": user_message})
 
         try:
-            response_text = await self._chat_client.get_completion(
+            completion = await self._chat_client.get_completion(
                 messages,
                 max_tokens=self._config.llm_generate_max_tokens,
                 temperature=self._config.llm_generate_temperature,
             )
-            if response_text:
+            if completion.text:
                 logger.info(
-                    "ИИ успешно сгенерировал ответ (длина: %d)", len(response_text)
+                    "ИИ успешно сгенерировал ответ (длина: %d)", len(completion.text)
                 )
-                return response_text
+                return completion
 
             logger.warning("ИИ вернул пустой ответ")
-            return FALLBACK_EMPTY_RESPONSE
+            return LLMCompletion(text=FALLBACK_EMPTY_RESPONSE, usage=completion.usage)
 
         except Exception:
             logger.exception("Критическая ошибка при обращении к ИИ")
-            return FALLBACK_AI_UNAVAILABLE
+            return LLMCompletion(text=FALLBACK_AI_UNAVAILABLE, usage=None)
 
     async def _get_chunks(self, user_message: str) -> list[dict]:
         chunks = await self._rag_service.retrieve(user_message)
@@ -115,24 +94,35 @@ class LLMService:
             for chunk in chunks
         ]
 
-    async def compress_context(self, messages: list[dict[str, str]]) -> str:
-        messages_text = "\n".join(
+    async def compress_context(
+        self,
+        messages: list[dict[str, str]],
+        previous_summary: str | None = None,
+    ) -> str:
+        blocks: list[str] = []
+
+        if previous_summary:
+            blocks.append(f"Предыдущее резюме диалога:\n{previous_summary}")
+
+        blocks.extend(
             f"{'Пользователь' if m['role'] == 'user' else 'Ассистент'}: {m['content']}"
             for m in messages
         )
 
+        messages_text = "\n".join(blocks)
         prepared_messages = [
             {"role": "system", "content": COMPRESS_CONTEXT_SYSTEM},
             {"role": "user", "content": messages_text},
         ]
 
         try:
-            response = await self._compress_client.get_completion(
+            completion = await self._compress_client.get_completion(
                 prepared_messages,
                 max_tokens=self._config.llm_compress_max_tokens,
                 temperature=self._config.llm_compress_temperature,
             )
-            return response or ""
+            return completion.text or ""
+
         except Exception as e:
             logger.error("Ошибка сжатия контекста: %s", e)
             return messages_text[: self._config.llm_fallback_context_limit]

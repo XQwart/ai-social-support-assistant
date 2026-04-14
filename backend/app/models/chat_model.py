@@ -37,3 +37,7 @@ class ChatModel(Base):
         cascade="all, delete-orphan",
     )
     compressed_context: Mapped[str | None] = mapped_column(nullable=True)
+    compressed_up_to_message_id: Mapped[int | None] = mapped_column(nullable=True)
+
+    last_total_tokens: Mapped[int] = mapped_column(nullable=False, default=0)
+    reserve_input_tokens: Mapped[int] = mapped_column(nullable=False, default=0)

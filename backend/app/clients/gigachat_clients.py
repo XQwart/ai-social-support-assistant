@@ -2,9 +2,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Sequence
 
 from gigachat import GigaChat
-from gigachat.models import Chat, Messages, MessagesRole
+from gigachat.models import Chat, Messages, MessagesRole, ChatCompletion
 
-from .base_clients import LLMClient, EmbeddingClient
+from .base_clients import LLMClient, EmbeddingClient, LLMCompletion, LLMUsage
 
 if TYPE_CHECKING:
     from app.core.config import Config
@@ -34,7 +34,7 @@ class GigaChatLLMClient(_GigaChatMixin, LLMClient):
         messages: list[dict[str, str]],
         max_tokens: int = 512,
         temperature: float = 0.2,
-    ) -> str | None:
+    ) -> LLMCompletion:
         prepared_messages = [
             Messages(role=MessagesRole(msg["role"]), content=msg["content"])
             for msg in messages
@@ -48,7 +48,19 @@ class GigaChatLLMClient(_GigaChatMixin, LLMClient):
             )
         )
 
-        return response.choices[0].message.content
+        return LLMCompletion(
+            text=response.choices[0].message.content,
+            usage=self._extract_usage(response),
+        )
+
+    def _extract_usage(self, competetion: ChatCompletion) -> LLMUsage:
+        usage = competetion.usage
+
+        return LLMUsage(
+            input_tokens=usage.prompt_tokens,
+            output_tokens=usage.completion_tokens,
+            total_tokens=usage.total_tokens,
+        )
 
 
 class GigaChatEmbeddingClient(_GigaChatMixin, EmbeddingClient):
