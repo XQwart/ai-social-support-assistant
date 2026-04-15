@@ -10,21 +10,17 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@sberid/js-sdk": "^3.0.3",
     "clsx": "2.1.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-markdown": "^10.1.0",
-    "react-router-dom": "^7.1.1",
-    "tailwind-merge": "3.4.0",
-    "uuid": "^11.1.0"
+    "tailwind-merge": "3.4.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.1.17",
     "@types/node": "^22.0.0",
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
-    "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "5.1.1",
     "tailwindcss": "4.1.17",
     "typescript": "5.9.3",

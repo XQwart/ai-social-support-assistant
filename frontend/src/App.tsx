@@ -2,13 +2,22 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createChat,
   deleteChat as deleteChatApi,
+  fetchChat,
   fetchChats,
   fetchMessages,
+  renameChat as renameChatApi,
   sendMessageToChat,
 } from "@/api/chatApi";
 import {
+  parseChatIdFromLocation,
+  pushChatRoute,
+  replaceChatRoute,
+} from "@/utils/chatRoute";
+import {
   clearStoredAuthSession,
+  decodeJwtExpiry,
   exchangeSberCodeRequest,
+  isAccessTokenFresh,
   logoutRequest,
   refreshRequest,
   storeAuthSession,
@@ -36,6 +45,11 @@ const MESSAGE_PAGE_LIMIT = 100;
 const RECENT_MESSAGE_WINDOW_MS = 15000;
 const CHAT_LIST_CONTROLLER_KEY = "chats:list";
 const NEW_CHAT_CONTROLLER_KEY = "send:new";
+const ROUTE_CHAT_CONTROLLER_KEY = "chats:route";
+
+function getRenameControllerKey(chatId: string): string {
+  return `rename:${chatId}`;
+}
 
 type PendingSberCallback = {
   code: string | null;
@@ -240,7 +254,9 @@ export default function App() {
   const chatListOffsetRef = useRef(0);
 
   const [chats, setChats] = useState<Chat[]>([]);
-  const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [activeChatId, setActiveChatId] = useState<string | null>(() =>
+    parseChatIdFromLocation()
+  );
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [loadingChatIds, setLoadingChatIds] = useState<string[]>([]);
   const [animatedMessageId, setAnimatedMessageId] = useState<string | null>(null);
@@ -256,7 +272,7 @@ export default function App() {
   const [sberAuthError, setSberAuthError] = useState("");
   const [isFinalizingSberAuth, setIsFinalizingSberAuth] = useState(false);
   const [isBootstrappingSession, setIsBootstrappingSession] = useState(
-    !initialAuthStateRef.current.token
+    !!initialAuthStateRef.current.token
   );
   const [chatListStatus, setChatListStatus] = useState<
     "idle" | "loading" | "ready" | "error"
@@ -283,7 +299,9 @@ export default function App() {
     [chats, pendingDeleteChatId]
   );
 
-  const showHome = !activeChat;
+  const showHome = activeChatId === null || !isAuthenticated;
+  const isResolvingActiveChat =
+    activeChatId !== null && activeChat === null && isAuthenticated;
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -360,6 +378,7 @@ export default function App() {
       setUserInfo(EMPTY_USER_INFO);
       setChats([]);
       setActiveChatId(null);
+      replaceChatRoute(null);
       setLoadingChatIds([]);
       setAnimatedMessageId(null);
       setIsSidebarOpen(false);
@@ -396,7 +415,13 @@ export default function App() {
 
       setChats((prev) => prev.filter((chat) => chat.id !== chatId));
       setLoadingChatIds((prev) => prev.filter((id) => id !== chatId));
-      setActiveChatId((prev) => (prev === chatId ? null : prev));
+      setActiveChatId((prev) => {
+        if (prev !== chatId) {
+          return prev;
+        }
+        replaceChatRoute(null);
+        return null;
+      });
       setAnimatedMessageId(null);
       updateChatListOffset(Math.max(chatListOffsetRef.current - 1, 0));
     },
@@ -655,7 +680,13 @@ export default function App() {
   useEffect(() => {
     const requestEpoch = requestEpochRef.current;
     const persistedAuthState = readAuthState();
+
     if (!persistedAuthState.token) {
+      setIsBootstrappingSession(false);
+      return;
+    }
+
+    if (isAccessTokenFresh(persistedAuthState.token)) {
       setIsBootstrappingSession(false);
       return;
     }
@@ -672,6 +703,7 @@ export default function App() {
           clearStoredAuthSession();
           setAuthToken(null);
           setUserInfo(EMPTY_USER_INFO);
+          return;
         }
       })
       .finally(() => {
@@ -686,11 +718,33 @@ export default function App() {
       cancelled = true;
     };
   }, [isRequestCurrent]);
+  useEffect(() => {
+    if (!authToken) {
+      return;
+    }
+
+    const expiryMs = decodeJwtExpiry(authToken);
+    if (expiryMs === null) {
+      return;
+    }
+    const msUntilRefresh = Math.max(30_000, expiryMs - Date.now() - 120_000);
+
+    const timerId = setTimeout(() => {
+      refreshRequest().catch((error: unknown) => {
+        if (error instanceof UnauthorizedError) {
+          handleSessionExpired();
+        }
+      });
+    }, msUntilRefresh);
+
+    return () => clearTimeout(timerId);
+  }, [authToken, handleSessionExpired]);
 
   useEffect(() => {
     if (!isAuthenticated) {
       setChats([]);
       setActiveChatId(null);
+      replaceChatRoute(null);
       setLoadingChatIds([]);
       setAnimatedMessageId(null);
       updateChatListOffset(0);
@@ -703,12 +757,94 @@ export default function App() {
     }
 
     setChats([]);
-    setActiveChatId(null);
     setLoadingChatIds([]);
     setAnimatedMessageId(null);
     updateChatListOffset(0);
     void loadChatsPage("reset");
   }, [isAuthenticated, loadChatsPage, updateChatListOffset]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const handlePopState = () => {
+      const nextChatId = parseChatIdFromLocation();
+      setActiveChatId(nextChatId);
+      setAnimatedMessageId(null);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated || !activeChatId || chatListStatus !== "ready") {
+      return;
+    }
+
+    if (chats.some((chat) => chat.id === activeChatId)) {
+      return;
+    }
+
+    const requestEpoch = requestEpochRef.current;
+    const controller = new AbortController();
+    let cancelled = false;
+
+    registerController(ROUTE_CHAT_CONTROLLER_KEY, controller);
+
+    fetchChat(activeChatId, controller.signal)
+      .then((chat) => {
+        if (cancelled || !isRequestCurrent(requestEpoch)) {
+          return;
+        }
+
+        setChats((prev) => mergeIncomingChats(prev, [chat]));
+      })
+      .catch((error: unknown) => {
+        if (cancelled || !isRequestCurrent(requestEpoch)) {
+          return;
+        }
+
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
+        if (error instanceof UnauthorizedError) {
+          handleSessionExpired();
+          return;
+        }
+
+        if (
+          error instanceof ApiError &&
+          (error.status === 403 || error.status === 404)
+        ) {
+          setActiveChatId(null);
+          replaceChatRoute(null);
+          return;
+        }
+
+        setActiveChatId(null);
+        replaceChatRoute(null);
+      })
+      .finally(() => {
+        releaseController(ROUTE_CHAT_CONTROLLER_KEY, controller);
+      });
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [
+    activeChatId,
+    chatListStatus,
+    chats,
+    handleSessionExpired,
+    isAuthenticated,
+    isRequestCurrent,
+    registerController,
+    releaseController,
+  ]);
 
   useEffect(() => {
     if (!activeChatId || !activeChat || !isAuthenticated) {
@@ -902,6 +1038,7 @@ export default function App() {
             prev.includes(targetChatId!) ? prev : [...prev, targetChatId!]
           );
           setActiveChatId(targetChatId);
+          pushChatRoute(targetChatId);
         } else {
           const currentChat = chats.find((chat) => chat.id === targetChatId) ?? null;
           const historyKey = getHistoryControllerKey(targetChatId);
@@ -1068,14 +1205,95 @@ export default function App() {
   );
 
   const handleSelectChat = useCallback((chatId: string) => {
-    setActiveChatId(chatId);
+    setActiveChatId((prev) => {
+      if (prev !== chatId) {
+        pushChatRoute(chatId);
+      }
+      return chatId;
+    });
     setAnimatedMessageId(null);
   }, []);
 
   const handleNewChat = useCallback(() => {
-    setActiveChatId(null);
+    setActiveChatId((prev) => {
+      if (prev !== null) {
+        pushChatRoute(null);
+      }
+      return null;
+    });
     setAnimatedMessageId(null);
   }, []);
+
+  const handleRenameChat = useCallback(
+    async (chatId: string, newTitle: string): Promise<boolean> => {
+      const title = newTitle.trim();
+      if (!title) {
+        return false;
+      }
+
+      const snapshot = chats.find((c) => c.id === chatId);
+      if (!snapshot || snapshot.title === title) {
+        return true;
+      }
+
+      const requestEpoch = requestEpochRef.current;
+      const controller = new AbortController();
+      const controllerKey = getRenameControllerKey(chatId);
+
+      registerController(controllerKey, controller);
+      setChats((prev) =>
+        prev.map((c) => (c.id === chatId ? { ...c, title } : c))
+      );
+
+      try {
+        const updated = await renameChatApi(chatId, title, controller.signal);
+
+        if (controller.signal.aborted || !isRequestCurrent(requestEpoch)) {
+          return false;
+        }
+
+        setChats((prev) =>
+          prev.map((c) =>
+            c.id === chatId ? { ...c, title: updated.title, updatedAt: updated.updatedAt } : c
+          )
+        );
+
+        return true;
+      } catch (error) {
+        if (controller.signal.aborted || !isRequestCurrent(requestEpoch)) {
+          return false;
+        }
+
+        if (error instanceof UnauthorizedError) {
+          handleSessionExpired();
+          return false;
+        }
+
+        if (
+          error instanceof ApiError &&
+          (error.status === 403 || error.status === 404)
+        ) {
+          removeChatFromState(chatId);
+          return false;
+        }
+        setChats((prev) =>
+          prev.map((c) => (c.id === chatId ? { ...c, title: snapshot.title } : c))
+        );
+
+        return false;
+      } finally {
+        releaseController(controllerKey, controller);
+      }
+    },
+    [
+      chats,
+      handleSessionExpired,
+      isRequestCurrent,
+      registerController,
+      releaseController,
+      removeChatFromState,
+    ]
+  );
 
   const handleDeleteChat = useCallback((chatId: string) => {
     setPendingDeleteChatId(chatId);
@@ -1105,6 +1323,9 @@ export default function App() {
       setChats((prev) => prev.filter((chat) => chat.id !== chatId));
       setLoadingChatIds((prev) => prev.filter((id) => id !== chatId));
       setActiveChatId((prev) => (prev === chatId ? null : prev));
+      if (wasActive) {
+        replaceChatRoute(null);
+      }
       setAnimatedMessageId(null);
       updateChatListOffset(Math.max(chatListOffsetRef.current - 1, 0));
 
@@ -1135,6 +1356,7 @@ export default function App() {
 
         if (wasActive) {
           setActiveChatId(chatId);
+          replaceChatRoute(chatId);
         }
       } finally {
         releaseController(deleteKey, controller);
@@ -1184,6 +1406,21 @@ export default function App() {
     []
   );
   const handleCloseSidebar = useCallback(() => setIsSidebarOpen(false), []);
+  const handleCloseSettings = useCallback(() => setIsSettingsModalOpen(false), []);
+  const handleOpenSettings = useCallback(() => setIsSettingsModalOpen(true), []);
+
+  useEffect(() => {
+    if (!pendingDeleteChatId) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setPendingDeleteChatId(null);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [pendingDeleteChatId]);
 
   if (isBootstrappingSession) {
     return (
@@ -1248,6 +1485,7 @@ export default function App() {
         activeChatId={activeChatId}
         onSelectChat={handleSelectChat}
         onNewChat={handleNewChat}
+        onRenameChat={handleRenameChat}
         onDeleteChat={handleDeleteChat}
         userFullName={userFullName}
         isAuthenticated={isAuthenticated}
@@ -1263,8 +1501,8 @@ export default function App() {
 
       <TopBar
         onToggleSidebar={handleToggleSidebar}
-        onSettingsClick={() => setIsSettingsModalOpen(true)}
-        onProfileClick={() => setIsSettingsModalOpen(true)}
+        onSettingsClick={handleOpenSettings}
+        onProfileClick={handleOpenSettings}
         onLoginClick={handleOpenAuth}
         isAuthenticated={isAuthenticated}
         userInitial={userInitial}
@@ -1282,7 +1520,7 @@ export default function App() {
         ) : (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <div className="min-h-0 flex-1">
-              {activeChat && (
+              {activeChat ? (
                 <ChatView
                   chat={activeChat}
                   isLoading={isCurrentChatLoading}
@@ -1290,7 +1528,20 @@ export default function App() {
                   onRetryHistory={handleRetryHistory}
                   onRetryPendingMessage={handleRetryPendingMessage}
                 />
-              )}
+              ) : isResolvingActiveChat ? (
+                <div
+                  className="flex h-full w-full items-center justify-center"
+                  role="status"
+                  aria-live="polite"
+                  aria-label="Загружаем чат"
+                >
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="loading-dot" />
+                    <span className="loading-dot" style={{ animationDelay: "140ms" }} />
+                    <span className="loading-dot" style={{ animationDelay: "280ms" }} />
+                  </span>
+                </div>
+              ) : null}
             </div>
 
             <div
@@ -1322,7 +1573,12 @@ export default function App() {
       </div>
 
       {pendingDeleteChat && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center px-4">
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-dialog-title"
+        >
           <div
             className="absolute inset-0 bg-black/55 backdrop-blur-[4px]"
             onClick={() => setPendingDeleteChatId(null)}
@@ -1363,7 +1619,7 @@ export default function App() {
               </div>
 
               <div className="min-w-0 pt-1">
-                <div className={theme === "dark" ? "text-[22px] font-bold text-slate-50" : "text-[22px] font-bold text-slate-900"}>
+                <div id="delete-dialog-title" className={theme === "dark" ? "text-[22px] font-bold text-slate-50" : "text-[22px] font-bold text-slate-900"}>
                   Удалить чат?
                 </div>
                 <div className={theme === "dark" ? "mt-3 text-[16px] leading-7 text-slate-400" : "mt-3 text-[16px] leading-7 text-slate-600"}>
@@ -1415,7 +1671,7 @@ export default function App() {
 
       <SettingsModal
         isOpen={isSettingsModalOpen}
-        onClose={() => setIsSettingsModalOpen(false)}
+        onClose={handleCloseSettings}
         userName={userFullName}
         onLogout={handleLogout}
         theme={theme}

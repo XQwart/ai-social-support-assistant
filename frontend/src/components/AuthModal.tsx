@@ -129,7 +129,6 @@ function buildSberAuthUrl(params: SberParamsResponse): string {
 
 export function preloadSberAuthParams() {
   void getSberParams().catch(() => {
-    // Ignore warmup errors; modal shows the actual error later.
   });
 }
 
@@ -355,6 +354,17 @@ export default function AuthModal({
                   setConsentError(false);
 
                   if (!authUrl) {
+                    return;
+                  }
+
+                  try {
+                    const parsed = new URL(authUrl);
+                    if (parsed.protocol !== "https:") {
+                      setInitError("Небезопасный адрес для входа через Sber ID. Попробуйте обновить страницу.");
+                      return;
+                    }
+                  } catch {
+                    setInitError("Некорректный адрес для входа через Sber ID. Попробуйте обновить страницу.");
                     return;
                   }
 

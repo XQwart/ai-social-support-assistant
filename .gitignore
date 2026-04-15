@@ -9,3 +9,4 @@ frontend/dist/
 *client_cert*
 *.old*
 ssl/*
+volumes/*

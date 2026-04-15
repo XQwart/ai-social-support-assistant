@@ -20,18 +20,10 @@ export default defineConfig({
     host: "0.0.0.0",
     port: 5173,
     proxy: {
-      "/auth": {
+      "/api": {
         target: "http://localhost:8000",
         changeOrigin: true,
-      },
-      "/chats": {
-        target: "http://localhost:8000",
-        changeOrigin: true,
-      },
-      // Только пути /ai/... — иначе /ai-assistant-avatar.png уходит на бэкенд (404)
-      "^/ai/": {
-        target: "http://localhost:8000",
-        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ""),
       },
     },
     watch: {

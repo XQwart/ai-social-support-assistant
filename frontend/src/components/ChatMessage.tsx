@@ -31,25 +31,7 @@ function formatTime(timestamp: number): string {
 }
 
 async function copyTextToClipboard(value: string): Promise<void> {
-  if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(value);
-    return;
-  }
-
-  const textarea = document.createElement("textarea");
-  textarea.value = value;
-  textarea.setAttribute("readonly", "");
-  textarea.style.position = "fixed";
-  textarea.style.opacity = "0";
-  textarea.style.pointerEvents = "none";
-  textarea.style.top = "0";
-  textarea.style.left = "0";
-
-  document.body.appendChild(textarea);
-  textarea.focus();
-  textarea.select();
-  document.execCommand("copy");
-  document.body.removeChild(textarea);
+  await navigator.clipboard.writeText(value);
 }
 
 function CopyIcon({ className }: { className?: string }) {
@@ -273,16 +255,26 @@ function MarkdownContent({
               {children}
             </blockquote>
           ),
-          a: ({ href, children }) => (
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-emerald-600 underline decoration-emerald-300 underline-offset-2 hover:text-emerald-700"
-            >
-              {children}
-            </a>
-          ),
+          a: ({ href, children }) => {
+            const SAFE_PROTOCOLS = ["https:", "http:", "mailto:", "tel:"];
+            let safeHref: string | undefined;
+            try {
+              const parsed = new URL(href ?? "");
+              safeHref = SAFE_PROTOCOLS.includes(parsed.protocol) ? href : undefined;
+            } catch {
+              safeHref = undefined;
+            }
+            return (
+              <a
+                href={safeHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-emerald-600 underline decoration-emerald-300 underline-offset-2 hover:text-emerald-700"
+              >
+                {children}
+              </a>
+            );
+          },
         }}
       >
         {content}

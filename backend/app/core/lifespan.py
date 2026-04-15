@@ -9,6 +9,7 @@ from .redis import create_redis
 from .logger import setup_logging
 from .http import create_sber_http_client
 from .ai import create_ai_clients
+from .qdrant import create_qdrant_client
 
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,7 @@ async def lifespan(app: FastAPI):
     redis = create_redis(config)
     http_client = create_sber_http_client(config)
     chat_ai_client, compress_ai_client, embedding_ai_client = create_ai_clients(config)
+    qdrant = create_qdrant_client(config)
 
     app.state.db_engine = engine
     app.state.session_maker = session_maker
@@ -34,6 +36,7 @@ async def lifespan(app: FastAPI):
     app.state.chat_ai_client = chat_ai_client
     app.state.compress_ai_client = compress_ai_client
     app.state.embedding_ai_client = embedding_ai_client
+    app.state.qdrant = qdrant
 
     logger.info("Application started successfully")
 
@@ -45,5 +48,6 @@ async def lifespan(app: FastAPI):
         await embedding_ai_client.aclose()
 
         await http_client.aclose()
+        await qdrant.close()
         await redis.aclose()
         await engine.dispose()

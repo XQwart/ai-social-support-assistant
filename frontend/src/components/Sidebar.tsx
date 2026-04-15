@@ -9,6 +9,7 @@ interface SidebarProps {
   activeChatId: string | null;
   onSelectChat: (id: string) => void;
   onNewChat: () => void;
+  onRenameChat: (id: string, newTitle: string) => Promise<boolean>;
   onDeleteChat: (id: string) => void;
   userFullName: string;
   isAuthenticated: boolean;
@@ -40,22 +41,214 @@ function getDateLabel(timestamp: number): string {
 
   const diffDays = Math.floor((startOfToday - startOfDate) / 86400000);
 
-  if (diffDays === 0) {
-    return "Сегодня";
+  if (diffDays === 0) return "Сегодня";
+  if (diffDays === 1) return "Вчера";
+  if (diffDays < 7) return `${diffDays} дн. назад`;
+
+  return date.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+}
+
+interface ChatItemProps {
+  chat: Chat;
+  isActive: boolean;
+  isDark: boolean;
+  onSelect: () => void;
+  onRename: (newTitle: string) => Promise<boolean>;
+  onDelete: () => void;
+}
+
+function ChatItem({ chat, isActive, isDark, onSelect, onRename, onDelete }: ChatItemProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [draftTitle, setDraftTitle] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const committingRef = useRef(false);
+
+  function startEdit() {
+    setDraftTitle(chat.title);
+    setIsEditing(true);
   }
 
-  if (diffDays === 1) {
-    return "Вчера";
+  useEffect(() => {
+    if (isEditing) {
+      requestAnimationFrame(() => {
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      });
+    }
+  }, [isEditing]);
+
+  async function commit() {
+    if (committingRef.current) return;
+    committingRef.current = true;
+
+    const trimmed = draftTitle.trim();
+    if (trimmed && trimmed !== chat.title) {
+      await onRename(trimmed);
+    }
+
+    setIsEditing(false);
+    committingRef.current = false;
   }
 
-  if (diffDays < 7) {
-    return `${diffDays} дн. назад`;
+  function cancel() {
+    committingRef.current = true;
+    setIsEditing(false);
+    setDraftTitle("");
+    setTimeout(() => {
+      committingRef.current = false;
+    }, 0);
   }
 
-  return date.toLocaleDateString("ru-RU", {
-    day: "numeric",
-    month: "long",
-  });
+  function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      void commit();
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      cancel();
+    }
+  }
+
+  function handleBlur() {
+    if (!committingRef.current) {
+      void commit();
+    }
+  }
+
+  return (
+    <div className="group relative">
+      <button
+        type="button"
+        onClick={() => { if (!isEditing) onSelect(); }}
+        className={cn(
+          "w-full cursor-pointer rounded-2xl px-3 py-3 text-left transition-all",
+          isEditing && "pointer-events-none",
+          isActive
+            ? isDark
+              ? "border border-white/10 bg-white/10 shadow-[0_10px_25px_rgba(0,0,0,0.18)]"
+              : "border border-white/75 bg-white/72 shadow-[0_10px_25px_rgba(15,23,42,0.05)]"
+            : isDark
+              ? "border border-transparent bg-transparent hover:bg-white/6"
+              : "border border-transparent bg-transparent hover:bg-white/45"
+        )}
+      >
+        {isEditing ? (
+          <input
+            ref={inputRef}
+            type="text"
+            value={draftTitle}
+            maxLength={255}
+            onChange={(e) => setDraftTitle(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onBlur={handleBlur}
+            onClick={(e) => e.stopPropagation()}
+            className={cn(
+              "w-full rounded-lg px-1.5 py-0.5 text-[13px] font-medium outline-none ring-1",
+              isDark
+                ? "bg-white/10 text-slate-50 ring-emerald-400/50 placeholder:text-slate-500"
+                : "bg-white/80 text-slate-900 ring-emerald-500/40 placeholder:text-slate-400"
+            )}
+            style={{ pointerEvents: "all" }}
+          />
+        ) : (
+          <div
+            className={cn(
+              "truncate pr-16 text-[13px] font-medium",
+              isActive
+                ? isDark ? "text-slate-50" : "text-slate-900"
+                : isDark ? "text-slate-200" : "text-slate-700"
+            )}
+          >
+            {chat.title}
+          </div>
+        )}
+
+        <div className={isDark ? "mt-1 text-[11px] text-slate-500" : "mt-1 text-[11px] text-slate-400"}>
+          {new Date(chat.updatedAt).toLocaleTimeString("ru-RU", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </div>
+      </button>
+      {!isEditing && (
+        <div className="absolute right-2 top-1/2 hidden -translate-y-1/2 items-center gap-1 group-hover:flex">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              startEdit();
+            }}
+            className={cn(
+              "flex h-7 w-7 cursor-pointer items-center justify-center rounded-xl transition-colors",
+              isDark
+                ? "border border-white/10 bg-white/8 text-slate-400 hover:text-sky-400"
+                : "border border-white/60 bg-white/70 text-slate-400 hover:text-sky-500"
+            )}
+            aria-label="Переименовать чат"
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            className={cn(
+              "flex h-7 w-7 cursor-pointer items-center justify-center rounded-xl transition-colors",
+              isDark
+                ? "border border-white/10 bg-white/8 text-slate-400 hover:text-rose-400"
+                : "border border-white/60 bg-white/70 text-slate-400 hover:text-rose-500"
+            )}
+            aria-label="Удалить чат"
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M3 6h18" />
+              <path d="M8 6V4h8v2" />
+              <path d="M6 6l1 14h10l1-14" />
+              <path d="M10 11v5" />
+              <path d="M14 11v5" />
+            </svg>
+          </button>
+        </div>
+      )}
+      {isEditing && (
+        <div className={cn(
+          "absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 text-[10px]",
+          isDark ? "text-slate-500" : "text-slate-400"
+        )}>
+          <kbd className={cn(
+            "rounded px-1 py-0.5 font-mono text-[9px]",
+            isDark ? "bg-white/10" : "bg-black/6"
+          )}>
+            ↵
+          </kbd>
+          <span>сохранить</span>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function Sidebar({
@@ -65,6 +258,7 @@ export default function Sidebar({
   activeChatId,
   onSelectChat,
   onNewChat,
+  onRenameChat,
   onDeleteChat,
   userFullName,
   isAuthenticated,
@@ -83,10 +277,7 @@ export default function Sidebar({
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
-      if (!isOpen) {
-        return;
-      }
-
+      if (!isOpen) return;
       const target = event.target as Node | null;
       if (target && panelRef.current && !panelRef.current.contains(target)) {
         onClose();
@@ -94,18 +285,14 @@ export default function Sidebar({
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
+      if (event.key === "Escape") onClose();
     };
 
     document.addEventListener("mousedown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
 
     const previousOverflow = document.body.style.overflow;
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    }
+    if (isOpen) document.body.style.overflow = "hidden";
 
     return () => {
       document.removeEventListener("mousedown", handlePointerDown);
@@ -116,10 +303,7 @@ export default function Sidebar({
 
   const filteredChats = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) {
-      return chats;
-    }
-
+    if (!query) return chats;
     return chats.filter((chat) => chat.title.toLowerCase().includes(query));
   }, [chats, search]);
 
@@ -138,9 +322,7 @@ export default function Sidebar({
       <div
         className={cn(
           "fixed inset-0 z-40 transition-opacity duration-300",
-          isOpen
-            ? "pointer-events-auto opacity-100"
-            : "pointer-events-none opacity-0"
+          isOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
         )}
         style={{
           backgroundColor: isDark ? "rgba(0,0,0,0.45)" : "rgba(15,23,42,0.10)",
@@ -155,29 +337,26 @@ export default function Sidebar({
           isOpen ? "translate-x-0" : "-translate-x-[105%]"
         )}
         style={{
-          background:
-            isDark
-              ? "linear-gradient(180deg, rgba(11,31,27,0.96) 0%, rgba(8,24,21,0.92) 100%)"
-              : "linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.54) 100%)",
+          background: isDark
+            ? "linear-gradient(180deg, rgba(11,31,27,0.96) 0%, rgba(8,24,21,0.92) 100%)"
+            : "linear-gradient(180deg, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.54) 100%)",
           backdropFilter: isDark ? "blur(28px) saturate(140%)" : "blur(30px) saturate(180%)",
           WebkitBackdropFilter: isDark ? "blur(28px) saturate(140%)" : "blur(30px) saturate(180%)",
           borderRight: isDark ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(255,255,255,0.78)",
           borderTopRightRadius: "28px",
           borderBottomRightRadius: "28px",
-          boxShadow:
-            isDark
-              ? "0 24px 60px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04)"
-              : "0 24px 60px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.65)",
+          boxShadow: isDark
+            ? "0 24px 60px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04)"
+            : "0 24px 60px rgba(15,23,42,0.12), inset 0 1px 0 rgba(255,255,255,0.65)",
         }}
       >
         <div
           className="pointer-events-none absolute inset-0"
           aria-hidden="true"
           style={{
-            background:
-              isDark
-                ? "linear-gradient(160deg, rgba(45,212,191,0.08) 0%, rgba(255,255,255,0.04) 38%, rgba(255,255,255,0) 60%)"
-                : "linear-gradient(160deg, rgba(255,255,255,0.48) 0%, rgba(255,255,255,0.12) 38%, rgba(255,255,255,0) 60%)",
+            background: isDark
+              ? "linear-gradient(160deg, rgba(45,212,191,0.08) 0%, rgba(255,255,255,0.04) 38%, rgba(255,255,255,0) 60%)"
+              : "linear-gradient(160deg, rgba(255,255,255,0.48) 0%, rgba(255,255,255,0.12) 38%, rgba(255,255,255,0) 60%)",
             borderTopRightRadius: "28px",
             borderBottomRightRadius: "28px",
           }}
@@ -205,14 +384,9 @@ export default function Sidebar({
             aria-label="Закрыть меню"
           >
             <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+              width="16" height="16" viewBox="0 0 24 24"
+              fill="none" stroke="currentColor" strokeWidth="2.2"
+              strokeLinecap="round" strokeLinejoin="round"
             >
               <path d="M18 6L6 18" />
               <path d="M6 6L18 18" />
@@ -234,14 +408,9 @@ export default function Sidebar({
                 }}
               >
                 <svg
-                  width="15"
-                  height="15"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="#94a3b8"
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+                  width="15" height="15" viewBox="0 0 24 24"
+                  fill="none" stroke="#94a3b8" strokeWidth="2.2"
+                  strokeLinecap="round" strokeLinejoin="round"
                 >
                   <circle cx="11" cy="11" r="7" />
                   <path d="M20 20L17 17" />
@@ -262,10 +431,7 @@ export default function Sidebar({
             <div className="relative z-10 px-4 pb-4">
               <button
                 type="button"
-                onClick={() => {
-                  onNewChat();
-                  onClose();
-                }}
+                onClick={() => { onNewChat(); onClose(); }}
                 className={cn(
                   "flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl px-3 py-2.5 text-[13px] font-semibold transition-all hover:-translate-y-0.5",
                   isDark
@@ -274,14 +440,9 @@ export default function Sidebar({
                 )}
               >
                 <svg
-                  width="15"
-                  height="15"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+                  width="15" height="15" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" strokeWidth="2.3"
+                  strokeLinecap="round" strokeLinejoin="round"
                 >
                   <path d="M12 5V19" />
                   <path d="M5 12H19" />
@@ -323,83 +484,17 @@ export default function Sidebar({
                     {groupLabel}
                   </div>
                   <div className="space-y-1">
-                    {groupChats.map((chat) => {
-                      const isActive = chat.id === activeChatId;
-                      return (
-                        <div key={chat.id} className="group relative">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              onSelectChat(chat.id);
-                              onClose();
-                            }}
-                            className={cn(
-                              "w-full cursor-pointer rounded-2xl px-3 py-3 text-left transition-all",
-                              isActive
-                                ? isDark
-                                  ? "border border-white/10 bg-white/10 shadow-[0_10px_25px_rgba(0,0,0,0.18)]"
-                                  : "border border-white/75 bg-white/72 shadow-[0_10px_25px_rgba(15,23,42,0.05)]"
-                                : isDark
-                                  ? "border border-transparent bg-transparent hover:bg-white/6"
-                                  : "border border-transparent bg-transparent hover:bg-white/45"
-                            )}
-                          >
-                            <div
-                              className={cn(
-                                "truncate pr-8 text-[13px] font-medium",
-                                isActive
-                                  ? isDark
-                                    ? "text-slate-50"
-                                    : "text-slate-900"
-                                  : isDark
-                                    ? "text-slate-200"
-                                    : "text-slate-700"
-                              )}
-                            >
-                              {chat.title}
-                            </div>
-                            <div className={isDark ? "mt-1 text-[11px] text-slate-500" : "mt-1 text-[11px] text-slate-400"}>
-                              {new Date(chat.updatedAt).toLocaleTimeString(
-                                "ru-RU",
-                                {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                }
-                              )}
-                            </div>
-                          </button>
-
-                            <button
-                              type="button"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                onDeleteChat(chat.id);
-                              }}
-                            className={cn(
-                              "absolute right-2 top-1/2 hidden h-8 w-8 -translate-y-1/2 cursor-pointer items-center justify-center rounded-xl transition-colors group-hover:flex",
-                              isDark
-                                ? "border border-white/10 bg-white/8 text-slate-400 hover:text-rose-400"
-                                : "border border-white/60 bg-white/70 text-slate-400 hover:text-rose-500"
-                            )}
-                            aria-label="Удалить чат"
-                          >
-                            <svg
-                              width="13"
-                              height="13"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2.4"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <path d="M18 6L6 18" />
-                              <path d="M6 6L18 18" />
-                            </svg>
-                          </button>
-                        </div>
-                      );
-                    })}
+                    {groupChats.map((chat) => (
+                      <ChatItem
+                        key={chat.id}
+                        chat={chat}
+                        isActive={chat.id === activeChatId}
+                        isDark={isDark}
+                        onSelect={() => { onSelectChat(chat.id); onClose(); }}
+                        onRename={(newTitle) => onRenameChat(chat.id, newTitle)}
+                        onDelete={() => onDeleteChat(chat.id)}
+                      />
+                    ))}
                   </div>
                 </div>
               ))}
@@ -477,14 +572,9 @@ export default function Sidebar({
                 }}
               >
                 <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="#94a3b8"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+                  width="24" height="24" viewBox="0 0 24 24"
+                  fill="none" stroke="#94a3b8" strokeWidth="1.8"
+                  strokeLinecap="round" strokeLinejoin="round"
                 >
                   <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                   <path d="M7 11V7a5 5 0 0 1 10 0v4" />
@@ -500,21 +590,13 @@ export default function Sidebar({
 
               <button
                 type="button"
-                onClick={() => {
-                  onLoginClick();
-                  onClose();
-                }}
+                onClick={() => { onLoginClick(); onClose(); }}
                 className="flex cursor-pointer items-center justify-center gap-2 rounded-full bg-emerald-500 px-8 py-3 text-[14px] font-semibold text-white shadow-[0_10px_28px_rgba(16,185,129,0.28)] transition-all hover:-translate-y-0.5 hover:bg-emerald-600"
               >
                 <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+                  width="16" height="16" viewBox="0 0 24 24"
+                  fill="none" stroke="currentColor" strokeWidth="2.2"
+                  strokeLinecap="round" strokeLinejoin="round"
                 >
                   <path d="M15 3H19a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
                   <polyline points="10 17 15 12 10 7" />

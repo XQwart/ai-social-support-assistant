@@ -20,7 +20,7 @@ export default function SettingsModal({
   onThemeChange,
 }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
-  const [notifications, setNotifications] = useState(false);
+  const [isCrossContextEnabled, setIsCrossContextEnabled] = useState(false);
   const isDark = theme === "dark";
 
   if (!isOpen) return null;
@@ -239,14 +239,16 @@ export default function SettingsModal({
                 "Использовать единый контекст между чатами",
                 <button
                   type="button"
-                  onClick={() => setNotifications(!notifications)}
+                  role="switch"
+                  aria-checked={isCrossContextEnabled}
+                  onClick={() => setIsCrossContextEnabled((prev) => !prev)}
                   className={`relative h-7 w-12 flex-shrink-0 cursor-pointer rounded-full transition-colors ${
-                    notifications ? "bg-emerald-500" : "bg-slate-300/70"
+                    isCrossContextEnabled ? "bg-emerald-500" : "bg-slate-300/70"
                   }`}
                 >
                   <span
                     className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow-md transition-transform ${
-                      notifications ? "translate-x-5" : "translate-x-0"
+                      isCrossContextEnabled ? "translate-x-5" : "translate-x-0"
                     }`}
                   />
                 </button>,

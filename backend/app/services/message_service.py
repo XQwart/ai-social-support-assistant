@@ -20,6 +20,18 @@ class MessageService:
 
         return messages
 
+    async def get_messages_after_id(
+        self,
+        chat_id: int,
+        after_id: int | None,
+        before_id: int | None = None,
+    ) -> list[MessageModel]:
+        return await self._message_repo.get_after_id(
+            chat_id=chat_id,
+            after_id=after_id,
+            before_id=before_id,
+        )
+
     async def send_message(
         self, chat_id: int, message: str, role: MessageRole
     ) -> MessageModel:
