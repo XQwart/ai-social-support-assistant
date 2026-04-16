@@ -35,6 +35,7 @@ import HomePage from "@/components/HomePage";
 import SettingsModal from "@/components/SettingsModal";
 import Sidebar from "@/components/Sidebar";
 import TopBar from "@/components/TopBar";
+import UserAgreementModal from "@/components/UserAgreementModal";
 import type { Chat, Message } from "@/types";
 
 const AUTH_TOKEN_KEY = "ai-social-support.auth.token";
@@ -269,15 +270,13 @@ export default function App() {
   );
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isUserAgreementOpen, setIsUserAgreementOpen] = useState(false);
   const [sberAuthError, setSberAuthError] = useState("");
   const [isFinalizingSberAuth, setIsFinalizingSberAuth] = useState(false);
-  const [isBootstrappingSession, setIsBootstrappingSession] = useState(
-    !!initialAuthStateRef.current.token
-  );
   const [chatListStatus, setChatListStatus] = useState<
     "idle" | "loading" | "ready" | "error"
   >("idle");
-  const [chatListError, setChatListError] = useState<string | null>(null);
+  const [, setChatListError] = useState<string | null>(null);
   const [hasMoreChats, setHasMoreChats] = useState(false);
   const [isLoadingMoreChats, setIsLoadingMoreChats] = useState(false);
   const [isCreatingChat, setIsCreatingChat] = useState(false);
@@ -383,9 +382,9 @@ export default function App() {
       setAnimatedMessageId(null);
       setIsSidebarOpen(false);
       setIsSettingsModalOpen(false);
+      setIsUserAgreementOpen(false);
       setSberAuthError("");
       setIsFinalizingSberAuth(false);
-      setIsBootstrappingSession(false);
       setChatListStatus("idle");
       setChatListError(null);
       setHasMoreChats(false);
@@ -682,12 +681,10 @@ export default function App() {
     const persistedAuthState = readAuthState();
 
     if (!persistedAuthState.token) {
-      setIsBootstrappingSession(false);
       return;
     }
 
     if (isAccessTokenFresh(persistedAuthState.token)) {
-      setIsBootstrappingSession(false);
       return;
     }
 
@@ -705,13 +702,6 @@ export default function App() {
           setUserInfo(EMPTY_USER_INFO);
           return;
         }
-      })
-      .finally(() => {
-        if (cancelled || !isRequestCurrent(requestEpoch)) {
-          return;
-        }
-
-        setIsBootstrappingSession(false);
       });
 
     return () => {
@@ -1379,10 +1369,6 @@ export default function App() {
     void loadChatsPage("more");
   }, [hasMoreChats, isLoadingMoreChats, loadChatsPage]);
 
-  const handleRetryChats = useCallback(() => {
-    void loadChatsPage(chats.length > 0 ? "more" : "reset");
-  }, [chats.length, loadChatsPage]);
-
   const handleRetryHistory = useCallback(() => {
     if (!activeChatId) {
       return;
@@ -1408,6 +1394,8 @@ export default function App() {
   const handleCloseSidebar = useCallback(() => setIsSidebarOpen(false), []);
   const handleCloseSettings = useCallback(() => setIsSettingsModalOpen(false), []);
   const handleOpenSettings = useCallback(() => setIsSettingsModalOpen(true), []);
+  const handleOpenUserAgreement = useCallback(() => setIsUserAgreementOpen(true), []);
+  const handleCloseUserAgreement = useCallback(() => setIsUserAgreementOpen(false), []);
 
   useEffect(() => {
     if (!pendingDeleteChatId) return;
@@ -1421,51 +1409,6 @@ export default function App() {
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [pendingDeleteChatId]);
-
-  if (isBootstrappingSession) {
-    return (
-      <div
-        className="relative flex h-[100dvh] min-h-screen flex-col overflow-hidden bg-[var(--app-bg)] text-[var(--text-main)]"
-        data-theme={theme}
-      >
-        <div className="app-background" aria-hidden="true">
-          <div className="app-bg-spot app-bg-spot-one" />
-          <div className="app-bg-spot app-bg-spot-two" />
-          <div className="app-bg-spot app-bg-spot-three" />
-        </div>
-
-        <div className="relative z-10 flex flex-1 items-center justify-center px-6">
-          <div
-            className="w-full max-w-md rounded-[32px] px-8 py-10 text-center backdrop-blur-3xl"
-            style={{
-              border: isDarkTheme ? "1px solid rgba(255,255,255,0.08)" : "1px solid rgba(255,255,255,0.7)",
-              background: isDarkTheme
-                ? "rgba(10,24,20,0.84)"
-                : "rgba(255,255,255,0.78)",
-              boxShadow: isDarkTheme
-                ? "0 28px 80px rgba(0,0,0,0.34)"
-                : "0 28px 80px rgba(15,23,42,0.12)",
-            }}
-          >
-            <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#12b981,#0ea5a4)] text-white shadow-[0_18px_40px_rgba(16,185,129,0.26)]">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="loading-dot" />
-                <span className="loading-dot" style={{ animationDelay: "140ms" }} />
-                <span className="loading-dot" style={{ animationDelay: "280ms" }} />
-              </span>
-            </div>
-
-            <h1 className="text-2xl font-black tracking-[-0.03em] text-[var(--text-main)]">
-              Восстанавливаем сессию
-            </h1>
-            <p className="mt-3 text-sm leading-6 text-slate-500">
-              Проверяем сохраненный вход и подготавливаем ваши чаты.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div
@@ -1493,9 +1436,7 @@ export default function App() {
         isLoadingChats={chatListStatus === "loading" && chats.length === 0}
         isLoadingMoreChats={isLoadingMoreChats}
         hasMoreChats={hasMoreChats}
-        chatLoadError={chatListError}
         onLoadMoreChats={handleLoadMoreChats}
-        onRetryLoadChats={handleRetryChats}
         theme={theme}
       />
 
@@ -1510,13 +1451,25 @@ export default function App() {
 
       <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">
         {showHome ? (
-          <HomePage
-            onSend={handleSend}
-            isLoading={isCreatingChat}
-            isAuthenticated={isAuthenticated}
-            onAuthRequired={handleOpenAuth}
-            theme={theme}
-          />
+          <>
+            <HomePage
+              onSend={handleSend}
+              isLoading={isCreatingChat}
+              isAuthenticated={isAuthenticated}
+              onAuthRequired={handleOpenAuth}
+              theme={theme}
+            />
+            <div
+              className="pointer-events-auto fixed bottom-0 left-0 right-0 z-10 hidden px-4 pb-1.5 pt-3 text-center sm:block sm:py-2"
+              style={{
+                background: isDarkTheme
+                  ? "linear-gradient(0deg, rgba(6,17,15,0.97) 55%, transparent)"
+                  : "linear-gradient(0deg, rgba(238,248,241,0.97) 55%, transparent)",
+              }}
+            >
+              <AppDisclaimer className="text-[10px] leading-4 md:text-[11px]" />
+            </div>
+          </>
         ) : (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <div className="min-h-0 flex-1">
@@ -1667,6 +1620,7 @@ export default function App() {
         externalError={sberAuthError}
         isFinalizing={isFinalizingSberAuth}
         onMockLogin={handleMockLogin}
+        onAgreementClick={handleOpenUserAgreement}
       />
 
       <SettingsModal
@@ -1676,6 +1630,13 @@ export default function App() {
         onLogout={handleLogout}
         theme={theme}
         onThemeChange={setTheme}
+        onAgreementClick={handleOpenUserAgreement}
+      />
+
+      <UserAgreementModal
+        isOpen={isUserAgreementOpen}
+        onClose={handleCloseUserAgreement}
+        theme={theme}
       />
     </div>
   );

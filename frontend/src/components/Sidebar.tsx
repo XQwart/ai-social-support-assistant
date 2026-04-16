@@ -17,9 +17,7 @@ interface SidebarProps {
   isLoadingChats: boolean;
   isLoadingMoreChats: boolean;
   hasMoreChats: boolean;
-  chatLoadError: string | null;
   onLoadMoreChats: () => void;
-  onRetryLoadChats: () => void;
   theme: "light" | "dark";
 }
 
@@ -48,20 +46,62 @@ function getDateLabel(timestamp: number): string {
   return date.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
 }
 
+function formatChatTimestamp(timestamp: number, showDate: boolean): string {
+  const date = new Date(timestamp);
+  const time = date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+
+  if (!showDate) return time;
+
+  const d = String(date.getDate()).padStart(2, "0");
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const y = String(date.getFullYear()).slice(-2);
+  return `${d}.${m}.${y} ${time}`;
+}
+
 interface ChatItemProps {
   chat: Chat;
   isActive: boolean;
   isDark: boolean;
+  showDate: boolean;
   onSelect: () => void;
   onRename: (newTitle: string) => Promise<boolean>;
   onDelete: () => void;
 }
 
-function ChatItem({ chat, isActive, isDark, onSelect, onRename, onDelete }: ChatItemProps) {
+function ChatItem({ chat, isActive, isDark, showDate, onSelect, onRename, onDelete }: ChatItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const committingRef = useRef(false);
+
+  const itemClassName = cn(
+    "w-full cursor-pointer rounded-2xl px-3 py-3 text-left transition-all duration-200",
+    isEditing && "pointer-events-none",
+    isActive
+      ? isDark
+        ? "border border-white/10 bg-white/10 shadow-[0_10px_25px_rgba(0,0,0,0.18)]"
+        : "border border-white/80 bg-white/78 shadow-[0_12px_28px_rgba(15,23,42,0.06),inset_0_1px_0_rgba(255,255,255,0.72)]"
+      : isDark
+        ? "border border-transparent bg-transparent hover:border-white/10 hover:bg-white/8 hover:shadow-[0_10px_24px_rgba(0,0,0,0.12)]"
+        : "border border-transparent bg-transparent hover:border-white/75 hover:bg-white/68 hover:shadow-[0_10px_24px_rgba(15,23,42,0.05),inset_0_1px_0_rgba(255,255,255,0.58)]"
+  );
+
+  const actionButtonBaseClassName =
+    "flex h-9 w-9 cursor-pointer items-center justify-center rounded-[14px] border backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0";
+
+  const renameActionButtonClassName = cn(
+    actionButtonBaseClassName,
+    isDark
+      ? "border-white/10 bg-white/8 text-slate-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-emerald-400/28 hover:bg-emerald-400/12 hover:text-emerald-100"
+      : "border-white/78 bg-white/72 text-slate-500 shadow-[0_8px_20px_rgba(15,23,42,0.08),inset_0_1px_0_rgba(255,255,255,0.68)] hover:border-emerald-200/90 hover:bg-emerald-50/90 hover:text-emerald-700"
+  );
+
+  const deleteActionButtonClassName = cn(
+    actionButtonBaseClassName,
+    isDark
+      ? "border-white/10 bg-white/8 text-slate-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-rose-400/28 hover:bg-rose-400/12 hover:text-rose-100"
+      : "border-white/78 bg-white/72 text-slate-500 shadow-[0_8px_20px_rgba(15,23,42,0.08),inset_0_1px_0_rgba(255,255,255,0.68)] hover:border-rose-200/90 hover:bg-rose-50/90 hover:text-rose-700"
+  );
 
   function startEdit() {
     setDraftTitle(chat.title);
@@ -120,17 +160,7 @@ function ChatItem({ chat, isActive, isDark, onSelect, onRename, onDelete }: Chat
       <button
         type="button"
         onClick={() => { if (!isEditing) onSelect(); }}
-        className={cn(
-          "w-full cursor-pointer rounded-2xl px-3 py-3 text-left transition-all",
-          isEditing && "pointer-events-none",
-          isActive
-            ? isDark
-              ? "border border-white/10 bg-white/10 shadow-[0_10px_25px_rgba(0,0,0,0.18)]"
-              : "border border-white/75 bg-white/72 shadow-[0_10px_25px_rgba(15,23,42,0.05)]"
-            : isDark
-              ? "border border-transparent bg-transparent hover:bg-white/6"
-              : "border border-transparent bg-transparent hover:bg-white/45"
-        )}
+        className={itemClassName}
       >
         {isEditing ? (
           <input
@@ -143,17 +173,17 @@ function ChatItem({ chat, isActive, isDark, onSelect, onRename, onDelete }: Chat
             onBlur={handleBlur}
             onClick={(e) => e.stopPropagation()}
             className={cn(
-              "w-full rounded-lg px-1.5 py-0.5 text-[13px] font-medium outline-none ring-1",
+              "w-full truncate border-b pr-24 text-[13px] font-medium outline-none",
               isDark
-                ? "bg-white/10 text-slate-50 ring-emerald-400/50 placeholder:text-slate-500"
-                : "bg-white/80 text-slate-900 ring-emerald-500/40 placeholder:text-slate-400"
+                ? "bg-transparent text-slate-50 border-emerald-400/60"
+                : "bg-transparent text-slate-900 border-emerald-500/50"
             )}
             style={{ pointerEvents: "all" }}
           />
         ) : (
           <div
             className={cn(
-              "truncate pr-16 text-[13px] font-medium",
+              "truncate pr-24 text-[13px] font-medium",
               isActive
                 ? isDark ? "text-slate-50" : "text-slate-900"
                 : isDark ? "text-slate-200" : "text-slate-700"
@@ -164,31 +194,31 @@ function ChatItem({ chat, isActive, isDark, onSelect, onRename, onDelete }: Chat
         )}
 
         <div className={isDark ? "mt-1 text-[11px] text-slate-500" : "mt-1 text-[11px] text-slate-400"}>
-          {new Date(chat.updatedAt).toLocaleTimeString("ru-RU", {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
+          {formatChatTimestamp(chat.updatedAt, showDate)}
         </div>
       </button>
+
       {!isEditing && (
-        <div className="absolute right-2 top-1/2 hidden -translate-y-1/2 items-center gap-1 group-hover:flex">
+        <div
+          className={cn(
+            "absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1.5 transition-all duration-200",
+            isActive
+              ? "translate-x-0 opacity-100"
+              : "pointer-events-none translate-x-1 opacity-0 group-hover:pointer-events-auto group-hover:translate-x-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-x-0 group-focus-within:opacity-100"
+          )}
+        >
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
               startEdit();
             }}
-            className={cn(
-              "flex h-7 w-7 cursor-pointer items-center justify-center rounded-xl transition-colors",
-              isDark
-                ? "border border-white/10 bg-white/8 text-slate-400 hover:text-sky-400"
-                : "border border-white/60 bg-white/70 text-slate-400 hover:text-sky-500"
-            )}
+            className={renameActionButtonClassName}
             aria-label="Переименовать чат"
           >
             <svg
-              width="12"
-              height="12"
+              width="14"
+              height="14"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -206,17 +236,12 @@ function ChatItem({ chat, isActive, isDark, onSelect, onRename, onDelete }: Chat
               e.stopPropagation();
               onDelete();
             }}
-            className={cn(
-              "flex h-7 w-7 cursor-pointer items-center justify-center rounded-xl transition-colors",
-              isDark
-                ? "border border-white/10 bg-white/8 text-slate-400 hover:text-rose-400"
-                : "border border-white/60 bg-white/70 text-slate-400 hover:text-rose-500"
-            )}
+            className={deleteActionButtonClassName}
             aria-label="Удалить чат"
           >
             <svg
-              width="12"
-              height="12"
+              width="14"
+              height="14"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -233,6 +258,7 @@ function ChatItem({ chat, isActive, isDark, onSelect, onRename, onDelete }: Chat
           </button>
         </div>
       )}
+
       {isEditing && (
         <div className={cn(
           "absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 text-[10px]",
@@ -266,9 +292,7 @@ export default function Sidebar({
   isLoadingChats,
   isLoadingMoreChats,
   hasMoreChats,
-  chatLoadError,
   onLoadMoreChats,
-  onRetryLoadChats,
   theme,
 }: SidebarProps) {
   const [search, setSearch] = useState("");
@@ -452,26 +476,6 @@ export default function Sidebar({
             </div>
 
             <div className="relative z-10 custom-scrollbar flex-1 overflow-y-auto px-3 pb-4">
-              {chatLoadError && (
-                <div
-                  className="mb-4 rounded-2xl px-4 py-3 text-sm shadow-[0_10px_24px_rgba(15,23,42,0.04)]"
-                  style={{
-                    border: isDark ? "1px solid rgba(251,191,36,0.20)" : "1px solid rgba(251,191,36,0.80)",
-                    background: isDark ? "rgba(245,158,11,0.10)" : "rgba(255,251,235,0.90)",
-                    color: isDark ? "#fde68a" : "#334155",
-                  }}
-                >
-                  <div>{chatLoadError}</div>
-                  <button
-                    type="button"
-                    onClick={onRetryLoadChats}
-                    className="mt-3 inline-flex cursor-pointer items-center justify-center rounded-full bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white transition-all hover:-translate-y-0.5 hover:bg-amber-600 active:translate-y-0"
-                  >
-                    Повторить
-                  </button>
-                </div>
-              )}
-
               {isLoadingChats && chats.length === 0 && (
                 <div className={isDark ? "px-2 pt-10 text-center text-sm text-slate-500" : "px-2 pt-10 text-center text-sm text-slate-400"}>
                   Загружаем чаты...
@@ -490,6 +494,7 @@ export default function Sidebar({
                         chat={chat}
                         isActive={chat.id === activeChatId}
                         isDark={isDark}
+                        showDate={groupLabel !== "Сегодня"}
                         onSelect={() => { onSelectChat(chat.id); onClose(); }}
                         onRename={(newTitle) => onRenameChat(chat.id, newTitle)}
                         onDelete={() => onDeleteChat(chat.id)}

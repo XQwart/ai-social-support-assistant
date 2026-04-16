@@ -17,17 +17,25 @@ const TYPING_SPEED = 10;
 const TIME_LOCALE = "ru-RU";
 const COPY_RESET_TIMEOUT = 1400;
 
-const TIME_FORMAT: Intl.DateTimeFormatOptions = {
-  hour: "2-digit",
-  minute: "2-digit",
-};
-
 type FeedbackState = "like" | "dislike" | null;
 type FooterAlign = "start" | "center" | "end";
 type IconTone = "neutral" | "positive" | "negative";
 
-function formatTime(timestamp: number): string {
-  return new Date(timestamp).toLocaleTimeString(TIME_LOCALE, TIME_FORMAT);
+function formatTimestamp(timestamp: number): string {
+  const date = new Date(timestamp);
+  const today = new Date();
+  const isToday =
+    date.getFullYear() === today.getFullYear() &&
+    date.getMonth() === today.getMonth() &&
+    date.getDate() === today.getDate();
+
+  const time = date.toLocaleTimeString(TIME_LOCALE, { hour: "2-digit", minute: "2-digit" });
+  if (isToday) return time;
+
+  const d = String(date.getDate()).padStart(2, "0");
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const y = String(date.getFullYear()).slice(-2);
+  return `${d}.${m}.${y} ${time}`;
 }
 
 async function copyTextToClipboard(value: string): Promise<void> {
@@ -109,7 +117,7 @@ function IconActionButton({
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        "inline-flex h-9 w-9 items-center justify-center rounded-xl transition-all cursor-pointer",
+        "inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl transition-all",
         !active && "text-slate-500 hover:bg-slate-900/5 hover:text-slate-700 active:scale-[0.96]",
         active && tone === "positive" && "bg-emerald-50 text-emerald-600 shadow-[0_10px_24px_rgba(16,185,129,0.12)]",
         active && tone === "negative" && "bg-rose-50 text-rose-600 shadow-[0_10px_24px_rgba(244,63,94,0.12)]",
@@ -137,7 +145,6 @@ function MessageFooter({
 
   useEffect(() => {
     if (!copied) return;
-
     const timeoutId = window.setTimeout(() => setCopied(false), COPY_RESET_TIMEOUT);
     return () => window.clearTimeout(timeoutId);
   }, [copied]);
@@ -164,7 +171,7 @@ function MessageFooter({
         align === "start" && "justify-start"
       )}
     >
-      <span className="text-[11px] text-slate-400">{formatTime(timestamp)}</span>
+      <span className="text-[11px] text-slate-400">{formatTimestamp(timestamp)}</span>
 
       <div className="flex items-center gap-0.5">
         <IconActionButton

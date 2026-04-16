@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import DropDown from "@/components/DropDown";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -7,9 +8,19 @@ interface SettingsModalProps {
   onLogout: () => void;
   theme: "light" | "dark";
   onThemeChange: (theme: "light" | "dark") => void;
+  onAgreementClick: () => void;
 }
 
 type SettingsTab = "general" | "privacy" | "about";
+
+const THEME_OPTIONS = [
+  { value: "light", label: "Светлая" },
+  { value: "dark", label: "Тёмная" },
+];
+
+const MODEL_OPTIONS = [
+  { value: "default", label: "По умолчанию" },
+];
 
 export default function SettingsModal({
   isOpen,
@@ -18,6 +29,7 @@ export default function SettingsModal({
   onLogout,
   theme,
   onThemeChange,
+  onAgreementClick,
 }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const [isCrossContextEnabled, setIsCrossContextEnabled] = useState(false);
@@ -66,6 +78,7 @@ export default function SettingsModal({
   const secondarySurface = isDark ? "rgba(255,255,255,0.05)" : "rgba(248,250,252,0.92)";
   const secondaryBorder = isDark ? "rgba(79, 104, 98, 0.8)" : "rgba(203,213,225,0.9)";
   const dividerColor = isDark ? "rgba(73, 97, 91, 0.7)" : "rgba(226,232,240,0.95)";
+
   const renderRow = (
     title: string,
     description: string | null,
@@ -77,9 +90,9 @@ export default function SettingsModal({
       style={{ borderTop: `1px solid ${dividerColor}` }}
     >
       <div className="min-w-0 flex-1">
-        <div className="text-[15px] font-medium text-slate-700">{title}</div>
+        <div className={`text-[15px] font-medium ${isDark ? "text-slate-200" : "text-slate-700"}`}>{title}</div>
         {description ? (
-          <div className="mt-1 max-w-[320px] text-[13px] leading-6 text-slate-400">{description}</div>
+          <div className={`mt-1 max-w-[320px] text-[13px] leading-6 ${isDark ? "text-slate-500" : "text-slate-400"}`}>{description}</div>
         ) : null}
       </div>
       <div className="w-full sm:w-auto">{control}</div>
@@ -94,7 +107,7 @@ export default function SettingsModal({
       />
 
       <div
-        className="relative z-10 flex w-full max-w-[720px] flex-col overflow-hidden rounded-t-[28px] shadow-[0_24px_60px_rgba(15,23,42,0.18)] fade-in-up md:mx-4 md:h-[560px] md:flex-row md:rounded-[24px]"
+        className="relative z-10 flex w-full max-w-[720px] flex-col overflow-hidden rounded-t-[28px] shadow-[0_24px_60px_rgba(15,23,42,0.18)] fade-in-up md:mx-4 md:h-[520px] md:flex-row md:rounded-[24px]"
         style={{
           background: panelBackground,
           backdropFilter: isDark ? "blur(30px) saturate(130%)" : "blur(30px) saturate(165%)",
@@ -104,19 +117,22 @@ export default function SettingsModal({
         }}
       >
         <div
-          className="flex shrink-0 flex-col px-4 pb-0 pt-3 md:w-[248px] md:border-r md:p-4 lg:w-[220px]"
+          className="flex shrink-0 flex-col px-4 pb-0 pt-3 md:w-[220px] md:border-r md:p-4"
           style={{
             borderRightColor: dividerColor,
             background: isDark ? "rgba(255,255,255,0.025)" : "rgba(255,255,255,0.32)",
           }}
         >
-          <div className="mx-auto mb-4 h-1.5 w-[52px] rounded-full bg-white/20 md:hidden" />
+          <div className="mx-auto mb-3 h-1.5 w-[52px] rounded-full bg-white/20 md:hidden" />
 
-          <div className="mb-4 flex items-center justify-between md:mb-6 md:block">
-            <div className="text-[19px] font-semibold text-slate-800 md:mb-6">Настройки</div>
+          <div className="mb-3 flex items-center justify-start md:mb-4">
             <button
               onClick={onClose}
-              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-white/8 hover:text-slate-200 md:h-8 md:w-8 md:rounded-xl md:hover:bg-slate-100/60 md:hover:text-slate-600"
+              className={`flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl transition-colors ${
+                isDark
+                  ? "text-slate-400 hover:bg-white/10 hover:text-slate-200"
+                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-600"
+              }`}
               aria-label="Закрыть"
             >
               <svg
@@ -135,7 +151,7 @@ export default function SettingsModal({
             </button>
           </div>
 
-          <nav className="-mx-1 mb-1 flex gap-2 overflow-x-auto px-1 pb-2 md:mx-0 md:flex-col md:gap-1 md:overflow-visible md:px-0 md:pb-0">
+          <nav className="-mx-1 mb-1 flex gap-2 overflow-x-auto px-1 pb-2 md:mx-0 md:flex-col md:gap-0.5 md:overflow-visible md:px-0 md:pb-0">
             {tabs.map((tab) => {
               const isActive = activeTab === tab.key;
               return (
@@ -143,39 +159,34 @@ export default function SettingsModal({
                   key={tab.key}
                   type="button"
                   onClick={() => setActiveTab(tab.key)}
-                  className={`flex min-w-fit shrink-0 cursor-pointer items-center gap-2.5 rounded-[18px] px-4 py-3 text-left text-[13px] font-medium transition-all md:w-full md:min-w-0 md:shrink md:rounded-xl md:px-3 md:py-2.5 ${
+                  className={`flex h-11 min-w-fit shrink-0 cursor-pointer items-center gap-2.5 rounded-[18px] px-4 text-left text-[13px] font-medium transition-all md:h-10 md:w-full md:min-w-0 md:shrink md:rounded-xl md:px-3 ${
                     isActive
                       ? isDark
-                        ? "text-white md:text-emerald-700"
-                        : "text-slate-700 md:text-emerald-700"
+                        ? "text-emerald-300"
+                        : "text-emerald-700"
                       : isDark
-                        ? "text-white/55 md:text-slate-600"
-                        : "text-slate-500 md:text-slate-600"
+                        ? "text-slate-400 hover:text-slate-200"
+                        : "text-slate-500 hover:text-slate-700"
                   }`}
                   style={{
                     background: isActive
                       ? isDark
-                        ? "rgba(255,255,255,0.08)"
-                        : "rgba(15, 118, 110, 0.12)"
+                        ? "rgba(52,211,153,0.12)"
+                        : "rgba(15,118,110,0.09)"
                       : "transparent",
                   }}
                 >
                   <span
-                    className={
-                      isActive
-                        ? isDark
-                          ? "text-white md:text-emerald-600"
-                          : "text-emerald-700 md:text-emerald-600"
-                        : isDark
-                          ? "text-white/50 md:text-slate-400"
-                          : "text-slate-400"
-                    }
+                    className="shrink-0"
+                    style={{
+                      color: isActive
+                        ? isDark ? "#34d399" : "#0d9488"
+                        : isDark ? "#64748b" : "#94a3b8",
+                    }}
                   >
                     {tab.icon}
                   </span>
-                  <span className="max-w-[160px] truncate whitespace-nowrap md:max-w-none md:whitespace-normal md:break-words md:leading-5">
-                    {tab.label}
-                  </span>
+                  <span className="truncate whitespace-nowrap">{tab.label}</span>
                 </button>
               );
             })}
@@ -184,7 +195,9 @@ export default function SettingsModal({
           <div className="hidden md:mt-auto md:block md:pt-4">
             <button
               onClick={onLogout}
-              className="flex w-full cursor-pointer items-center gap-2 rounded-xl px-3 py-2.5 text-[13px] font-medium text-rose-500 transition-all hover:bg-rose-50/60"
+              className={`flex w-full cursor-pointer items-center gap-2 rounded-xl px-3 py-2.5 text-[13px] font-medium text-rose-500 transition-all ${
+                isDark ? "hover:bg-rose-500/10" : "hover:bg-rose-50/60"
+              }`}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -196,42 +209,32 @@ export default function SettingsModal({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-5 pb-6 pt-2 md:px-6 md:py-6">
+        <div className="flex-1 overflow-y-auto px-5 pb-6 pt-2 md:px-6 md:py-5">
           {activeTab === "general" && (
             <>
-              <h3 className="mb-4 hidden text-lg font-bold text-slate-800 md:block">Общие</h3>
+              <h3 className={`mb-4 hidden text-lg font-bold md:block ${isDark ? "text-slate-50" : "text-slate-800"}`}>Общие</h3>
 
               {renderRow(
                 "Внешний вид",
                 null,
-                <select
+                <DropDown
                   value={theme}
-                  onChange={(event) => onThemeChange(event.target.value as "light" | "dark")}
-                  className="h-12 w-full cursor-pointer rounded-[18px] border px-4 text-[15px] font-semibold outline-none sm:w-auto sm:min-w-[118px]"
-                  style={{
-                    borderColor: secondaryBorder,
-                    backgroundColor: secondarySurface,
-                    color: isDark ? "#d4e3df" : "#475569",
-                  }}
-                >
-                  <option value="light">Светлая</option>
-                  <option value="dark">Тёмная</option>
-                </select>
+                  onChange={(v) => onThemeChange(v as "light" | "dark")}
+                  options={THEME_OPTIONS}
+                  isDark={isDark}
+                />
               )}
 
               {renderRow(
                 "Модель ИИ",
                 "Настройка будет доступна после подключения бэкенда",
-                <select
-                  className="min-h-12 w-full cursor-pointer rounded-[18px] border px-4 py-2 text-[15px] font-semibold outline-none sm:w-auto sm:min-w-[160px]"
-                  style={{
-                    borderColor: secondaryBorder,
-                    backgroundColor: secondarySurface,
-                    color: isDark ? "#d4e3df" : "#475569",
-                  }}
-                >
-                  <option>По умолчанию</option>
-                </select>
+                <DropDown
+                  value="default"
+                  onChange={() => {}}
+                  options={MODEL_OPTIONS}
+                  isDark={isDark}
+                  disabled
+                />
               )}
 
               {renderRow(
@@ -243,7 +246,7 @@ export default function SettingsModal({
                   aria-checked={isCrossContextEnabled}
                   onClick={() => setIsCrossContextEnabled((prev) => !prev)}
                   className={`relative h-7 w-12 flex-shrink-0 cursor-pointer rounded-full transition-colors ${
-                    isCrossContextEnabled ? "bg-emerald-500" : "bg-slate-300/70"
+                    isCrossContextEnabled ? "bg-emerald-500" : isDark ? "bg-white/15" : "bg-slate-300/70"
                   }`}
                 >
                   <span
@@ -259,7 +262,7 @@ export default function SettingsModal({
 
           {activeTab === "privacy" && (
             <>
-              <h3 className="mb-4 hidden text-lg font-bold text-slate-800 md:block">Данные и конфиденциальность</h3>
+              <h3 className={`mb-4 hidden text-lg font-bold md:block ${isDark ? "text-slate-50" : "text-slate-800"}`}>Данные и конфиденциальность</h3>
 
               <div className="space-y-3 pt-1 md:pt-0">
                 {[
@@ -270,22 +273,33 @@ export default function SettingsModal({
                   <div
                     key={title}
                     className="rounded-[22px] border p-4"
-                    style={{
-                      borderColor: secondaryBorder,
-                      background: secondarySurface,
-                    }}
+                    style={{ borderColor: secondaryBorder, background: secondarySurface }}
                   >
-                    <div className="text-[15px] font-medium text-slate-700">{title}</div>
-                    <div className="mt-1 text-[13px] leading-6 text-slate-400">{description}</div>
+                    <div className={`text-[15px] font-medium ${isDark ? "text-slate-200" : "text-slate-700"}`}>{title}</div>
+                    <div className={`mt-1 text-[13px] leading-6 ${isDark ? "text-slate-500" : "text-slate-400"}`}>{description}</div>
                   </div>
                 ))}
+
+                <button
+                  type="button"
+                  onClick={onAgreementClick}
+                  className="w-full rounded-[22px] border p-4 text-left transition-all hover:opacity-80"
+                  style={{ borderColor: secondaryBorder, background: secondarySurface }}
+                >
+                  <div className={`text-[15px] font-medium ${isDark ? "text-emerald-400" : "text-emerald-700"}`}>
+                    Пользовательское соглашение
+                  </div>
+                  <div className={`mt-1 text-[13px] leading-6 ${isDark ? "text-slate-500" : "text-slate-400"}`}>
+                    Прочитать условия использования сервиса
+                  </div>
+                </button>
               </div>
             </>
           )}
 
           {activeTab === "about" && (
             <>
-              <h3 className="mb-4 hidden text-lg font-bold text-slate-800 md:block">О приложении</h3>
+              <h3 className={`mb-4 hidden text-lg font-bold md:block ${isDark ? "text-slate-50" : "text-slate-800"}`}>О приложении</h3>
 
               <div className="space-y-3 pt-1 md:pt-0">
                 {[
@@ -295,13 +309,10 @@ export default function SettingsModal({
                   <div
                     key={title}
                     className="rounded-[22px] border p-4"
-                    style={{
-                      borderColor: secondaryBorder,
-                      background: secondarySurface,
-                    }}
+                    style={{ borderColor: secondaryBorder, background: secondarySurface }}
                   >
-                    <div className="text-[15px] font-medium text-slate-700">{title}</div>
-                    <div className="mt-1 text-[13px] leading-6 text-slate-400">{description}</div>
+                    <div className={`text-[15px] font-medium ${isDark ? "text-slate-200" : "text-slate-700"}`}>{title}</div>
+                    <div className={`mt-1 text-[13px] leading-6 ${isDark ? "text-slate-500" : "text-slate-400"}`}>{description}</div>
                   </div>
                 ))}
               </div>

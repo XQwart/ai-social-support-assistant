@@ -37,10 +37,11 @@ export default function ChatInput({
 
   useEffect(() => {
     const textarea = textareaRef.current;
-    if (!textarea) {
+    if (!textarea) return;
+    if (!value) {
+      textarea.style.height = "";
       return;
     }
-
     textarea.style.height = "auto";
     textarea.style.height = `${Math.min(textarea.scrollHeight, 160)}px`;
   }, [value]);
@@ -67,7 +68,6 @@ export default function ChatInput({
     }
 
     setValidationError("");
-
     setIsSubmitting(true);
 
     try {
@@ -101,22 +101,21 @@ export default function ChatInput({
               ? "border-white/10 bg-[rgba(10,24,20,0.82)]"
               : "border-white/10 bg-[rgba(10,24,20,0.9)] shadow-[0_16px_40px_rgba(0,0,0,0.24)]"
             : mode === "hero"
-              ? "bg-white/84 border-white/80"
-              : "bg-white/86 border-white/84 shadow-[0_16px_40px_rgba(15,23,42,0.08)]"
+              ? "border-white/80 bg-white/84"
+              : "border-white/84 bg-white/86 shadow-[0_16px_40px_rgba(15,23,42,0.08)]"
         )}
       >
         <div
           className="pointer-events-none absolute inset-0 opacity-70"
           aria-hidden="true"
           style={{
-            background:
-              isDark
-                ? mode === "hero"
-                  ? "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)"
-                  : "linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%)"
-                : mode === "hero"
-                  ? "linear-gradient(180deg, rgba(255,255,255,0.56) 0%, rgba(255,255,255,0.12) 100%)"
-                  : "linear-gradient(180deg, rgba(255,255,255,0.68) 0%, rgba(255,255,255,0.18) 100%)",
+            background: isDark
+              ? mode === "hero"
+                ? "linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)"
+                : "linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%)"
+              : mode === "hero"
+                ? "linear-gradient(180deg, rgba(255,255,255,0.56) 0%, rgba(255,255,255,0.12) 100%)"
+                : "linear-gradient(180deg, rgba(255,255,255,0.68) 0%, rgba(255,255,255,0.18) 100%)",
           }}
         />
 
@@ -129,9 +128,7 @@ export default function ChatInput({
             disabled={isBusy}
             onChange={(event) => {
               setValue(event.target.value);
-              if (validationError) {
-                setValidationError("");
-              }
+              if (validationError) setValidationError("");
             }}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {
@@ -141,7 +138,9 @@ export default function ChatInput({
             }}
             className={cn(
               "custom-scrollbar block max-h-40 min-h-[24px] flex-1 resize-none bg-transparent py-[8px] align-middle outline-none",
-              isDark ? "text-[15px] leading-6 text-slate-100 placeholder:text-slate-500" : "text-[15px] leading-6 text-slate-800 placeholder:text-slate-400",
+              isDark
+                ? "text-[15px] leading-6 text-slate-100 placeholder:text-slate-500"
+                : "text-[15px] leading-6 text-slate-800 placeholder:text-slate-400",
               mode === "hero" ? "md:text-base" : ""
             )}
             aria-label="Поле ввода сообщения"
@@ -149,9 +148,7 @@ export default function ChatInput({
 
           <button
             type="button"
-            onClick={() => {
-              void submit();
-            }}
+            onClick={() => void submit()}
             aria-disabled={!canSend}
             className={cn(
               "relative z-10 inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-2xl transition-all",
@@ -189,16 +186,13 @@ export default function ChatInput({
       </div>
 
       {(validationError || wordCount > WORD_LIMIT) && (
-        <div className={cn(
-          "mt-2 px-2 text-xs",
-          isDark ? "text-rose-300" : "text-rose-600"
-        )}>
+        <div className={cn("mt-2 px-2 text-xs", isDark ? "text-rose-300" : "text-rose-600")}>
           {validationError || `Превышен лимит: ${wordCount}/${WORD_LIMIT} слов.`}
         </div>
       )}
 
       {mode === "hero" && (
-        <div className="mt-3 text-center text-xs text-slate-500">
+        <div className="mt-3 hidden text-center text-xs text-slate-500 sm:block">
           Enter — отправить, Shift + Enter — новая строка
         </div>
       )}

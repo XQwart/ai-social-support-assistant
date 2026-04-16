@@ -55,6 +55,11 @@ textarea {
   color: #0f172a;
 }
 
+[data-theme="dark"] ::selection {
+  background: rgba(52, 211, 153, 0.28);
+  color: #ecfdf5;
+}
+
 .app-background {
   position: absolute;
   inset: 0;
@@ -277,6 +282,11 @@ textarea {
   color: var(--text-main);
 }
 
+[data-theme="dark"] select {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: rgba(79, 104, 98, 0.8);
+}
+
 [data-theme="dark"] .text-slate-900,
 [data-theme="dark"] .text-slate-800,
 [data-theme="dark"] .text-slate-700,
@@ -321,6 +331,14 @@ textarea {
 [data-theme="dark"] textarea,
 [data-theme="dark"] select {
   color: #ecfdf5;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 .custom-scrollbar {

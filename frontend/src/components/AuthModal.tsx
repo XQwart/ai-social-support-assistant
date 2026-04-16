@@ -8,6 +8,7 @@ interface AuthModalProps {
   externalError?: string;
   isFinalizing?: boolean;
   onMockLogin?: (token: string, user: UserInfo) => void;
+  onAgreementClick?: () => void;
 }
 
 const API_BASE = getApiBase();
@@ -138,6 +139,7 @@ export default function AuthModal({
   externalError = "",
   isFinalizing = false,
   onMockLogin,
+  onAgreementClick,
 }: AuthModalProps) {
   const isDark =
     typeof document !== "undefined" &&
@@ -437,6 +439,22 @@ export default function AuthModal({
                   >
                     текстом согласия
                   </a>
+                  {onAgreementClick && (
+                    <>
+                      {" "}и{" "}
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          onAgreementClick();
+                        }}
+                        className="cursor-pointer font-medium text-emerald-700 underline underline-offset-2 transition-opacity hover:opacity-80"
+                      >
+                        пользовательским соглашением
+                      </button>
+                    </>
+                  )}
                   .
                 </span>
               </label>
