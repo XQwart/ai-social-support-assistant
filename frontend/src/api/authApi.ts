@@ -2,7 +2,7 @@ import { getApiBase } from "@/api/base";
 import { UnauthorizedError } from "@/api/errors";
 
 const API_BASE = getApiBase();
-const AUTH_TOKEN_KEY = "ai-social-support.auth.token";
+export const AUTH_TOKEN_KEY = "ai-social-support.auth.token";
 const AUTH_USER_KEY = "ai-social-support.auth.user";
 const AUTH_SESSION_EVENT = "ai-social-support:auth-session";
 
@@ -103,6 +103,29 @@ export async function exchangeSberCodeRequest(
     token: data.token,
     user: parseUserInfo(data.user),
   };
+}
+
+const JWT_EXPIRY_BUFFER_MS = 60_000;
+
+export function decodeJwtExpiry(token: string): number | null {
+  try {
+    const b64 = token.split(".")[1];
+    if (!b64) return null;
+    const normalized = b64.replace(/-/g, "+").replace(/_/g, "/");
+    const payload = JSON.parse(atob(normalized)) as Record<string, unknown>;
+    return typeof payload.exp === "number" ? payload.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
+export function isAccessTokenFresh(
+  token: string,
+  bufferMs = JWT_EXPIRY_BUFFER_MS
+): boolean {
+  const expiryMs = decodeJwtExpiry(token);
+  if (expiryMs === null) return false;
+  return Date.now() < expiryMs - bufferMs;
 }
 
 export async function refreshRequest(): Promise<AuthSession> {

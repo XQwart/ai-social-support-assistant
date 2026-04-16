@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 
-import { AssistantAvatar } from "@/components/AssistantAvatar";
 import TypingAnimation from "@/components/TypingAnimation";
 
 import type { Message } from "@/types";
@@ -18,39 +17,29 @@ const TYPING_SPEED = 10;
 const TIME_LOCALE = "ru-RU";
 const COPY_RESET_TIMEOUT = 1400;
 
-const TIME_FORMAT: Intl.DateTimeFormatOptions = {
-  hour: "2-digit",
-  minute: "2-digit",
-};
-
 type FeedbackState = "like" | "dislike" | null;
 type FooterAlign = "start" | "center" | "end";
 type IconTone = "neutral" | "positive" | "negative";
 
-function formatTime(timestamp: number): string {
-  return new Date(timestamp).toLocaleTimeString(TIME_LOCALE, TIME_FORMAT);
+function formatTimestamp(timestamp: number): string {
+  const date = new Date(timestamp);
+  const today = new Date();
+  const isToday =
+    date.getFullYear() === today.getFullYear() &&
+    date.getMonth() === today.getMonth() &&
+    date.getDate() === today.getDate();
+
+  const time = date.toLocaleTimeString(TIME_LOCALE, { hour: "2-digit", minute: "2-digit" });
+  if (isToday) return time;
+
+  const d = String(date.getDate()).padStart(2, "0");
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const y = String(date.getFullYear()).slice(-2);
+  return `${d}.${m}.${y} ${time}`;
 }
 
 async function copyTextToClipboard(value: string): Promise<void> {
-  if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(value);
-    return;
-  }
-
-  const textarea = document.createElement("textarea");
-  textarea.value = value;
-  textarea.setAttribute("readonly", "");
-  textarea.style.position = "fixed";
-  textarea.style.opacity = "0";
-  textarea.style.pointerEvents = "none";
-  textarea.style.top = "0";
-  textarea.style.left = "0";
-
-  document.body.appendChild(textarea);
-  textarea.focus();
-  textarea.select();
-  document.execCommand("copy");
-  document.body.removeChild(textarea);
+  await navigator.clipboard.writeText(value);
 }
 
 function CopyIcon({ className }: { className?: string }) {
@@ -128,7 +117,7 @@ function IconActionButton({
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        "inline-flex h-9 w-9 items-center justify-center rounded-xl transition-all cursor-pointer",
+        "inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl transition-all",
         !active && "text-slate-500 hover:bg-slate-900/5 hover:text-slate-700 active:scale-[0.96]",
         active && tone === "positive" && "bg-emerald-50 text-emerald-600 shadow-[0_10px_24px_rgba(16,185,129,0.12)]",
         active && tone === "negative" && "bg-rose-50 text-rose-600 shadow-[0_10px_24px_rgba(244,63,94,0.12)]",
@@ -156,7 +145,6 @@ function MessageFooter({
 
   useEffect(() => {
     if (!copied) return;
-
     const timeoutId = window.setTimeout(() => setCopied(false), COPY_RESET_TIMEOUT);
     return () => window.clearTimeout(timeoutId);
   }, [copied]);
@@ -183,7 +171,7 @@ function MessageFooter({
         align === "start" && "justify-start"
       )}
     >
-      <span className="text-[11px] text-slate-400">{formatTime(timestamp)}</span>
+      <span className="text-[11px] text-slate-400">{formatTimestamp(timestamp)}</span>
 
       <div className="flex items-center gap-0.5">
         <IconActionButton
@@ -274,16 +262,26 @@ function MarkdownContent({
               {children}
             </blockquote>
           ),
-          a: ({ href, children }) => (
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-emerald-600 underline decoration-emerald-300 underline-offset-2 hover:text-emerald-700"
-            >
-              {children}
-            </a>
-          ),
+          a: ({ href, children }) => {
+            const SAFE_PROTOCOLS = ["https:", "http:", "mailto:", "tel:"];
+            let safeHref: string | undefined;
+            try {
+              const parsed = new URL(href ?? "");
+              safeHref = SAFE_PROTOCOLS.includes(parsed.protocol) ? href : undefined;
+            } catch {
+              safeHref = undefined;
+            }
+            return (
+              <a
+                href={safeHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-emerald-600 underline decoration-emerald-300 underline-offset-2 hover:text-emerald-700"
+              >
+                {children}
+              </a>
+            );
+          },
         }}
       >
         {content}
@@ -345,13 +343,9 @@ export default function ChatMessage({
       <div
         className={cn(
           "max-w-[92%] min-w-0 md:max-w-[82%]",
-          !isUser && "flex items-start gap-4"
+          !isUser && "flex items-start"
         )}
       >
-        {!isUser && (
-          <AssistantAvatar className="mt-0.5" variant={isError ? "error" : "default"} />
-        )}
-
         <div className="min-w-0">
           <div
             className={cn(

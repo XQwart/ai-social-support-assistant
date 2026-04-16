@@ -1,10 +1,9 @@
 import { getApiBase } from "@/api/base";
 import type { Chat, Message } from "@/types";
 import { ApiError } from "@/api/errors";
-import { refreshRequest } from "@/api/authApi";
+import { AUTH_TOKEN_KEY, refreshRequest } from "@/api/authApi";
 
 const API_BASE = getApiBase();
-const AUTH_TOKEN_KEY = "ai-social-support.auth.token";
 
 let refreshPromise: Promise<string> | null = null;
 
@@ -26,8 +25,8 @@ async function getFreshAccessToken(): Promise<string> {
     refreshPromise = refreshRequest()
       .then((session) => session.token)
       .finally(() => {
-      refreshPromise = null;
-    });
+        refreshPromise = null;
+      });
   }
   return refreshPromise;
 }
@@ -133,14 +132,28 @@ export async function createChat(
   };
 }
 
+export async function fetchChat(
+  chatId: string,
+  signal?: AbortSignal
+): Promise<Chat> {
+  const res = await authFetch(
+    `${API_BASE}/chats/${encodeURIComponent(chatId)}`,
+    { signal }
+  );
+
+  await ensureOk(res, "Не удалось загрузить чат");
+
+  const data = await res.json();
+  return createChatState(data);
+}
+
 export async function fetchChats(
   limit = 100,
   offset = 0,
   signal?: AbortSignal
 ): Promise<ChatsPage> {
-  const res = await authFetch(`${API_BASE}/chats/?limit=${limit}&offset=${offset}`, {
-    signal,
-  });
+  const qs = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  const res = await authFetch(`${API_BASE}/chats/?${qs}`, { signal });
 
   await ensureOk(res, "Не удалось загрузить список чатов");
 
@@ -169,11 +182,10 @@ export async function fetchMessages(
   offset = 0,
   signal?: AbortSignal
 ): Promise<MessagesPage> {
+  const qs = new URLSearchParams({ limit: String(limit), offset: String(offset) });
   const res = await authFetch(
-    `${API_BASE}/chats/${chatId}/messages?limit=${limit}&offset=${offset}`,
-    {
-    signal,
-    }
+    `${API_BASE}/chats/${encodeURIComponent(chatId)}/messages?${qs}`,
+    { signal }
   );
 
   await ensureOk(res, "Не удалось загрузить сообщения");
@@ -201,7 +213,7 @@ export async function sendMessageToChat(
   content: string,
   signal?: AbortSignal
 ): Promise<{ userMsg: Message; assistantMsg: Message; contextCompressed: boolean }> {
-  const res = await authFetch(`${API_BASE}/chats/${chatId}/messages`, {
+  const res = await authFetch(`${API_BASE}/chats/${encodeURIComponent(chatId)}/messages`, {
     method: "POST",
     body: JSON.stringify({ content }),
     signal,
@@ -232,11 +244,28 @@ export async function sendMessageToChat(
   };
 }
 
+export async function renameChat(
+  chatId: string,
+  title: string,
+  signal?: AbortSignal
+): Promise<Chat> {
+  const res = await authFetch(`${API_BASE}/chats/${encodeURIComponent(chatId)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ title }),
+    signal,
+  });
+
+  await ensureOk(res, "Не удалось переименовать чат");
+
+  const data = await res.json();
+  return createChatState(data);
+}
+
 export async function deleteChat(
   chatId: string,
   signal?: AbortSignal
 ): Promise<void> {
-  const res = await authFetch(`${API_BASE}/chats/${chatId}`, {
+  const res = await authFetch(`${API_BASE}/chats/${encodeURIComponent(chatId)}`, {
     method: "DELETE",
     signal,
   });

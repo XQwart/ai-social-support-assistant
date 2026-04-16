@@ -1,26 +1,43 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import DropDown from "@/components/DropDown";
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   userName: string;
   onLogout: () => void;
+  theme: "light" | "dark";
+  onThemeChange: (theme: "light" | "dark") => void;
+  onAgreementClick: () => void;
 }
 
 type SettingsTab = "general" | "privacy" | "about";
+
+const THEME_OPTIONS = [
+  { value: "light", label: "Светлая" },
+  { value: "dark", label: "Тёмная" },
+];
+
+const MODEL_OPTIONS = [
+  { value: "default", label: "По умолчанию" },
+];
 
 export default function SettingsModal({
   isOpen,
   onClose,
   userName,
   onLogout,
+  theme,
+  onThemeChange,
+  onAgreementClick,
 }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
-  const [notifications, setNotifications] = useState(false);
+  const [isCrossContextEnabled, setIsCrossContextEnabled] = useState(false);
+  const isDark = theme === "dark";
 
   if (!isOpen) return null;
 
-  const tabs: { key: SettingsTab; label: string; icon: React.ReactNode }[] = [
+  const tabs: { key: SettingsTab; label: string; icon: ReactNode }[] = [
     {
       key: "general",
       label: "Общие",
@@ -33,11 +50,10 @@ export default function SettingsModal({
     },
     {
       key: "privacy",
-      label: "Данные и конфиден...",
+      label: "Данные и конфиденциальность",
       icon: (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          <path d="M12 3l7 4v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V7l7-4Z" />
         </svg>
       ),
     },
@@ -54,69 +70,134 @@ export default function SettingsModal({
     },
   ];
 
+  const panelBackground = isDark
+    ? "linear-gradient(180deg, rgba(13,42,37,0.98) 0%, rgba(10,32,28,0.98) 100%)"
+    : "linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(244,248,246,0.98) 100%)";
+
+  const panelBorder = isDark ? "1px solid rgba(70, 98, 92, 0.75)" : "1px solid rgba(226,232,240,0.95)";
+  const secondarySurface = isDark ? "rgba(255,255,255,0.05)" : "rgba(248,250,252,0.92)";
+  const secondaryBorder = isDark ? "rgba(79, 104, 98, 0.8)" : "rgba(203,213,225,0.9)";
+  const dividerColor = isDark ? "rgba(73, 97, 91, 0.7)" : "rgba(226,232,240,0.95)";
+
+  const renderRow = (
+    title: string,
+    description: string | null,
+    control: ReactNode,
+    stacked = false
+  ) => (
+    <div
+      className={`flex gap-4 py-5 ${stacked ? "flex-col items-start" : "flex-col items-start sm:flex-row sm:items-center sm:justify-between"}`}
+      style={{ borderTop: `1px solid ${dividerColor}` }}
+    >
+      <div className="min-w-0 flex-1">
+        <div className={`text-[15px] font-medium ${isDark ? "text-slate-200" : "text-slate-700"}`}>{title}</div>
+        {description ? (
+          <div className={`mt-1 max-w-[320px] text-[13px] leading-6 ${isDark ? "text-slate-500" : "text-slate-400"}`}>{description}</div>
+        ) : null}
+      </div>
+      <div className="w-full sm:w-auto">{control}</div>
+    </div>
+  );
+
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center">
+    <div className="fixed inset-0 z-[60] flex items-end justify-center md:items-center">
       <div
-        className="absolute inset-0 bg-black/30 backdrop-blur-[2px]"
+        className="absolute inset-0 bg-black/38 backdrop-blur-[3px]"
         onClick={onClose}
       />
 
       <div
-        className="relative z-10 mx-4 flex w-full max-w-[720px] overflow-hidden rounded-[24px] shadow-[0_24px_60px_rgba(15,23,42,0.14)] fade-in-up"
+        className="relative z-10 flex w-full max-w-[720px] flex-col overflow-hidden rounded-t-[28px] shadow-[0_24px_60px_rgba(15,23,42,0.18)] fade-in-up md:mx-4 md:h-[520px] md:flex-row md:rounded-[24px]"
         style={{
-          background:
-            "linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.88) 100%)",
-          backdropFilter: "blur(30px) saturate(180%)",
-          WebkitBackdropFilter: "blur(30px) saturate(180%)",
-          border: "1px solid rgba(255,255,255,0.7)",
-          height: "560px",
+          background: panelBackground,
+          backdropFilter: isDark ? "blur(30px) saturate(130%)" : "blur(30px) saturate(165%)",
+          WebkitBackdropFilter: isDark ? "blur(30px) saturate(130%)" : "blur(30px) saturate(165%)",
+          border: panelBorder,
+          maxHeight: "92vh",
         }}
       >
-        <div className="flex w-[200px] flex-shrink-0 flex-col border-r border-slate-100/80 bg-white/30 p-4">
-          <button
-            onClick={onClose}
-            className="mb-4 flex h-8 w-8 cursor-pointer items-center justify-center rounded-xl text-slate-400 transition-colors hover:bg-slate-100/60 hover:text-slate-600"
-            aria-label="Закрыть"
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M18 6L6 18" />
-              <path d="M6 6L18 18" />
-            </svg>
-          </button>
+        <div
+          className="flex shrink-0 flex-col px-4 pb-0 pt-3 md:w-[220px] md:border-r md:p-4"
+          style={{
+            borderRightColor: dividerColor,
+            background: isDark ? "rgba(255,255,255,0.025)" : "rgba(255,255,255,0.32)",
+          }}
+        >
+          <div className="mx-auto mb-3 h-1.5 w-[52px] rounded-full bg-white/20 md:hidden" />
 
-          <nav className="flex flex-col gap-1">
-            {tabs.map((t) => (
-              <button
-                key={t.key}
-                type="button"
-                onClick={() => setActiveTab(t.key)}
-                className={`flex cursor-pointer items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[13px] font-medium transition-all ${
-                  activeTab === t.key
-                    ? "bg-emerald-500/10 text-emerald-700"
-                    : "text-slate-600 hover:bg-slate-100/60"
-                }`}
+          <div className="mb-3 flex items-center justify-start md:mb-4">
+            <button
+              onClick={onClose}
+              className={`flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl transition-colors ${
+                isDark
+                  ? "text-slate-400 hover:bg-white/10 hover:text-slate-200"
+                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-600"
+              }`}
+              aria-label="Закрыть"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               >
-                <span className={activeTab === t.key ? "text-emerald-600" : "text-slate-400"}>
-                  {t.icon}
-                </span>
-                {t.label}
-              </button>
-            ))}
+                <path d="M18 6L6 18" />
+                <path d="M6 6L18 18" />
+              </svg>
+            </button>
+          </div>
+
+          <nav className="-mx-1 mb-1 flex gap-2 overflow-x-auto px-1 pb-2 md:mx-0 md:flex-col md:gap-0.5 md:overflow-visible md:px-0 md:pb-0">
+            {tabs.map((tab) => {
+              const isActive = activeTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`flex h-11 min-w-fit shrink-0 cursor-pointer items-center gap-2.5 rounded-[18px] px-4 text-left text-[13px] font-medium transition-all md:h-10 md:w-full md:min-w-0 md:shrink md:rounded-xl md:px-3 ${
+                    isActive
+                      ? isDark
+                        ? "text-emerald-300"
+                        : "text-emerald-700"
+                      : isDark
+                        ? "text-slate-400 hover:text-slate-200"
+                        : "text-slate-500 hover:text-slate-700"
+                  }`}
+                  style={{
+                    background: isActive
+                      ? isDark
+                        ? "rgba(52,211,153,0.12)"
+                        : "rgba(15,118,110,0.09)"
+                      : "transparent",
+                  }}
+                >
+                  <span
+                    className="shrink-0"
+                    style={{
+                      color: isActive
+                        ? isDark ? "#34d399" : "#0d9488"
+                        : isDark ? "#64748b" : "#94a3b8",
+                    }}
+                  >
+                    {tab.icon}
+                  </span>
+                  <span className="truncate whitespace-nowrap">{tab.label}</span>
+                </button>
+              );
+            })}
           </nav>
 
-          <div className="mt-auto pt-4">
+          <div className="hidden md:mt-auto md:block md:pt-4">
             <button
               onClick={onLogout}
-              className="flex w-full cursor-pointer items-center gap-2 rounded-xl px-3 py-2.5 text-[13px] font-medium text-rose-500 transition-all hover:bg-rose-50/60"
+              className={`flex w-full cursor-pointer items-center gap-2 rounded-xl px-3 py-2.5 text-[13px] font-medium text-rose-500 transition-all ${
+                isDark ? "hover:bg-rose-500/10" : "hover:bg-rose-50/60"
+              }`}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -128,130 +209,128 @@ export default function SettingsModal({
           </div>
         </div>
 
-        <div className="flex-1 p-6">
+        <div className="flex-1 overflow-y-auto px-5 pb-6 pt-2 md:px-6 md:py-5">
           {activeTab === "general" && (
             <>
-              <h3 className="mb-6 text-lg font-bold text-slate-800">Общие</h3>
+              <h3 className={`mb-4 hidden text-lg font-bold md:block ${isDark ? "text-slate-50" : "text-slate-800"}`}>Общие</h3>
 
-              <div className="space-y-5">
-                <div className="flex items-center justify-between">
-                  <span className="text-[14px] font-medium text-slate-700">
-                    Внешний вид
-                  </span>
-                  <select className="cursor-pointer rounded-xl border border-slate-200/80 bg-white/70 px-4 py-2 text-[13px] text-slate-600 outline-none">
-                    <option>Светлая</option>
-                  </select>
-                </div>
+              {renderRow(
+                "Внешний вид",
+                null,
+                <DropDown
+                  value={theme}
+                  onChange={(v) => onThemeChange(v as "light" | "dark")}
+                  options={THEME_OPTIONS}
+                  isDark={isDark}
+                />
+              )}
 
-                <div className="h-px bg-slate-100/80" />
+              {renderRow(
+                "Модель ИИ",
+                "Настройка будет доступна после подключения бэкенда",
+                <DropDown
+                  value="default"
+                  onChange={() => {}}
+                  options={MODEL_OPTIONS}
+                  isDark={isDark}
+                  disabled
+                />
+              )}
 
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-[14px] font-medium text-slate-700">
-                      Модель ИИ
-                    </div>
-                    <div className="mt-0.5 text-[12px] text-slate-400">
-                      Настройка будет доступна после подключения бэкенда
-                    </div>
-                  </div>
-                  <select className="cursor-pointer rounded-xl border border-slate-200/80 bg-white/70 px-4 py-2 text-[13px] text-slate-600 outline-none">
-                    <option>По умолчанию</option>
-                  </select>
-                </div>
-
-                <div className="h-px bg-slate-100/80" />
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-[14px] font-medium text-slate-700">
-                      Сквозное контекстное меню
-                    </div>
-                    <div className="mt-0.5 text-[12px] text-slate-400">
-                      Использовать единый контекст между чатами
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setNotifications(!notifications)}
-                    className={`relative h-6 w-11 flex-shrink-0 cursor-pointer rounded-full transition-colors ${
-                      notifications ? "bg-emerald-500" : "bg-slate-300/70"
+              {renderRow(
+                "Сквозное контекстное меню",
+                "Использовать единый контекст между чатами",
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={isCrossContextEnabled}
+                  onClick={() => setIsCrossContextEnabled((prev) => !prev)}
+                  className={`relative h-7 w-12 flex-shrink-0 cursor-pointer rounded-full transition-colors ${
+                    isCrossContextEnabled ? "bg-emerald-500" : isDark ? "bg-white/15" : "bg-slate-300/70"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow-md transition-transform ${
+                      isCrossContextEnabled ? "translate-x-5" : "translate-x-0"
                     }`}
-                  >
-                    <span
-                      className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow-md transition-transform ${
-                        notifications ? "translate-x-5" : "translate-x-0"
-                      }`}
-                    />
-                  </button>
-                </div>
-              </div>
+                  />
+                </button>,
+                true
+              )}
             </>
           )}
 
           {activeTab === "privacy" && (
             <>
-              <h3 className="mb-6 text-lg font-bold text-slate-800">
-                Данные и конфиденциальность
-              </h3>
+              <h3 className={`mb-4 hidden text-lg font-bold md:block ${isDark ? "text-slate-50" : "text-slate-800"}`}>Данные и конфиденциальность</h3>
 
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-slate-100/80 bg-white/50 p-4">
-                  <div className="text-[14px] font-medium text-slate-700">
-                    Аккаунт
+              <div className="space-y-3 pt-1 md:pt-0">
+                {[
+                  ["Аккаунт", userName],
+                  ["Политика конфиденциальности", "Ссылка будет добавлена позже"],
+                  ["Удалить данные", "Удалить историю чатов и данные аккаунта"],
+                ].map(([title, description]) => (
+                  <div
+                    key={title}
+                    className="rounded-[22px] border p-4"
+                    style={{ borderColor: secondaryBorder, background: secondarySurface }}
+                  >
+                    <div className={`text-[15px] font-medium ${isDark ? "text-slate-200" : "text-slate-700"}`}>{title}</div>
+                    <div className={`mt-1 text-[13px] leading-6 ${isDark ? "text-slate-500" : "text-slate-400"}`}>{description}</div>
                   </div>
-                  <div className="mt-1 text-[13px] text-slate-500">
-                    {userName}
-                  </div>
-                </div>
+                ))}
 
-                <div className="rounded-2xl border border-slate-100/80 bg-white/50 p-4">
-                  <div className="text-[14px] font-medium text-slate-700">
-                    Политика конфиденциальности
+                <button
+                  type="button"
+                  onClick={onAgreementClick}
+                  className="w-full rounded-[22px] border p-4 text-left transition-all hover:opacity-80"
+                  style={{ borderColor: secondaryBorder, background: secondarySurface }}
+                >
+                  <div className={`text-[15px] font-medium ${isDark ? "text-emerald-400" : "text-emerald-700"}`}>
+                    Пользовательское соглашение
                   </div>
-                  <div className="mt-1 text-[13px] text-slate-400">
-                    Ссылка будет добавлена позже
+                  <div className={`mt-1 text-[13px] leading-6 ${isDark ? "text-slate-500" : "text-slate-400"}`}>
+                    Прочитать условия использования сервиса
                   </div>
-                </div>
-
-                <div className="rounded-2xl border border-slate-100/80 bg-white/50 p-4">
-                  <div className="text-[14px] font-medium text-slate-700">
-                    Удалить данные
-                  </div>
-                  <div className="mt-1 text-[13px] text-slate-400">
-                    Удалить историю чатов и данные аккаунта
-                  </div>
-                </div>
+                </button>
               </div>
             </>
           )}
 
           {activeTab === "about" && (
             <>
-              <h3 className="mb-6 text-lg font-bold text-slate-800">
-                О приложении
-              </h3>
+              <h3 className={`mb-4 hidden text-lg font-bold md:block ${isDark ? "text-slate-50" : "text-slate-800"}`}>О приложении</h3>
 
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-slate-100/80 bg-white/50 p-4">
-                  <div className="text-[14px] font-medium text-slate-700">
-                    ИИ-помощник по социальной поддержке
+              <div className="space-y-3 pt-1 md:pt-0">
+                {[
+                  ["ИИ-помощник по социальной поддержке", "Версия 0.1.0"],
+                  ["Разработчики", "Команда проекта"],
+                ].map(([title, description]) => (
+                  <div
+                    key={title}
+                    className="rounded-[22px] border p-4"
+                    style={{ borderColor: secondaryBorder, background: secondarySurface }}
+                  >
+                    <div className={`text-[15px] font-medium ${isDark ? "text-slate-200" : "text-slate-700"}`}>{title}</div>
+                    <div className={`mt-1 text-[13px] leading-6 ${isDark ? "text-slate-500" : "text-slate-400"}`}>{description}</div>
                   </div>
-                  <div className="mt-1 text-[13px] text-slate-400">
-                    Версия 0.1.0
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-slate-100/80 bg-white/50 p-4">
-                  <div className="text-[14px] font-medium text-slate-700">
-                    Разработчики
-                  </div>
-                  <div className="mt-1 text-[13px] text-slate-400">
-                    Команда проекта
-                  </div>
-                </div>
+                ))}
               </div>
             </>
           )}
+
+          <div className="pt-5 md:hidden">
+            <button
+              onClick={onLogout}
+              className="flex h-12 w-full cursor-pointer items-center justify-center rounded-[18px] border text-[15px] font-semibold text-rose-400 transition-all"
+              style={{
+                borderColor: "rgba(251, 113, 133, 0.18)",
+                background: isDark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.75)",
+              }}
+            >
+              Выйти
+            </button>
+          </div>
         </div>
       </div>
     </div>
