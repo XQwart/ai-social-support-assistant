@@ -4,7 +4,7 @@ from app.dependencies.chat import OwnerChatDep
 from app.dependencies.auth import AuthDep
 from app.dependencies.services import ChatServiceDep
 from app.exceptions.base_exceptions import NotFoundError
-from app.schemas.chat_schemas import ChatResponse, ChatsPageResponse
+from app.schemas.chat_schemas import ChatResponse, ChatUpdateRequest, ChatsPageResponse
 from app.schemas.message_schemas import MessageCreate
 
 
@@ -43,6 +43,17 @@ async def get_chats(
 
 @router.get("/{chat_id}", status_code=status.HTTP_200_OK)
 async def get_chat_info(chat: OwnerChatDep) -> ChatResponse:
+    return ChatResponse.model_validate(chat)
+
+
+@router.patch("/{chat_id}", status_code=status.HTTP_200_OK)
+async def update_chat(
+    chat: OwnerChatDep,
+    chat_service: ChatServiceDep,
+    body: ChatUpdateRequest,
+) -> ChatResponse:
+    title = body.title.strip()[:255]
+    await chat_service.update_chat(chat, title=title)
     return ChatResponse.model_validate(chat)
 
 

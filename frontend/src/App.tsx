@@ -2,13 +2,22 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createChat,
   deleteChat as deleteChatApi,
+  fetchChat,
   fetchChats,
   fetchMessages,
+  renameChat as renameChatApi,
   sendMessageToChat,
 } from "@/api/chatApi";
 import {
+  parseChatIdFromLocation,
+  pushChatRoute,
+  replaceChatRoute,
+} from "@/utils/chatRoute";
+import {
   clearStoredAuthSession,
+  decodeJwtExpiry,
   exchangeSberCodeRequest,
+  isAccessTokenFresh,
   logoutRequest,
   refreshRequest,
   storeAuthSession,
@@ -26,15 +35,22 @@ import HomePage from "@/components/HomePage";
 import SettingsModal from "@/components/SettingsModal";
 import Sidebar from "@/components/Sidebar";
 import TopBar from "@/components/TopBar";
+import UserAgreementModal from "@/components/UserAgreementModal";
 import type { Chat, Message } from "@/types";
 
 const AUTH_TOKEN_KEY = "ai-social-support.auth.token";
 const AUTH_USER_KEY = "ai-social-support.auth.user";
+const THEME_KEY = "ai-social-support.theme";
 const CHAT_PAGE_LIMIT = 100;
 const MESSAGE_PAGE_LIMIT = 100;
 const RECENT_MESSAGE_WINDOW_MS = 15000;
 const CHAT_LIST_CONTROLLER_KEY = "chats:list";
 const NEW_CHAT_CONTROLLER_KEY = "send:new";
+const ROUTE_CHAT_CONTROLLER_KEY = "chats:route";
+
+function getRenameControllerKey(chatId: string): string {
+  return `rename:${chatId}`;
+}
 
 type PendingSberCallback = {
   code: string | null;
@@ -50,6 +66,36 @@ let pendingSberExchange:
   | null = null;
 
 const EMPTY_USER_INFO: UserInfo = { firstName: "", secondName: "", placeOfWork: "" };
+type ThemeMode = "light" | "dark";
+
+function readStoredTheme(): ThemeMode | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const stored = window.localStorage.getItem(THEME_KEY);
+  return stored === "light" || stored === "dark" ? stored : null;
+}
+
+function readSystemTheme(): ThemeMode {
+  if (
+    typeof window !== "undefined" &&
+    window.matchMedia &&
+    window.matchMedia("(prefers-color-scheme: dark)").matches
+  ) {
+    return "dark";
+  }
+
+  return "light";
+}
+
+function readTheme(): ThemeMode {
+  if (typeof window === "undefined") {
+    return "light";
+  }
+
+  return readStoredTheme() ?? readSystemTheme();
+}
 
 function getHistoryControllerKey(chatId: string): string {
   return `history:${chatId}`;
@@ -203,15 +249,19 @@ function wasMessagePersisted(messages: Message[], text: string, sentAt: number):
 
 export default function App() {
   const initialAuthStateRef = useRef(readAuthState());
+  const initialThemeRef = useRef(readTheme());
   const controllersRef = useRef<Map<string, AbortController>>(new Map());
   const requestEpochRef = useRef(0);
   const chatListOffsetRef = useRef(0);
 
   const [chats, setChats] = useState<Chat[]>([]);
-  const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [activeChatId, setActiveChatId] = useState<string | null>(() =>
+    parseChatIdFromLocation()
+  );
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [loadingChatIds, setLoadingChatIds] = useState<string[]>([]);
   const [animatedMessageId, setAnimatedMessageId] = useState<string | null>(null);
+  const [pendingDeleteChatId, setPendingDeleteChatId] = useState<string | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(
     () => initialAuthStateRef.current.token
   );
@@ -220,20 +270,20 @@ export default function App() {
   );
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isUserAgreementOpen, setIsUserAgreementOpen] = useState(false);
   const [sberAuthError, setSberAuthError] = useState("");
   const [isFinalizingSberAuth, setIsFinalizingSberAuth] = useState(false);
-  const [isBootstrappingSession, setIsBootstrappingSession] = useState(
-    !initialAuthStateRef.current.token
-  );
   const [chatListStatus, setChatListStatus] = useState<
     "idle" | "loading" | "ready" | "error"
   >("idle");
-  const [chatListError, setChatListError] = useState<string | null>(null);
+  const [, setChatListError] = useState<string | null>(null);
   const [hasMoreChats, setHasMoreChats] = useState(false);
   const [isLoadingMoreChats, setIsLoadingMoreChats] = useState(false);
   const [isCreatingChat, setIsCreatingChat] = useState(false);
+  const [theme, setTheme] = useState<ThemeMode>(() => initialThemeRef.current);
 
   const isAuthenticated = !!authToken;
+  const isDarkTheme = theme === "dark";
   const userFullName =
     [userInfo.firstName, userInfo.secondName].filter(Boolean).join(" ") ||
     "Пользователь";
@@ -243,8 +293,35 @@ export default function App() {
     () => chats.find((chat) => chat.id === activeChatId) ?? null,
     [chats, activeChatId]
   );
+  const pendingDeleteChat = useMemo(
+    () => chats.find((chat) => chat.id === pendingDeleteChatId) ?? null,
+    [chats, pendingDeleteChatId]
+  );
 
-  const showHome = !activeChat;
+  const showHome = activeChatId === null || !isAuthenticated;
+  const isResolvingActiveChat =
+    activeChatId !== null && activeChat === null && isAuthenticated;
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
+    window.localStorage.setItem(THEME_KEY, theme);
+  }, [theme]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = () => {
+      if (!readStoredTheme()) {
+        setTheme(mediaQuery.matches ? "dark" : "light");
+      }
+    };
+
+    handleChange();
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, []);
 
   const isCurrentChatLoading = useMemo(() => {
     if (!activeChatId) {
@@ -300,13 +377,14 @@ export default function App() {
       setUserInfo(EMPTY_USER_INFO);
       setChats([]);
       setActiveChatId(null);
+      replaceChatRoute(null);
       setLoadingChatIds([]);
       setAnimatedMessageId(null);
       setIsSidebarOpen(false);
       setIsSettingsModalOpen(false);
+      setIsUserAgreementOpen(false);
       setSberAuthError("");
       setIsFinalizingSberAuth(false);
-      setIsBootstrappingSession(false);
       setChatListStatus("idle");
       setChatListError(null);
       setHasMoreChats(false);
@@ -336,7 +414,13 @@ export default function App() {
 
       setChats((prev) => prev.filter((chat) => chat.id !== chatId));
       setLoadingChatIds((prev) => prev.filter((id) => id !== chatId));
-      setActiveChatId((prev) => (prev === chatId ? null : prev));
+      setActiveChatId((prev) => {
+        if (prev !== chatId) {
+          return prev;
+        }
+        replaceChatRoute(null);
+        return null;
+      });
       setAnimatedMessageId(null);
       updateChatListOffset(Math.max(chatListOffsetRef.current - 1, 0));
     },
@@ -595,12 +679,16 @@ export default function App() {
   useEffect(() => {
     const requestEpoch = requestEpochRef.current;
     const persistedAuthState = readAuthState();
-    const shouldBlock = !persistedAuthState.token;
-    let cancelled = false;
 
-    if (shouldBlock) {
-      setIsBootstrappingSession(true);
+    if (!persistedAuthState.token) {
+      return;
     }
+
+    if (isAccessTokenFresh(persistedAuthState.token)) {
+      return;
+    }
+
+    let cancelled = false;
 
     refreshRequest()
       .catch((error: unknown) => {
@@ -608,29 +696,45 @@ export default function App() {
           return;
         }
 
-        if (error instanceof UnauthorizedError && !persistedAuthState.token) {
+        if (error instanceof UnauthorizedError) {
           clearStoredAuthSession();
           setAuthToken(null);
           setUserInfo(EMPTY_USER_INFO);
-        }
-      })
-      .finally(() => {
-        if (cancelled || !isRequestCurrent(requestEpoch) || !shouldBlock) {
           return;
         }
-
-        setIsBootstrappingSession(false);
       });
 
     return () => {
       cancelled = true;
     };
   }, [isRequestCurrent]);
+  useEffect(() => {
+    if (!authToken) {
+      return;
+    }
+
+    const expiryMs = decodeJwtExpiry(authToken);
+    if (expiryMs === null) {
+      return;
+    }
+    const msUntilRefresh = Math.max(30_000, expiryMs - Date.now() - 120_000);
+
+    const timerId = setTimeout(() => {
+      refreshRequest().catch((error: unknown) => {
+        if (error instanceof UnauthorizedError) {
+          handleSessionExpired();
+        }
+      });
+    }, msUntilRefresh);
+
+    return () => clearTimeout(timerId);
+  }, [authToken, handleSessionExpired]);
 
   useEffect(() => {
     if (!isAuthenticated) {
       setChats([]);
       setActiveChatId(null);
+      replaceChatRoute(null);
       setLoadingChatIds([]);
       setAnimatedMessageId(null);
       updateChatListOffset(0);
@@ -643,12 +747,94 @@ export default function App() {
     }
 
     setChats([]);
-    setActiveChatId(null);
     setLoadingChatIds([]);
     setAnimatedMessageId(null);
     updateChatListOffset(0);
     void loadChatsPage("reset");
   }, [isAuthenticated, loadChatsPage, updateChatListOffset]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const handlePopState = () => {
+      const nextChatId = parseChatIdFromLocation();
+      setActiveChatId(nextChatId);
+      setAnimatedMessageId(null);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated || !activeChatId || chatListStatus !== "ready") {
+      return;
+    }
+
+    if (chats.some((chat) => chat.id === activeChatId)) {
+      return;
+    }
+
+    const requestEpoch = requestEpochRef.current;
+    const controller = new AbortController();
+    let cancelled = false;
+
+    registerController(ROUTE_CHAT_CONTROLLER_KEY, controller);
+
+    fetchChat(activeChatId, controller.signal)
+      .then((chat) => {
+        if (cancelled || !isRequestCurrent(requestEpoch)) {
+          return;
+        }
+
+        setChats((prev) => mergeIncomingChats(prev, [chat]));
+      })
+      .catch((error: unknown) => {
+        if (cancelled || !isRequestCurrent(requestEpoch)) {
+          return;
+        }
+
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
+        if (error instanceof UnauthorizedError) {
+          handleSessionExpired();
+          return;
+        }
+
+        if (
+          error instanceof ApiError &&
+          (error.status === 403 || error.status === 404)
+        ) {
+          setActiveChatId(null);
+          replaceChatRoute(null);
+          return;
+        }
+
+        setActiveChatId(null);
+        replaceChatRoute(null);
+      })
+      .finally(() => {
+        releaseController(ROUTE_CHAT_CONTROLLER_KEY, controller);
+      });
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [
+    activeChatId,
+    chatListStatus,
+    chats,
+    handleSessionExpired,
+    isAuthenticated,
+    isRequestCurrent,
+    registerController,
+    releaseController,
+  ]);
 
   useEffect(() => {
     if (!activeChatId || !activeChat || !isAuthenticated) {
@@ -842,6 +1028,7 @@ export default function App() {
             prev.includes(targetChatId!) ? prev : [...prev, targetChatId!]
           );
           setActiveChatId(targetChatId);
+          pushChatRoute(targetChatId);
         } else {
           const currentChat = chats.find((chat) => chat.id === targetChatId) ?? null;
           const historyKey = getHistoryControllerKey(targetChatId);
@@ -1008,23 +1195,102 @@ export default function App() {
   );
 
   const handleSelectChat = useCallback((chatId: string) => {
-    setActiveChatId(chatId);
+    setActiveChatId((prev) => {
+      if (prev !== chatId) {
+        pushChatRoute(chatId);
+      }
+      return chatId;
+    });
     setAnimatedMessageId(null);
   }, []);
 
   const handleNewChat = useCallback(() => {
-    setActiveChatId(null);
+    setActiveChatId((prev) => {
+      if (prev !== null) {
+        pushChatRoute(null);
+      }
+      return null;
+    });
     setAnimatedMessageId(null);
   }, []);
 
-  const handleDeleteChat = useCallback(
-    async (chatId: string) => {
-      const shouldDelete = window.confirm("Удалить этот чат?");
-
-      if (!shouldDelete) {
-        return;
+  const handleRenameChat = useCallback(
+    async (chatId: string, newTitle: string): Promise<boolean> => {
+      const title = newTitle.trim();
+      if (!title) {
+        return false;
       }
 
+      const snapshot = chats.find((c) => c.id === chatId);
+      if (!snapshot || snapshot.title === title) {
+        return true;
+      }
+
+      const requestEpoch = requestEpochRef.current;
+      const controller = new AbortController();
+      const controllerKey = getRenameControllerKey(chatId);
+
+      registerController(controllerKey, controller);
+      setChats((prev) =>
+        prev.map((c) => (c.id === chatId ? { ...c, title } : c))
+      );
+
+      try {
+        const updated = await renameChatApi(chatId, title, controller.signal);
+
+        if (controller.signal.aborted || !isRequestCurrent(requestEpoch)) {
+          return false;
+        }
+
+        setChats((prev) =>
+          prev.map((c) =>
+            c.id === chatId ? { ...c, title: updated.title, updatedAt: updated.updatedAt } : c
+          )
+        );
+
+        return true;
+      } catch (error) {
+        if (controller.signal.aborted || !isRequestCurrent(requestEpoch)) {
+          return false;
+        }
+
+        if (error instanceof UnauthorizedError) {
+          handleSessionExpired();
+          return false;
+        }
+
+        if (
+          error instanceof ApiError &&
+          (error.status === 403 || error.status === 404)
+        ) {
+          removeChatFromState(chatId);
+          return false;
+        }
+        setChats((prev) =>
+          prev.map((c) => (c.id === chatId ? { ...c, title: snapshot.title } : c))
+        );
+
+        return false;
+      } finally {
+        releaseController(controllerKey, controller);
+      }
+    },
+    [
+      chats,
+      handleSessionExpired,
+      isRequestCurrent,
+      registerController,
+      releaseController,
+      removeChatFromState,
+    ]
+  );
+
+  const handleDeleteChat = useCallback((chatId: string) => {
+    setPendingDeleteChatId(chatId);
+  }, []);
+
+  const performDeleteChat = useCallback(
+    async (chatId: string) => {
       const snapshot = chats.find((chat) => chat.id === chatId);
 
       if (!snapshot) {
@@ -1047,6 +1313,9 @@ export default function App() {
       setChats((prev) => prev.filter((chat) => chat.id !== chatId));
       setLoadingChatIds((prev) => prev.filter((id) => id !== chatId));
       setActiveChatId((prev) => (prev === chatId ? null : prev));
+      if (wasActive) {
+        replaceChatRoute(null);
+      }
       setAnimatedMessageId(null);
       updateChatListOffset(Math.max(chatListOffsetRef.current - 1, 0));
 
@@ -1077,6 +1346,7 @@ export default function App() {
 
         if (wasActive) {
           setActiveChatId(chatId);
+          replaceChatRoute(chatId);
         }
       } finally {
         releaseController(deleteKey, controller);
@@ -1098,10 +1368,6 @@ export default function App() {
 
     void loadChatsPage("more");
   }, [hasMoreChats, isLoadingMoreChats, loadChatsPage]);
-
-  const handleRetryChats = useCallback(() => {
-    void loadChatsPage(chats.length > 0 ? "more" : "reset");
-  }, [chats.length, loadChatsPage]);
 
   const handleRetryHistory = useCallback(() => {
     if (!activeChatId) {
@@ -1126,40 +1392,29 @@ export default function App() {
     []
   );
   const handleCloseSidebar = useCallback(() => setIsSidebarOpen(false), []);
+  const handleCloseSettings = useCallback(() => setIsSettingsModalOpen(false), []);
+  const handleOpenSettings = useCallback(() => setIsSettingsModalOpen(true), []);
+  const handleOpenUserAgreement = useCallback(() => setIsUserAgreementOpen(true), []);
+  const handleCloseUserAgreement = useCallback(() => setIsUserAgreementOpen(false), []);
 
-  if (isBootstrappingSession) {
-    return (
-      <div className="relative flex h-[100dvh] min-h-screen flex-col overflow-hidden bg-[var(--app-bg)] text-slate-900">
-        <div className="app-background" aria-hidden="true">
-          <div className="app-bg-spot app-bg-spot-one" />
-          <div className="app-bg-spot app-bg-spot-two" />
-          <div className="app-bg-spot app-bg-spot-three" />
-        </div>
+  useEffect(() => {
+    if (!pendingDeleteChatId) return;
 
-        <div className="relative z-10 flex flex-1 items-center justify-center px-6">
-          <div className="w-full max-w-md rounded-[32px] border border-white/70 bg-white/78 px-8 py-10 text-center shadow-[0_28px_80px_rgba(15,23,42,0.12)] backdrop-blur-3xl">
-            <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#12b981,#0ea5a4)] text-white shadow-[0_18px_40px_rgba(16,185,129,0.26)]">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="loading-dot" />
-                <span className="loading-dot" style={{ animationDelay: "140ms" }} />
-                <span className="loading-dot" style={{ animationDelay: "280ms" }} />
-              </span>
-            </div>
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setPendingDeleteChatId(null);
+      }
+    };
 
-            <h1 className="text-2xl font-black tracking-[-0.03em] text-slate-900">
-              Восстанавливаем сессию
-            </h1>
-            <p className="mt-3 text-sm leading-6 text-slate-500">
-              Проверяем сохраненный вход и подготавливаем ваши чаты.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [pendingDeleteChatId]);
 
   return (
-    <div className="relative flex h-[100dvh] min-h-screen flex-col overflow-hidden bg-[var(--app-bg)] text-slate-900">
+    <div
+      className="relative flex h-[100dvh] min-h-screen flex-col overflow-hidden bg-[var(--app-bg)] text-[var(--text-main)]"
+      data-theme={theme}
+    >
       <div className="app-background" aria-hidden="true">
         <div className="app-bg-spot app-bg-spot-one" />
         <div className="app-bg-spot app-bg-spot-two" />
@@ -1173,6 +1428,7 @@ export default function App() {
         activeChatId={activeChatId}
         onSelectChat={handleSelectChat}
         onNewChat={handleNewChat}
+        onRenameChat={handleRenameChat}
         onDeleteChat={handleDeleteChat}
         userFullName={userFullName}
         isAuthenticated={isAuthenticated}
@@ -1180,15 +1436,14 @@ export default function App() {
         isLoadingChats={chatListStatus === "loading" && chats.length === 0}
         isLoadingMoreChats={isLoadingMoreChats}
         hasMoreChats={hasMoreChats}
-        chatLoadError={chatListError}
         onLoadMoreChats={handleLoadMoreChats}
-        onRetryLoadChats={handleRetryChats}
+        theme={theme}
       />
 
       <TopBar
         onToggleSidebar={handleToggleSidebar}
-        onSettingsClick={() => setIsSettingsModalOpen(true)}
-        onProfileClick={() => setIsSettingsModalOpen(true)}
+        onSettingsClick={handleOpenSettings}
+        onProfileClick={handleOpenSettings}
         onLoginClick={handleOpenAuth}
         isAuthenticated={isAuthenticated}
         userInitial={userInitial}
@@ -1196,16 +1451,29 @@ export default function App() {
 
       <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">
         {showHome ? (
-          <HomePage
-            onSend={handleSend}
-            isLoading={isCreatingChat}
-            isAuthenticated={isAuthenticated}
-            onAuthRequired={handleOpenAuth}
-          />
+          <>
+            <HomePage
+              onSend={handleSend}
+              isLoading={isCreatingChat}
+              isAuthenticated={isAuthenticated}
+              onAuthRequired={handleOpenAuth}
+              theme={theme}
+            />
+            <div
+              className="pointer-events-auto fixed bottom-0 left-0 right-0 z-10 hidden px-4 pb-1.5 pt-3 text-center sm:block sm:py-2"
+              style={{
+                background: isDarkTheme
+                  ? "linear-gradient(0deg, rgba(6,17,15,0.97) 55%, transparent)"
+                  : "linear-gradient(0deg, rgba(238,248,241,0.97) 55%, transparent)",
+              }}
+            >
+              <AppDisclaimer className="text-[10px] leading-4 md:text-[11px]" />
+            </div>
+          </>
         ) : (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <div className="min-h-0 flex-1">
-              {activeChat && (
+              {activeChat ? (
                 <ChatView
                   chat={activeChat}
                   isLoading={isCurrentChatLoading}
@@ -1213,10 +1481,34 @@ export default function App() {
                   onRetryHistory={handleRetryHistory}
                   onRetryPendingMessage={handleRetryPendingMessage}
                 />
-              )}
+              ) : isResolvingActiveChat ? (
+                <div
+                  className="flex h-full w-full items-center justify-center"
+                  role="status"
+                  aria-live="polite"
+                  aria-label="Загружаем чат"
+                >
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="loading-dot" />
+                    <span className="loading-dot" style={{ animationDelay: "140ms" }} />
+                    <span className="loading-dot" style={{ animationDelay: "280ms" }} />
+                  </span>
+                </div>
+              ) : null}
             </div>
 
-            <div className="sticky bottom-0 z-20 shrink-0 border-t border-white/35 bg-[linear-gradient(180deg,rgba(239,248,243,0.22),rgba(239,248,243,0.92))] shadow-[0_-18px_48px_rgba(15,23,42,0.08)] backdrop-blur-2xl">
+            <div
+              className="sticky bottom-0 z-20 shrink-0 border-t shadow-[0_-18px_48px_rgba(15,23,42,0.08)] backdrop-blur-2xl"
+              style={{
+                borderColor: isDarkTheme ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.35)",
+                background: isDarkTheme
+                  ? "linear-gradient(180deg, rgba(7,19,17,0.12), rgba(7,19,17,0.92))"
+                  : "linear-gradient(180deg, rgba(239,248,243,0.22), rgba(239,248,243,0.92))",
+                boxShadow: isDarkTheme
+                  ? "0 -18px 48px rgba(0,0,0,0.22)"
+                  : "0 -18px 48px rgba(15,23,42,0.08)",
+              }}
+            >
               <ChatInput
                 onSend={handleSend}
                 isLoading={isCurrentChatLoading}
@@ -1224,6 +1516,7 @@ export default function App() {
                 mode="dock"
                 isAuthenticated={isAuthenticated}
                 onAuthRequired={handleOpenAuth}
+                theme={theme}
               />
 
               <AppDisclaimer className="px-4 pb-4" />
@@ -1232,19 +1525,118 @@ export default function App() {
         )}
       </div>
 
+      {pendingDeleteChat && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-dialog-title"
+        >
+          <div
+            className="absolute inset-0 bg-black/55 backdrop-blur-[4px]"
+            onClick={() => setPendingDeleteChatId(null)}
+          />
+
+          <div
+            className="relative z-10 w-full max-w-[360px] rounded-[24px] border p-5 shadow-[0_30px_80px_rgba(0,0,0,0.36)]"
+            style={{
+              borderColor: theme === "dark" ? "#233230" : "rgba(226,232,240,0.8)",
+              background: theme === "dark"
+                ? "linear-gradient(180deg, rgba(13,36,31,0.98) 0%, rgba(9,28,24,0.98) 100%)"
+                : "linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.98) 100%)",
+            }}
+          >
+            <div className="mb-5 flex items-start gap-3">
+              <div
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
+                style={{
+                  background: theme === "dark" ? "rgba(251, 113, 133, 0.15)" : "rgba(254, 202, 202, 0.55)",
+                }}
+              >
+                <svg
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke={theme === "dark" ? "#fb7185" : "#ef4444"}
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M3 6h18" />
+                  <path d="M8 6V4h8v2" />
+                  <path d="M6 6l1 14h10l1-14" />
+                  <path d="M10 11v5" />
+                  <path d="M14 11v5" />
+                </svg>
+              </div>
+
+              <div className="min-w-0 pt-1">
+                <div id="delete-dialog-title" className={theme === "dark" ? "text-[22px] font-bold text-slate-50" : "text-[22px] font-bold text-slate-900"}>
+                  Удалить чат?
+                </div>
+                <div className={theme === "dark" ? "mt-3 text-[16px] leading-7 text-slate-400" : "mt-3 text-[16px] leading-7 text-slate-600"}>
+                  Этот чат и вся история сообщений будут удалены без возможности восстановления.
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setPendingDeleteChatId(null)}
+                className="flex h-14 flex-1 cursor-pointer items-center justify-center rounded-2xl border text-[16px] font-semibold transition-all hover:-translate-y-0.5"
+                style={{
+                  borderColor: theme === "dark" ? "#233230" : "rgba(226,232,240,0.8)",
+                  background: theme === "dark" ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.78)",
+                  color: theme === "dark" ? "#d1d5db" : "#475569",
+                }}
+              >
+                Отмена
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const chatId = pendingDeleteChatId;
+                  setPendingDeleteChatId(null);
+                  if (chatId) {
+                    void performDeleteChat(chatId);
+                  }
+                }}
+                className="flex h-14 flex-1 cursor-pointer items-center justify-center rounded-2xl text-[16px] font-semibold text-white transition-all hover:-translate-y-0.5"
+                style={{ background: "#ff275a" }}
+              >
+                Удалить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={handleCloseAuth}
         externalError={sberAuthError}
         isFinalizing={isFinalizingSberAuth}
         onMockLogin={handleMockLogin}
+        onAgreementClick={handleOpenUserAgreement}
       />
 
       <SettingsModal
         isOpen={isSettingsModalOpen}
-        onClose={() => setIsSettingsModalOpen(false)}
+        onClose={handleCloseSettings}
         userName={userFullName}
         onLogout={handleLogout}
+        theme={theme}
+        onThemeChange={setTheme}
+        onAgreementClick={handleOpenUserAgreement}
+      />
+
+      <UserAgreementModal
+        isOpen={isUserAgreementOpen}
+        onClose={handleCloseUserAgreement}
+        theme={theme}
       />
     </div>
   );

@@ -9,7 +9,8 @@ from app.core.config import get_config
 from shared.database import Base
 
 from app.models import ChatModel, MessageModel, UserModel  # noqa
-from worker.models import DocumentChunk, Source, Region, SourceRegion  # noqa
+from worker.models import Source, Region, SourceRegion  # noqa
+from shared.models import DocumentChunk # noqa
 
 settings = get_config()
 

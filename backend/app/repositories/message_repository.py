@@ -31,6 +31,25 @@ class MessageRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_after_id(
+        self,
+        chat_id: int,
+        after_id: int | None,
+        before_id: int | None = None,
+    ) -> list[MessageModel]:
+        stmt = select(MessageModel).where(MessageModel.chat_id == chat_id)
+
+        if after_id is not None:
+            stmt = stmt.where(MessageModel.id > after_id)
+
+        if before_id is not None:
+            stmt = stmt.where(MessageModel.id < before_id)
+
+        stmt = stmt.order_by(MessageModel.id.asc())
+        result = await self._session.execute(stmt)
+
+        return list(result.scalars().all())
+
     async def count_messages_by_chat(self, chat_id) -> int:
         result = await self._session.execute(
             select(func.count())
