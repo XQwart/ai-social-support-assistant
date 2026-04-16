@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import AppDisclaimer from "@/components/AppDisclaimer";
 import ChatInput from "@/components/ChatInput";
 
@@ -24,6 +25,10 @@ export default function HomePage({
   onAuthRequired,
   theme,
 }: HomePageProps) {
+  const carouselRef = useRef<HTMLDivElement>(null);
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [thumbRatio, setThumbRatio] = useState(1);
+
   const handleQuestionClick = (question: string) => {
     if (!isAuthenticated) {
       onAuthRequired();
@@ -33,7 +38,33 @@ export default function HomePage({
     void onSend(question);
   };
 
+  useEffect(() => {
+    const element = carouselRef.current;
+    if (!element) return;
+
+    const updateProgress = () => {
+      const maxScroll = element.scrollWidth - element.clientWidth;
+      const ratio = element.clientWidth / element.scrollWidth;
+      setThumbRatio(Math.min(1, ratio));
+      setScrollProgress(maxScroll > 0 ? element.scrollLeft / maxScroll : 0);
+    };
+
+    updateProgress();
+    element.addEventListener("scroll", updateProgress, { passive: true });
+
+    const resizeObserver = new ResizeObserver(updateProgress);
+    resizeObserver.observe(element);
+
+    return () => {
+      element.removeEventListener("scroll", updateProgress);
+      resizeObserver.disconnect();
+    };
+  }, []);
+
   const isDark = theme === "dark";
+  const thumbWidthPercent = Math.max(12, thumbRatio * 100);
+  const thumbLeftPercent = scrollProgress * (100 - thumbWidthPercent);
+  const showCarouselTrack = thumbRatio < 1;
 
   return (
     <div className="relative flex flex-1 flex-col overflow-x-hidden overflow-y-auto px-4 pb-4 pt-[70px] sm:pb-20 sm:pt-28">
@@ -46,18 +77,18 @@ export default function HomePage({
       <div className="relative z-10 flex flex-1 flex-col items-center sm:justify-center">
 
         <div className="flex w-full flex-1 flex-col items-center justify-center text-center sm:flex-none">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/56 px-4 py-2 text-xs font-medium text-slate-600 shadow-[0_6px_20px_rgba(15,23,42,0.04)] backdrop-blur-xl">
+          <div className="mb-5 mt-10 inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/56 px-4 py-2 text-xs font-medium text-slate-600 shadow-[0_6px_20px_rgba(15,23,42,0.04)] backdrop-blur-xl sm:mb-4 sm:mt-0">
             <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
             ИИ-помощник по социальной поддержке
           </div>
 
-          <h1 className="mx-auto max-w-4xl text-balance text-[26px] font-black leading-[1.1] tracking-[-0.045em] text-slate-900 sm:text-[40px] md:text-[64px]">
+          <h1 className="mx-auto max-w-4xl text-balance text-[34px] font-black leading-[1.05] tracking-[-0.045em] text-slate-900 sm:text-[40px] md:text-[64px]">
             Остались вопросы?
             <br />
             <span className="text-slate-900">Спросите у нас</span>
           </h1>
 
-          <p className="mx-auto mt-2 max-w-2xl text-balance text-[13px] leading-5 text-slate-600 sm:mt-3 sm:text-[15px] sm:leading-7 md:mt-5 md:text-base">
+          <p className="mx-auto mt-4 w-full max-w-none px-2 text-balance text-[13px] leading-5 text-slate-600 sm:mt-3 sm:max-w-2xl sm:px-0 sm:text-[15px] sm:leading-7 md:mt-5 md:text-base">
             Подскажем по льготам, пособиям, субсидиям, инвалидности, выплатам
             семьям с детьми и другим мерам социальной поддержки.
           </p>
@@ -66,7 +97,10 @@ export default function HomePage({
         <div className="w-full sm:mt-9">
 
           <div className="relative mb-3 w-full sm:hidden">
-            <div className="no-scrollbar flex gap-2 overflow-x-auto px-1 pb-2 pt-0.5">
+            <div
+              ref={carouselRef}
+              className="no-scrollbar flex gap-2 overflow-x-auto px-1 pb-2 pt-0.5"
+            >
               {POPULAR_QUESTIONS.map((question) => (
                 <button
                   key={question}
@@ -80,13 +114,26 @@ export default function HomePage({
               ))}
             </div>
             <div
-              className="pointer-events-none absolute right-0 top-0 h-full w-12"
+              className="pointer-events-none absolute right-0 top-0 h-[calc(100%-12px)] w-12"
               style={{
                 background: isDark
                   ? "linear-gradient(to left, rgba(6,17,15,0.95), transparent)"
                   : "linear-gradient(to left, rgba(237,248,240,0.95), transparent)",
               }}
             />
+            {showCarouselTrack && (
+              <div className="mx-auto mt-1 w-[64%] max-w-[200px]">
+                <div className="carousel-scroll-track">
+                  <div
+                    className="carousel-scroll-thumb"
+                    style={{
+                      left: `${thumbLeftPercent}%`,
+                      width: `${thumbWidthPercent}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           <ChatInput

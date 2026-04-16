@@ -71,16 +71,18 @@ interface ChatItemProps {
 function ChatItem({ chat, isActive, isDark, showDate, onSelect, onRename, onDelete }: ChatItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState("");
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const committingRef = useRef(false);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
 
   const itemClassName = cn(
-    "w-full cursor-pointer rounded-2xl px-3 py-3 text-left transition-all duration-200",
+    "relative w-full cursor-pointer overflow-hidden rounded-2xl px-3 py-3 text-left transition-all duration-200",
     isEditing && "pointer-events-none",
     isActive
       ? isDark
-        ? "border border-white/10 bg-white/10 shadow-[0_10px_25px_rgba(0,0,0,0.18)]"
-        : "border border-white/80 bg-white/78 shadow-[0_12px_28px_rgba(15,23,42,0.06),inset_0_1px_0_rgba(255,255,255,0.72)]"
+        ? "border border-emerald-400/40 bg-emerald-400/10 shadow-[0_14px_32px_rgba(16,185,129,0.18),inset_0_1px_0_rgba(255,255,255,0.06)]"
+        : "border border-emerald-300/70 bg-emerald-100/55 shadow-[0_14px_32px_rgba(16,185,129,0.18),inset_0_1px_0_rgba(255,255,255,0.78)]"
       : isDark
         ? "border border-transparent bg-transparent hover:border-white/10 hover:bg-white/8 hover:shadow-[0_10px_24px_rgba(0,0,0,0.12)]"
         : "border border-transparent bg-transparent hover:border-white/75 hover:bg-white/68 hover:shadow-[0_10px_24px_rgba(15,23,42,0.05),inset_0_1px_0_rgba(255,255,255,0.58)]"
@@ -93,14 +95,14 @@ function ChatItem({ chat, isActive, isDark, showDate, onSelect, onRename, onDele
     actionButtonBaseClassName,
     isDark
       ? "border-white/10 bg-white/8 text-slate-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-emerald-400/28 hover:bg-emerald-400/12 hover:text-emerald-100"
-      : "border-white/78 bg-white/72 text-slate-500 shadow-[0_8px_20px_rgba(15,23,42,0.08),inset_0_1px_0_rgba(255,255,255,0.68)] hover:border-emerald-200/90 hover:bg-emerald-50/90 hover:text-emerald-700"
+      : "border-white/78 bg-white/72 text-slate-500 shadow-[0_8px_20px_rgba(15,23,42,0.08),inset_0_1px_0_rgba(255,255,255,0.68)]"
   );
 
   const deleteActionButtonClassName = cn(
     actionButtonBaseClassName,
     isDark
       ? "border-white/10 bg-white/8 text-slate-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-rose-400/28 hover:bg-rose-400/12 hover:text-rose-100"
-      : "border-white/78 bg-white/72 text-slate-500 shadow-[0_8px_20px_rgba(15,23,42,0.08),inset_0_1px_0_rgba(255,255,255,0.68)] hover:border-rose-200/90 hover:bg-rose-50/90 hover:text-rose-700"
+      : "border-white/78 bg-white/72 text-slate-500 shadow-[0_8px_20px_rgba(15,23,42,0.08),inset_0_1px_0_rgba(255,255,255,0.68)]"
   );
 
   function startEdit() {
@@ -155,8 +157,44 @@ function ChatItem({ chat, isActive, isDark, showDate, onSelect, onRename, onDele
     }
   }
 
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+
+    function handlePointer(event: MouseEvent | TouchEvent) {
+      const target = event.target as Node | null;
+      if (target && mobileMenuRef.current && !mobileMenuRef.current.contains(target)) {
+        setIsMobileMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointer);
+    document.addEventListener("touchstart", handlePointer);
+    return () => {
+      document.removeEventListener("mousedown", handlePointer);
+      document.removeEventListener("touchstart", handlePointer);
+    };
+  }, [isMobileMenuOpen]);
+
+  useEffect(() => {
+    if (!isActive && isMobileMenuOpen) {
+      setIsMobileMenuOpen(false);
+    }
+  }, [isActive, isMobileMenuOpen]);
+
   return (
     <div className="group relative">
+      {isActive && (
+        <span
+          aria-hidden="true"
+          className={cn(
+            "pointer-events-none absolute left-0 top-1/2 z-10 h-7 w-[3px] -translate-y-1/2 rounded-r-full",
+            isDark
+              ? "bg-gradient-to-b from-emerald-300 to-teal-400 shadow-[0_0_12px_rgba(45,212,191,0.55)]"
+              : "bg-gradient-to-b from-emerald-400 to-teal-500 shadow-[0_0_12px_rgba(16,185,129,0.45)]"
+          )}
+        />
+      )}
+
       <button
         type="button"
         onClick={() => { if (!isEditing) onSelect(); }}
@@ -173,17 +211,18 @@ function ChatItem({ chat, isActive, isDark, showDate, onSelect, onRename, onDele
             onBlur={handleBlur}
             onClick={(e) => e.stopPropagation()}
             className={cn(
-              "w-full truncate border-b pr-24 text-[13px] font-medium outline-none",
+              "block w-full truncate rounded-lg px-2 py-0.5 text-[13px] font-medium leading-snug outline-none ring-1 transition-[box-shadow,background-color]",
               isDark
-                ? "bg-transparent text-slate-50 border-emerald-400/60"
-                : "bg-transparent text-slate-900 border-emerald-500/50"
+                ? "bg-white/5 text-slate-50 ring-emerald-400/45 focus:bg-white/8 focus:ring-emerald-400/70"
+                : "bg-white/70 text-slate-900 ring-emerald-500/35 focus:bg-white/90 focus:ring-emerald-500/60"
             )}
             style={{ pointerEvents: "all" }}
           />
         ) : (
           <div
             className={cn(
-              "truncate pr-24 text-[13px] font-medium",
+              "truncate text-[13px] font-medium",
+              isActive ? "pr-11 sm:pr-24" : "pr-2 sm:pr-24",
               isActive
                 ? isDark ? "text-slate-50" : "text-slate-900"
                 : isDark ? "text-slate-200" : "text-slate-700"
@@ -201,10 +240,10 @@ function ChatItem({ chat, isActive, isDark, showDate, onSelect, onRename, onDele
       {!isEditing && (
         <div
           className={cn(
-            "absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1.5 transition-all duration-200",
+            "absolute right-2 top-1/2 hidden -translate-y-1/2 items-center gap-1.5 transition-all duration-200 sm:flex",
             isActive
               ? "translate-x-0 opacity-100"
-              : "pointer-events-none translate-x-1 opacity-0 group-hover:pointer-events-auto group-hover:translate-x-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-x-0 group-focus-within:opacity-100"
+              : "pointer-events-none translate-x-1 opacity-0 group-hover:pointer-events-auto group-hover:translate-x-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-x-0 group-focus-within:opacity-100 [@media(hover:none)]:!pointer-events-none [@media(hover:none)]:!opacity-0"
           )}
         >
           <button
@@ -226,8 +265,8 @@ function ChatItem({ chat, isActive, isDark, showDate, onSelect, onRename, onDele
               strokeLinecap="round"
               strokeLinejoin="round"
             >
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
             </svg>
           </button>
           <button
@@ -259,20 +298,119 @@ function ChatItem({ chat, isActive, isDark, showDate, onSelect, onRename, onDele
         </div>
       )}
 
-      {isEditing && (
-        <div className={cn(
-          "absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1 text-[10px]",
-          isDark ? "text-slate-500" : "text-slate-400"
-        )}>
-          <kbd className={cn(
-            "rounded px-1 py-0.5 font-mono text-[9px]",
-            isDark ? "bg-white/10" : "bg-black/6"
-          )}>
-            ↵
-          </kbd>
-          <span>сохранить</span>
+      {!isEditing && isActive && (
+        <div ref={mobileMenuRef} className="absolute right-2 top-1/2 z-20 -translate-y-1/2 sm:hidden">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsMobileMenuOpen((prev) => !prev);
+            }}
+            className={cn(
+              "flex h-9 w-9 cursor-pointer items-center justify-center rounded-[14px] border backdrop-blur-xl transition-all duration-200 active:scale-95",
+              isDark
+                ? "border-white/12 bg-white/10 text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+                : "border-white/80 bg-white/82 text-slate-600 shadow-[0_8px_20px_rgba(15,23,42,0.10),inset_0_1px_0_rgba(255,255,255,0.78)]"
+            )}
+            aria-haspopup="menu"
+            aria-expanded={isMobileMenuOpen}
+            aria-label="Действия с чатом"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              stroke="none"
+            >
+              <circle cx="5" cy="12" r="1.8" />
+              <circle cx="12" cy="12" r="1.8" />
+              <circle cx="19" cy="12" r="1.8" />
+            </svg>
+          </button>
+
+          {isMobileMenuOpen && (
+            <div
+              role="menu"
+              className={cn(
+                "absolute right-0 top-[calc(100%+6px)] flex w-[160px] flex-col overflow-hidden rounded-2xl border backdrop-blur-2xl",
+                isDark
+                  ? "border-white/12 bg-[rgba(14,32,28,0.96)] shadow-[0_18px_42px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.05)]"
+                  : "border-white/80 bg-white/96 shadow-[0_18px_42px_rgba(15,23,42,0.18),inset_0_1px_0_rgba(255,255,255,0.85)]"
+              )}
+            >
+              <button
+                type="button"
+                role="menuitem"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsMobileMenuOpen(false);
+                  startEdit();
+                }}
+                className={cn(
+                  "flex cursor-pointer items-center gap-2.5 px-3.5 py-3 text-left text-[13px] font-medium transition-colors",
+                  isDark
+                    ? "text-slate-100 hover:bg-white/8"
+                    : "text-slate-700 hover:bg-emerald-500/10"
+                )}
+              >
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#ffffff"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="shrink-0"
+                >
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                </svg>
+                Переименовать
+              </button>
+
+              <div className={isDark ? "h-px bg-white/8" : "h-px bg-slate-200/80"} />
+
+              <button
+                type="button"
+                role="menuitem"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsMobileMenuOpen(false);
+                  onDelete();
+                }}
+                className={cn(
+                  "flex cursor-pointer items-center gap-2.5 px-3.5 py-3 text-left text-[13px] font-medium transition-colors",
+                  isDark
+                    ? "text-rose-300 hover:bg-rose-500/14"
+                    : "text-rose-600 hover:bg-rose-500/10"
+                )}
+              >
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M3 6h18" />
+                  <path d="M8 6V4h8v2" />
+                  <path d="M6 6l1 14h10l1-14" />
+                  <path d="M10 11v5" />
+                  <path d="M14 11v5" />
+                </svg>
+                Удалить
+              </button>
+            </div>
+          )}
         </div>
       )}
+
     </div>
   );
 }
@@ -400,10 +538,10 @@ export default function Sidebar({
             type="button"
             onClick={onClose}
             className={cn(
-              "inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-2xl transition-colors",
+              "inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-2xl border transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0",
               isDark
-                ? "border border-white/10 bg-white/6 text-slate-300 hover:bg-white/12"
-                : "border border-white/60 bg-white/45 text-slate-500 hover:bg-white/75"
+                ? "border-white/10 bg-white/6 text-slate-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+                : "border-white/60 bg-white/45 text-slate-500"
             )}
             aria-label="Закрыть меню"
           >
