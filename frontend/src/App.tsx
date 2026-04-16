@@ -1627,6 +1627,7 @@ export default function App() {
         isOpen={isSettingsModalOpen}
         onClose={handleCloseSettings}
         userName={userFullName}
+        placeOfWork={userInfo.placeOfWork}
         onLogout={handleLogout}
         theme={theme}
         onThemeChange={setTheme}

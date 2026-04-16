@@ -5,11 +5,14 @@ interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   userName: string;
+  placeOfWork: string;
   onLogout: () => void;
   theme: "light" | "dark";
   onThemeChange: (theme: "light" | "dark") => void;
   onAgreementClick: () => void;
 }
+
+const SBERBANK_PLACE_OF_WORK = "ПАО Сбербанк";
 
 type SettingsTab = "general" | "privacy" | "about";
 
@@ -26,6 +29,7 @@ export default function SettingsModal({
   isOpen,
   onClose,
   userName,
+  placeOfWork,
   onLogout,
   theme,
   onThemeChange,
@@ -34,6 +38,8 @@ export default function SettingsModal({
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const [isCrossContextEnabled, setIsCrossContextEnabled] = useState(false);
   const isDark = theme === "dark";
+  const isSberEmployee =
+    placeOfWork.trim().toLowerCase() === SBERBANK_PLACE_OF_WORK.toLowerCase();
 
   if (!isOpen) return null;
 
@@ -279,6 +285,35 @@ export default function SettingsModal({
                     <div className={`mt-1 text-[13px] leading-6 ${isDark ? "text-slate-500" : "text-slate-400"}`}>{description}</div>
                   </div>
                 ))}
+
+                <div
+                  className="flex items-start justify-between gap-4 rounded-[22px] border p-4"
+                  style={{ borderColor: secondaryBorder, background: secondarySurface }}
+                >
+                  <div className="min-w-0">
+                    <div className={`text-[15px] font-medium ${isDark ? "text-slate-200" : "text-slate-700"}`}>
+                      Статус сотрудника Сбербанка
+                    </div>
+                    <div className={`mt-1 text-[13px] leading-6 ${isDark ? "text-slate-500" : "text-slate-400"}`}>
+                      {isSberEmployee
+                        ? `Место работы: ${placeOfWork}`
+                        : "Пользователь не является сотрудником ПАО Сбербанк"}
+                    </div>
+                  </div>
+                  <span
+                    className={`shrink-0 rounded-full px-3 py-1 text-[12px] font-semibold ${
+                      isSberEmployee
+                        ? isDark
+                          ? "bg-emerald-500/15 text-emerald-300"
+                          : "bg-emerald-100 text-emerald-700"
+                        : isDark
+                          ? "bg-white/[0.06] text-slate-300"
+                          : "bg-slate-200/70 text-slate-600"
+                    }`}
+                  >
+                    {isSberEmployee ? "Сотрудник" : "Не сотрудник"}
+                  </span>
+                </div>
 
                 <button
                   type="button"

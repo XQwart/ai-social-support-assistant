@@ -1,5 +1,9 @@
 import { getApiBase } from "@/api/base";
-import { mockLoginRequest, type UserInfo } from "@/api/authApi";
+import {
+  mockLoginRequest,
+  type MockUserStatus,
+  type UserInfo,
+} from "@/api/authApi";
 import { useEffect, useMemo, useState } from "react";
 
 interface AuthModalProps {
@@ -11,8 +15,26 @@ interface AuthModalProps {
   onAgreementClick?: () => void;
 }
 
+interface MockUserOption {
+  status: MockUserStatus;
+  name: string;
+  role: string;
+}
+
+const MOCK_USER_OPTIONS: MockUserOption[] = [
+  {
+    status: "employed",
+    name: "Иван Иванов",
+    role: "Сотрудник ПАО Сбербанк",
+  },
+  {
+    status: "unemployed",
+    name: "Пётр Петров",
+    role: "Не сотрудник Сбербанка",
+  },
+];
+
 const API_BASE = getApiBase();
-const PERSONAL_DATA_POLICY_URL = "/legal/pdn-consent.pdf";
 const SBER_PARAMS_MAX_AGE_MS = 8 * 60 * 1000;
 
 type SberParamsResponse = {
@@ -149,8 +171,11 @@ export default function AuthModal({
   const [authUrl, setAuthUrl] = useState("");
   const [consentChecked, setConsentChecked] = useState(false);
   const [consentError, setConsentError] = useState(false);
-  const [isMockLoading, setIsMockLoading] = useState(false);
+  const [isMockPickerOpen, setIsMockPickerOpen] = useState(false);
+  const [mockLoadingStatus, setMockLoadingStatus] =
+    useState<MockUserStatus | null>(null);
   const [mockError, setMockError] = useState("");
+  const isMockLoading = mockLoadingStatus !== null;
 
   const displayError = initError || externalError;
   const isAuthReady = !!authUrl && !isLoading && !displayError;
@@ -163,7 +188,8 @@ export default function AuthModal({
       setConsentChecked(false);
       setConsentError(false);
       setMockError("");
-      setIsMockLoading(false);
+      setMockLoadingStatus(null);
+      setIsMockPickerOpen(false);
       return;
     }
 
@@ -284,7 +310,7 @@ export default function AuthModal({
               <div className="mt-4 flex flex-col items-center gap-2">
                 <button
                   type="button"
-                  onClick={async () => {
+                  onClick={() => {
                     if (!consentChecked) {
                       setConsentError(true);
                       return;
@@ -292,47 +318,139 @@ export default function AuthModal({
                     setConsentError(false);
                     if (isMockLoading) return;
                     setMockError("");
-                    setIsMockLoading(true);
-                    try {
-                      const result = await mockLoginRequest();
-                      onMockLogin(result.token, result.user);
-                    } catch (err: unknown) {
-                      console.error("AuthModal: mock login failed", err);
-                      setMockError(
-                        normalizeAuthError(err, "Не удалось выполнить временный вход")
-                      );
-                    } finally {
-                      setIsMockLoading(false);
-                    }
+                    setIsMockPickerOpen((prev) => !prev);
                   }}
                   disabled={isMockLoading}
+                  aria-expanded={isMockPickerOpen}
                   className={`mx-auto flex min-h-[48px] w-full max-w-[320px] items-center justify-center gap-2 rounded-[14px] border border-dashed border-amber-400 bg-amber-50/70 px-5 text-[14px] font-medium text-amber-800 transition-all ${
                     isMockLoading
                       ? "cursor-wait opacity-60"
                       : "cursor-pointer hover:bg-amber-100/80"
                   }`}
                 >
-                  {isMockLoading ? (
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-amber-400/40 border-t-amber-600" />
-                  ) : (
-                    <svg
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                      className="shrink-0 opacity-70"
-                    >
-                      <circle cx="12" cy="8" r="4" />
-                      <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-                    </svg>
-                  )}
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                    className="shrink-0 opacity-70"
+                  >
+                    <circle cx="12" cy="8" r="4" />
+                    <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+                  </svg>
                   <span>Временный вход (без Sber ID)</span>
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                    className={`shrink-0 transition-transform ${isMockPickerOpen ? "rotate-180" : ""}`}
+                  >
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
                 </button>
+
+                {isMockPickerOpen && (
+                  <div
+                    role="menu"
+                    className={`mx-auto flex w-full max-w-[320px] flex-col gap-1.5 rounded-[14px] border p-1.5 ${
+                      isDark
+                        ? "border-white/10 bg-white/[0.04]"
+                        : "border-amber-200/70 bg-amber-50/40"
+                    }`}
+                  >
+                    {MOCK_USER_OPTIONS.map((option) => {
+                      const isOptionLoading = mockLoadingStatus === option.status;
+                      return (
+                        <button
+                          key={option.status}
+                          type="button"
+                          role="menuitem"
+                          disabled={isMockLoading}
+                          onClick={async () => {
+                            if (isMockLoading) return;
+                            setMockError("");
+                            setMockLoadingStatus(option.status);
+                            try {
+                              const result = await mockLoginRequest(option.status);
+                              onMockLogin(result.token, result.user);
+                            } catch (err: unknown) {
+                              console.error("AuthModal: mock login failed", err);
+                              setMockError(
+                                normalizeAuthError(
+                                  err,
+                                  "Не удалось выполнить временный вход"
+                                )
+                              );
+                            } finally {
+                              setMockLoadingStatus(null);
+                              setIsMockPickerOpen(false);
+                            }
+                          }}
+                          className={`flex items-center justify-between gap-3 rounded-[10px] px-3 py-2.5 text-left transition-colors ${
+                            isMockLoading
+                              ? "cursor-wait opacity-60"
+                              : isDark
+                                ? "cursor-pointer hover:bg-white/[0.06]"
+                                : "cursor-pointer hover:bg-amber-100/60"
+                          }`}
+                        >
+                          <span className="flex min-w-0 flex-col">
+                            <span
+                              className={`truncate text-[13.5px] font-semibold ${
+                                isDark ? "text-slate-100" : "text-slate-800"
+                              }`}
+                            >
+                              {option.name}
+                            </span>
+                            <span
+                              className={`truncate text-[11.5px] ${
+                                option.status === "employed"
+                                  ? "text-emerald-600"
+                                  : isDark
+                                    ? "text-slate-400"
+                                    : "text-slate-500"
+                              }`}
+                            >
+                              {option.role}
+                            </span>
+                          </span>
+                          {isOptionLoading ? (
+                            <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-amber-400/40 border-t-amber-600" />
+                          ) : (
+                            <svg
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden="true"
+                              className={`shrink-0 ${
+                                isDark ? "text-slate-500" : "text-slate-400"
+                              }`}
+                            >
+                              <polyline points="9 18 15 12 9 6" />
+                            </svg>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
                 {mockError && (
                   <p className="text-center text-[12px] text-rose-600">{mockError}</p>
                 )}
@@ -410,50 +528,84 @@ export default function AuthModal({
             </div>
 
             <div
-              className={`mt-5 rounded-2xl border px-3 py-3 transition-colors ${
+              className={`mt-4 rounded-2xl border px-3 py-2 transition-colors ${
                 consentError
                   ? "border-rose-300 bg-rose-50/70"
-                  : "border-slate-200/80 bg-white/60"
+                  : isDark
+                    ? "border-white/10 bg-white/[0.04]"
+                    : "border-slate-200/80 bg-white/60"
               }`}
             >
-              <label className="flex cursor-pointer items-start gap-3">
-                <input
-                  type="checkbox"
-                  checked={consentChecked}
-                  onChange={(e) => {
-                    setConsentChecked(e.target.checked);
-                    if (e.target.checked) {
-                      setConsentError(false);
-                    }
-                  }}
-                  className="mt-0.5 h-4 w-4 shrink-0 accent-emerald-500"
-                />
-                <span className="text-[12px] leading-5 text-slate-600">
-                  Я даю согласие на обработку персональных данных и подтверждаю,
-                  что ознакомился(ась) с{" "}
-                  <a
-                    href={PERSONAL_DATA_POLICY_URL}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-medium text-emerald-700 underline underline-offset-2"
-                  >
-                    текстом согласия
-                  </a>
-                  {onAgreementClick && (
-                    <>
-                      {" "}и{" "}
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          onAgreementClick();
-                        }}
-                        className="cursor-pointer font-medium text-emerald-700 underline underline-offset-2 transition-opacity hover:opacity-80"
-                      >
-                        пользовательским соглашением
-                      </button>
-                    </>
+              <label className="flex cursor-pointer items-center gap-2.5">
+                <span className="relative inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center">
+                  <input
+                    type="checkbox"
+                    checked={consentChecked}
+                    onChange={(e) => {
+                      setConsentChecked(e.target.checked);
+                      if (e.target.checked) {
+                        setConsentError(false);
+                      }
+                    }}
+                    className="peer sr-only"
+                  />
+                  <span
+                    aria-hidden="true"
+                    className={`h-[18px] w-[18px] rounded-[6px] border transition-all ${
+                      consentChecked
+                        ? "border-emerald-500 bg-emerald-500 shadow-[0_2px_6px_rgba(16,185,129,0.35)]"
+                        : consentError
+                          ? "border-rose-400 bg-transparent"
+                          : isDark
+                            ? "border-white/30 bg-white/[0.06] peer-hover:border-emerald-400/70"
+                            : "border-slate-300 bg-white peer-hover:border-emerald-400"
+                    }`}
+                  />
+                  {consentChecked && (
+                    <svg
+                      aria-hidden="true"
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="white"
+                      strokeWidth="3.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="pointer-events-none absolute"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  )}
+                </span>
+                <span
+                  className={`text-[12px] leading-5 ${
+                    isDark ? "text-slate-300" : "text-slate-600"
+                  }`}
+                >
+                  Я даю согласие на обработку персональных данных и ознакомился(ась) с{" "}
+                  {onAgreementClick ? (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onAgreementClick();
+                      }}
+                      className={`cursor-pointer font-medium underline underline-offset-2 transition-opacity hover:opacity-80 ${
+                        isDark ? "text-emerald-300" : "text-emerald-700"
+                      }`}
+                    >
+                      пользовательским соглашением
+                    </button>
+                  ) : (
+                    <span
+                      className={`font-medium ${
+                        isDark ? "text-emerald-300" : "text-emerald-700"
+                      }`}
+                    >
+                      пользовательским соглашением
+                    </span>
                   )}
                   .
                 </span>
