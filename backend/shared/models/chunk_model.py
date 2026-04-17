@@ -19,7 +19,7 @@ class DocumentChunk(Base):
     )
 
     source_url: Mapped[str] = mapped_column(String(2048), nullable=False)
-    source_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    source_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
 

@@ -14,6 +14,10 @@ class ChatResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ChatUpdateRequest(BaseModel):
+    title: str
+
+
 class ChatsPageResponse(BaseModel):
     items: list[ChatResponse]
     total: int

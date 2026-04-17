@@ -16,13 +16,16 @@ class VectorRepository:
         self._collection_name = collection_name
 
     def upsert_chunks(
-        self, embedded_chunks: Sequence[EmbeddedDocumentChunk], regions: list[str]
+        self,
+        embedded_chunks: Sequence[EmbeddedDocumentChunk],
+        regions: list[str],
+        place_of_work: str | None = None,
     ) -> int:
         if not embedded_chunks:
             return 0
 
         points: list[models.PointStruct] = []
-
+        total_chunks = len(embedded_chunks)
         for chunk in embedded_chunks:
             vector = chunk.vector
             if not vector:
@@ -32,8 +35,9 @@ class VectorRepository:
                 "text_id": chunk.id,
                 "source_id": chunk.source_id,
                 "region_codes": regions,
-                "access_level": chunk.access_level,
+                "place_of_work": place_of_work,
                 "chunk_index": chunk.chunk_index,
+                "total_chunks": total_chunks,
             }
 
             points.append(

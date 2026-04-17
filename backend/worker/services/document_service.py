@@ -26,7 +26,6 @@ class DocumentService:
     ) -> list[StoredDocumentChunk]:
         self._chunk_rep.delete_by_source_id(source_id)
         chunk_stored = self._chunk_rep.create_many(chunks)
-        print(f"ДЛИНА СОХРАНЕНЫХ ЧАНКОВ {len(chunk_stored)}")
 
         return chunk_stored
 
@@ -35,6 +34,7 @@ class DocumentService:
         source_id: int,
         embedded_chunks: list[EmbeddedDocumentChunk],
         regions: list[str],
+        place_of_work: str | None = None,
     ) -> int:
         self._vector_rep.delete_by_source_id(source_id)
-        return self._vector_rep.upsert_chunks(embedded_chunks, regions)
+        return self._vector_rep.upsert_chunks(embedded_chunks, regions, place_of_work)

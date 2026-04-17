@@ -1,7 +1,7 @@
 from __future__ import annotations
 import logging
 
-from fastapi import APIRouter, Cookie, Query, status
+from fastapi import APIRouter, Cookie, Path, Query, status
 from fastapi.responses import RedirectResponse, Response
 
 from app.dependencies.config import ConfigDep
@@ -143,9 +143,13 @@ async def logout(
     clear_refresh_cookie(response)
 
 
-@router.post("/mock-login")
-async def mock_login(auth_service: AuthServiceDep, response: Response) -> AuthResponse:
-    user, tokens = await auth_service.mock_login_user()
+@router.post("/mock-login/{status}")
+async def mock_login(
+    auth_service: AuthServiceDep,
+    response: Response,
+    status: str = Path(...),
+) -> AuthResponse:
+    user, tokens = await auth_service.mock_login_user(status)
 
     set_refresh_cookie(response, tokens.refresh_token)
 

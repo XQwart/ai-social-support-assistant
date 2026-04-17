@@ -5,6 +5,12 @@
   --text-main: #0f172a;
 }
 
+[data-theme="dark"] {
+  --app-bg: #06110f;
+  --text-main: #ecfdf5;
+  color-scheme: dark;
+}
+
 html,
 body,
 #root {
@@ -47,6 +53,11 @@ textarea {
 ::selection {
   background: rgba(16, 185, 129, 0.18);
   color: #0f172a;
+}
+
+[data-theme="dark"] ::selection {
+  background: rgba(52, 211, 153, 0.28);
+  color: #ecfdf5;
 }
 
 .app-background {
@@ -210,15 +221,15 @@ textarea {
 .loading-status-text {
   background: linear-gradient(
     90deg,
-    #064e3b 0%,
-    #065f46 28%,
-    #0f766e 56%,
-    #1e3a8a 82%,
-    #1e40af 100%
+    #159a2e 0%,
+    #21b858 34%,
+    #2597b9 68%,
+    #1d4ed8 100%
   );
   -webkit-background-clip: text;
   background-clip: text;
-  color: #0f766e;
+  color: #159a2e;
+  display: inline-block;
 }
 
 @supports ((-webkit-background-clip: text) or (background-clip: text)) {
@@ -226,6 +237,20 @@ textarea {
     -webkit-text-fill-color: transparent;
     color: transparent;
   }
+}
+
+[data-theme="dark"] .loading-status-text {
+  background: linear-gradient(
+    90deg,
+    #30e05f 0%,
+    #3be27b 34%,
+    #42c9df 68%,
+    #3b82f6 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent !important;
+  color: transparent !important;
 }
 
 .typing-cursor {
@@ -251,6 +276,69 @@ textarea {
   border-radius: 9999px;
   background: #94a3b8;
   animation: bounceDot 0.9s infinite ease-in-out;
+}
+
+[data-theme="dark"] {
+  color: var(--text-main);
+}
+
+[data-theme="dark"] select {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: rgba(79, 104, 98, 0.8);
+}
+
+[data-theme="dark"] .text-slate-900,
+[data-theme="dark"] .text-slate-800,
+[data-theme="dark"] .text-slate-700,
+[data-theme="dark"] .text-slate-600 {
+  color: #eefbf8 !important;
+}
+
+[data-theme="dark"] .text-slate-500,
+[data-theme="dark"] .text-slate-400,
+[data-theme="dark"] .text-slate-300 {
+  color: #94a3a0 !important;
+}
+
+[data-theme="dark"] .bg-white,
+[data-theme="dark"] [class*="bg-white/"] {
+  background-color: rgba(10, 24, 20, 0.84) !important;
+}
+
+[data-theme="dark"] .bg-slate-50,
+[data-theme="dark"] .bg-slate-100,
+[data-theme="dark"] .bg-slate-200 {
+  background-color: rgba(10, 24, 20, 0.82) !important;
+}
+
+[data-theme="dark"] .border-white,
+[data-theme="dark"] [class*="border-white/"] {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .border-slate-100,
+[data-theme="dark"] .border-slate-200 {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .bg-rose-50,
+[data-theme="dark"] .bg-amber-50,
+[data-theme="dark"] .bg-emerald-50 {
+  background-color: rgba(10, 24, 20, 0.86) !important;
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] textarea,
+[data-theme="dark"] select {
+  color: #ecfdf5;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 .custom-scrollbar {
@@ -376,4 +464,50 @@ textarea {
 .sber-id-btn:active {
   background-color: #17781f !important;
   transform: translateY(0) !important;
+}
+
+@keyframes dialogPop {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.94);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.dialog-pop {
+  animation: dialogPop 360ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.carousel-scroll-track {
+  position: relative;
+  height: 4px;
+  border-radius: 9999px;
+  overflow: hidden;
+  background: rgba(15, 23, 42, 0.08);
+}
+
+[data-theme="dark"] .carousel-scroll-track {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.carousel-scroll-thumb {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 9999px;
+  background: rgba(100, 116, 139, 0.55);
+  transition:
+    left 0.16s ease-out,
+    width 0.16s ease-out;
+}
+
+[data-theme="dark"] .carousel-scroll-thumb {
+  background: rgba(148, 163, 184, 0.5);
 }

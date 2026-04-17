@@ -3,9 +3,27 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" href="/ai-assistant-avatar.png" />
+    <link rel="apple-touch-icon" href="/ai-assistant-avatar.png" />
     <link rel="dns-prefetch" href="//id-ift.sber.ru" />
     <link rel="preconnect" href="https://id-ift.sber.ru" crossorigin />
-    <title>ИИ Помощник — Социальная поддержка</title>
+    <title>ИИ Помощник по социальной поддержке</title>
+    <script>
+      (function () {
+        var themeKey = "ai-social-support.theme";
+        var storedTheme = window.localStorage.getItem(themeKey);
+        var theme =
+          storedTheme === "light" || storedTheme === "dark"
+            ? storedTheme
+            : window.matchMedia &&
+                window.matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light";
+
+        document.documentElement.dataset.theme = theme;
+        document.documentElement.style.colorScheme = theme;
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
