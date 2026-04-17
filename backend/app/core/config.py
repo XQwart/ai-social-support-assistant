@@ -3,6 +3,7 @@ from enum import Enum
 from functools import lru_cache, cached_property
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from qdrant_client.models import Distance
 
 from .constants import BASE_DIR, CERT_DIR
 
@@ -43,6 +44,7 @@ class Config(BaseSettings):
     qdrant_url: str
     qdrant_port: int = 6333
     qdrant_collection: str = "chunk_collection"
+    rag_distance: Distance = Distance.COSINE
 
     sber_token_url: str = ""
     sber_authorize_url: str = "https://id-ift.sber.ru/CSAFront/oidc/authorize.do"
@@ -74,12 +76,14 @@ class Config(BaseSettings):
     polza_ai_model: str = "xiaomi/mimo-v2-flash"
     polza_ai_compress_model: str | None = None
     polza_ai_embedding_model: str = "text-embedding-3-large"
+    polza_ai_embedding_vector_size: int = 3072
 
     gigachat_api_key: str = ""
     gigachat_scope: str = ""
     gigachat_model: str | None = None
     gigachat_compress_model: str | None = None
     gigachat_embedding_model: str = "EmbeddingsGigaR"
+    gigachat_embedding_vector_size: int = 2560
 
     llm_source_text_limit: int = 3000
     llm_fallback_context_limit: int = 1000

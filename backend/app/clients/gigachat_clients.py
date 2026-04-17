@@ -14,7 +14,7 @@ class _GigaChatMixin:
     _client: GigaChat
     _model_name: str | None
 
-    def __init__(self, config: Config, model_name: str | None) -> None:
+    def __init__(self, config: Config, model_name: str | None, *args) -> None:
         self._model_name = model_name
         self._client = GigaChat(
             credentials=config.gigachat_api_key,
@@ -23,6 +23,7 @@ class _GigaChatMixin:
             timeout=config.llm_timeout,
             model=model_name,
         )
+        super().__init__(*args)
 
     async def aclose(self) -> None:
         await self._client.aclose()
@@ -66,8 +67,10 @@ class GigaChatLLMClient(_GigaChatMixin, LLMClient):
 class GigaChatEmbeddingClient(_GigaChatMixin, EmbeddingClient):
     _model_name: str
 
-    def __init__(self, config: Config, model_name: str | None) -> None:
-        super().__init__(config, model_name)
+    def __init__(
+        self, config: Config, model_name: str | None, vector_size: int
+    ) -> None:
+        super().__init__(config, model_name, vector_size)
         self._model_name = model_name if model_name else "Embeddings"
 
     async def get_embeddings(self, texts: Sequence[str]) -> list[list[float]]:

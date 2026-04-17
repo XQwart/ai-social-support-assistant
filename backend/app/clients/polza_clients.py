@@ -13,13 +13,14 @@ class _PolzaMixin:
     _client: AsyncOpenAI
     _model_name: str
 
-    def __init__(self, config: Config, model_name: str) -> None:
+    def __init__(self, config: Config, model_name: str, *args) -> None:
         self._model_name = model_name
         self._client = AsyncOpenAI(
             base_url=config.polza_ai_base_url,
             api_key=config.polza_ai_api_key,
             timeout=config.llm_timeout,
         )
+        super().__init__(*args)
 
     async def aclose(self) -> None:
         await self._client.close()
@@ -43,6 +44,9 @@ class PolzaLLMClient(_PolzaMixin, LLMClient):
 
 
 class PolzaEmbeddingClient(_PolzaMixin, EmbeddingClient):
+    def __init__(self, config: Config, model_name: str, vector_size: int) -> None:
+        super().__init__(config, model_name, vector_size)
+
     async def get_embeddings(self, texts: Sequence[str]) -> list[list[float]]:
         return await super().get_embeddings(texts)
 

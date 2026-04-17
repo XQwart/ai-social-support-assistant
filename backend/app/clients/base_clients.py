@@ -35,6 +35,15 @@ class LLMClient(Client):
 
 
 class EmbeddingClient(Client):
+    _vector_size: int
+
+    def __init__(self, vector_size: int) -> None:
+        self._vector_size = vector_size
+
+    @property
+    def vector_size(self) -> int:
+        return self._vector_size
+
     @abstractmethod
     async def get_embeddings(self, texts: Sequence[str]) -> list[list[float]]:
         pass
