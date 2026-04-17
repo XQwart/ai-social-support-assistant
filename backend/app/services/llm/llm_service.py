@@ -13,7 +13,6 @@ from .prompts import (
 
 if TYPE_CHECKING:
     from app.core.config import Config
-    from .. import RAGService
 
 
 logger = logging.getLogger(__name__)
@@ -23,24 +22,23 @@ class LLMService:
     _config: Config
     _chat_client: LLMClient
     _compress_client: LLMClient
-    _rag_service: RAGService
 
     def __init__(
         self,
         config: Config,
         chat_client: LLMClient,
         compress_client: LLMClient,
-        rag_service: RAGService,
     ):
         self._config = config
         self._chat_client = chat_client
         self._compress_client = compress_client
-        self._rag_service = rag_service
 
     async def generate_response(
         self,
         user_message: str,
         chat_history: list[dict[str, str]],
+        chunks: list[dict[str, str]],
+        faqs: list = [],
         compressed_context: str | None = None,
     ) -> LLMCompletion:
         logger.info(
@@ -48,10 +46,7 @@ class LLMService:
             user_message[:100],
             len(chat_history),
         )
-        faq_data = [""]  # TODO: Убрать заглушку
-        chuck_data = await self._get_chunks(user_message)
-
-        system_prompt = build_system_prompt(faq_data, chuck_data)
+        system_prompt = build_system_prompt(faqs, chunks)
 
         messages: list[dict[str, str]] = [{"role": "system", "content": system_prompt}]
         if compressed_context:
@@ -82,17 +77,6 @@ class LLMService:
         except Exception:
             logger.exception("Критическая ошибка при обращении к ИИ")
             return LLMCompletion(text=FALLBACK_AI_UNAVAILABLE, usage=None)
-
-    async def _get_chunks(self, user_message: str) -> list[dict]:
-        chunks = await self._rag_service.retrieve(user_message)
-        return [
-            {
-                "source_name": chunk.source_name,
-                "source_url": chunk.source_url,
-                "text": chunk.text,
-            }
-            for chunk in chunks
-        ]
 
     async def compress_context(
         self,

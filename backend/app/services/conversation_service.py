@@ -11,6 +11,7 @@ if TYPE_CHECKING:
         ContextStatsService,
         MessageService,
         LLMService,
+        RAGService,
     )
     from app.core.config import Config
     from app.models import ChatModel, MessageModel
@@ -23,6 +24,7 @@ class ConversationService:
     _ctx_budget_service: ContextBudgetService
     _ctx_stats_service: ContextStatsService
     _chat_service: ChatService
+    _rag_service: RAGService
     _config: Config
 
     def __init__(
@@ -32,6 +34,7 @@ class ConversationService:
         ctx_budget_service: ContextBudgetService,
         ctx_stats_service: ContextStatsService,
         chat_service: ChatService,
+        rag_service: RAGService,
         config: Config,
     ):
         self._llm_service = llm_service
@@ -39,6 +42,7 @@ class ConversationService:
         self._ctx_budget_service = ctx_budget_service
         self._ctx_stats_service = ctx_stats_service
         self._chat_service = chat_service
+        self._rag_service = rag_service
         self._config = config
 
     async def send_message(self, chat: ChatModel, content: str) -> ConversationResult:
@@ -51,9 +55,20 @@ class ConversationService:
             chat=chat, ctx_stats=ctx_stats, current_user_message_id=user_msg.id
         )
 
+        retrieved_chunks = await self._rag_service.retrieve(content)
+        chunks = [
+            {
+                "source_name": chunk.source_name,
+                "source_url": chunk.source_url,
+                "text": chunk.text,
+            }
+            for chunk in retrieved_chunks
+        ]
+
         completion = await self._llm_service.generate_response(
             user_message=content,
             chat_history=chat_history,
+            chunks=chunks,
             compressed_context=compressed_context,
         )
 
