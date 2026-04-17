@@ -6,7 +6,7 @@ import re
 import tiktoken
 
 from worker.schemas.document import DocumentChunkCreate, ParsedDocument
-from worker.core.constants import _ABBR_SET, _SENTENCE_SPLIT_RE
+from worker.core.constants import ABBR_SET, SENTENCE_SPLIT_RE
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,6 @@ class ChunkingService:
 
     def split_document(self, document: ParsedDocument) -> list[DocumentChunkCreate]:
         chunks = self._split_text(document.text)
-
         logger.info(
             "Документ '%s' (source_id=%s): %d символов → %d чанков",
             document.source_name,
@@ -107,7 +106,7 @@ class ChunkingService:
 
     @staticmethod
     def _split_sentences(text: str) -> list[str]:
-        raw_parts = _SENTENCE_SPLIT_RE.split(text)
+        raw_parts = SENTENCE_SPLIT_RE.split(text)
 
         sentences: list[str] = []
         buffer = ""
@@ -120,7 +119,7 @@ class ChunkingService:
             buffer = f"{buffer} {part}" if buffer else part
 
             match = re.search(r"(\w+)\.\s*$", buffer)
-            if match and match.group(1).lower() in _ABBR_SET:
+            if match and match.group(1).lower() in ABBR_SET:
                 continue
 
             if re.search(r"\d\.\s*$", buffer):
@@ -186,16 +185,52 @@ class ChunkingService:
         return chunks
 
     def _extract_overlap(self, text: str) -> str:
-        tokens = self._encode(text)
+        text = text.strip()
+        if not text:
+            return ""
 
+        paragraphs = [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()]
+        if paragraphs:
+            selected: list[str] = []
+
+            for paragraph in reversed(paragraphs):
+                candidate = (
+                    paragraph
+                    if not selected
+                    else f"{paragraph}\n\n" + "\n\n".join(selected)
+                )
+
+                if self._token_len(candidate) > self._overlap:
+                    break
+
+                selected.insert(0, paragraph)
+
+            if selected:
+                return "\n\n".join(selected).strip()
+
+        sentences = self._split_sentences(text)
+        if sentences:
+            selected: list[str] = []
+
+            for sentence in reversed(sentences):
+                candidate = (
+                    sentence if not selected else f"{sentence} {' '.join(selected)}"
+                )
+
+                if self._token_len(candidate) > self._overlap:
+                    break
+
+                selected.insert(0, sentence)
+
+            if selected:
+                return " ".join(selected).strip()
+
+        tokens = self._encode(text)
         if len(tokens) <= self._overlap:
             return text
 
         overlap_tokens = tokens[-self._overlap :]
         overlap_text = self._decode(overlap_tokens).strip()
-
-        first_space = overlap_text.find(" ")
-        if first_space > 0:
-            overlap_text = overlap_text[first_space:].strip()
+        overlap_text = re.sub(r"^\S*\s?", "", overlap_text).strip()
 
         return overlap_text

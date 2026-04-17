@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from shared.models.chunk_model import DocumentChunk
+from shared.models import DocumentChunk
 from worker.schemas.document import DocumentChunkCreate, StoredDocumentChunk
 
 
