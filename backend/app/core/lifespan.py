@@ -26,7 +26,7 @@ async def lifespan(app: FastAPI):
     redis = create_redis(config)
     http_client = create_sber_http_client(config)
     chat_ai_client, compress_ai_client, embedding_ai_client = create_ai_clients(config)
-    qdrant = create_qdrant_client(config)
+    qdrant = create_qdrant_client(url=config.qdrant_url)
     await ensure_collection(
         qdrant,
         collection_name=config.qdrant_collection,

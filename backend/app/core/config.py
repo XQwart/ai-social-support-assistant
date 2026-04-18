@@ -41,8 +41,13 @@ class Config(BaseSettings):
     def redis_url(self) -> str:
         return self._get_redis_url(0)
 
-    qdrant_url: str
+    qdrant_host: str
     qdrant_port: int = 6333
+
+    @property
+    def qdrant_url(self) -> str:
+        return f"http://{self.qdrant_host}:{self.qdrant_port}"
+
     qdrant_collection: str = "chunk_collection"
 
     rag_distance: Distance = Distance.COSINE
