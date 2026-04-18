@@ -24,7 +24,7 @@ def dispatch_due_crawls(self) -> dict:
         return service.dispatch_due_crawls()
 
 
-@app.task(bind=True, name="worker.tasks.scheduler.reap_stale_locks")
+@app.task(bind=True, name="worker.tasks.scheduler_task.reap_stale_locks")
 def reap_stale_locks(self) -> dict:
     deps = WorkerDependencies.get()
 
