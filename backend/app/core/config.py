@@ -44,7 +44,10 @@ class Config(BaseSettings):
     qdrant_url: str
     qdrant_port: int = 6333
     qdrant_collection: str = "chunk_collection"
+
     rag_distance: Distance = Distance.COSINE
+    rag_top_k: int = 3
+    rag_score_threshold: float = 0.65
 
     sber_token_url: str = ""
     sber_authorize_url: str = "https://id-ift.sber.ru/CSAFront/oidc/authorize.do"

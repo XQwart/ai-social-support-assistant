@@ -79,6 +79,7 @@ def get_conversation_service(
     ctx_budget_service: "ContextBudgetServiceDep",
     ctx_stats_service: "ContextStatsServiceDep",
     chat_service: "ChatServiceDep",
+    rag_service: "RAGServiceDep",
     config: ConfigDep,
 ) -> ConversationService:
     return ConversationService(
@@ -87,6 +88,7 @@ def get_conversation_service(
         ctx_budget_service,
         ctx_stats_service,
         chat_service,
+        rag_service,
         config,
     )
 
@@ -95,9 +97,8 @@ def get_llm_service(
     config: ConfigDep,
     chat_client: ChatAIClientDep,
     compress_client: CompressAIClientDep,
-    rag_service: "RAGServiceDep",
 ) -> LLMService:
-    return LLMService(config, chat_client, compress_client, rag_service)
+    return LLMService(config, chat_client, compress_client)
 
 
 def get_rag_service(

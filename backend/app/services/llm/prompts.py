@@ -26,7 +26,7 @@ SYSTEM_PROMPT_BASE = (
 )
 
 FAQ_SECTION_TEMPLATE = "\n\nБАЗА ЗНАНИЙ (FAQ — вопросы и ответы):\n"
-CHUCK_SECTION_TEMPLATE = "\n\nСТАТЬИ (для цитирования):\n"
+CHUNK_SECTION_TEMPLATE = "\n\nСТАТЬИ (для цитирования):\n"
 
 
 COMPRESS_CONTEXT_SYSTEM = (
@@ -47,16 +47,16 @@ FALLBACK_AI_UNAVAILABLE = (
 )
 
 
-def build_system_prompt(faq_data: list, chuck_data: list) -> str:
+def build_system_prompt(faqs: list, chunks: list) -> str:
     faq_section = ""
     chuck_section = ""
 
-    if faq_data:
-        faq_text = json.dumps(faq_data[:200], ensure_ascii=False)
+    if faqs:
+        faq_text = json.dumps(faqs[:200], ensure_ascii=False)
         faq_section = f"{FAQ_SECTION_TEMPLATE}{faq_text}"
 
-    if chuck_data:
-        chuck_text = json.dumps(chuck_data[:100], ensure_ascii=False)
-        chuck_section = f"{CHUCK_SECTION_TEMPLATE}{chuck_text}"
+    if chunks:
+        chuck_text = json.dumps(chunks[:100], ensure_ascii=False)
+        chuck_section = f"{CHUNK_SECTION_TEMPLATE}{chuck_text}"
 
     return f"{SYSTEM_PROMPT_BASE}" f"{faq_section}" f"{chuck_section}"
