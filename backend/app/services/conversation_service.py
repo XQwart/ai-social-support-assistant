@@ -55,22 +55,24 @@ class ConversationService:
             chat=chat, ctx_stats=ctx_stats, current_user_message_id=user_msg.id
         )
 
+        user = chat.user
         retrieved_chunks = await self._rag_service.retrieve(
-            question=content, place_of_work=chat.user.place_of_work
+            question=content, place_of_work=user.place_of_work
         )
-        chunks = [
-            {
-                "source_name": chunk.source_name,
-                "source_url": chunk.source_url,
-                "text": chunk.text,
-            }
-            for chunk in retrieved_chunks
-        ]
+
+        public_chunks = [c for c in retrieved_chunks if not c.is_internal]
+        internal_chunks = (
+            [c for c in retrieved_chunks if c.is_internal]
+            if user.is_sber_employee
+            else []
+        )
 
         completion = await self._llm_service.generate_response(
+            user=user,
             user_message=content,
             chat_history=chat_history,
-            chunks=chunks,
+            public_chunks=public_chunks,
+            internal_chunks=internal_chunks,
             compressed_context=compressed_context,
         )
 

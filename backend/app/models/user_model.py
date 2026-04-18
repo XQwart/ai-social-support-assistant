@@ -5,6 +5,7 @@ from datetime import datetime
 from sqlalchemy import String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.constants import is_sber_employee_place_of_work
 from shared.database import Base
 
 
@@ -27,3 +28,7 @@ class UserModel(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+
+    @property
+    def is_sber_employee(self) -> bool:
+        return is_sber_employee_place_of_work(self.place_of_work)

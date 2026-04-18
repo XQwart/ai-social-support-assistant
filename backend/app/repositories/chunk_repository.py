@@ -19,7 +19,7 @@ class ChunkRepository:
         self,
         embedding: list[float],
         place_of_work: str | None,
-    ) -> list[int]:
+    ) -> list[tuple[int, str | None]]:
         if place_of_work:
             response = await self._client.query_points(
                 collection_name=self._config.qdrant_collection,
@@ -68,4 +68,8 @@ class ChunkRepository:
                 score_threshold=self._config.rag_score_threshold,
             )
 
-        return [point.payload["text_id"] for point in response.points if point.payload]
+        return [
+            (point.payload["text_id"], point.payload.get("place_of_work"))
+            for point in response.points
+            if point.payload
+        ]

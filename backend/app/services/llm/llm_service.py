@@ -13,6 +13,8 @@ from .prompts import (
 
 if TYPE_CHECKING:
     from app.core.config import Config
+    from app.models import UserModel
+    from app.schemas.rag_schemas import RetrievedChunk
 
 
 logger = logging.getLogger(__name__)
@@ -35,25 +37,31 @@ class LLMService:
 
     async def generate_response(
         self,
+        user: UserModel,
         user_message: str,
         chat_history: list[dict[str, str]],
-        chunks: list[dict[str, str]],
-        faqs: list = [],
+        public_chunks: list[RetrievedChunk],
+        internal_chunks: list[RetrievedChunk],
         compressed_context: str | None = None,
     ) -> LLMCompletion:
         logger.info(
-            "Запрос к ИИ: user_message='%s', history_len=%d",
+            "Запрос к ИИ: user_id=%s, is_sber=%s, user_message='%s', history_len=%d, "
+            "public_chunks=%d, internal_chunks=%d",
+            user.id,
+            user.is_sber_employee,
             user_message[:100],
             len(chat_history),
+            len(public_chunks),
+            len(internal_chunks),
         )
-        system_prompt = build_system_prompt(faqs, chunks)
+        system_prompt = build_system_prompt(user, public_chunks, internal_chunks)
 
         messages: list[dict[str, str]] = [{"role": "system", "content": system_prompt}]
         if compressed_context:
             messages.append(
                 {
                     "role": "system",
-                    "content": (f"{COMPRESSED_CONTEXT_PREFIX}{compressed_context}"),
+                    "content": f"{COMPRESSED_CONTEXT_PREFIX}{compressed_context}",
                 }
             )
         messages.extend(chat_history)
