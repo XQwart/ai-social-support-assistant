@@ -44,17 +44,21 @@ class LLMService:
         internal_chunks: list[RetrievedChunk],
         compressed_context: str | None = None,
     ) -> LLMCompletion:
+        is_new_dialog = not chat_history and compressed_context is None
         logger.info(
             "Запрос к ИИ: user_id=%s, is_sber=%s, user_message='%s', history_len=%d, "
-            "public_chunks=%d, internal_chunks=%d",
+            "public_chunks=%d, internal_chunks=%d, is_new_dialog=%s",
             user.id,
             user.is_sber_employee,
             user_message[:100],
             len(chat_history),
             len(public_chunks),
             len(internal_chunks),
+            is_new_dialog,
         )
-        system_prompt = build_system_prompt(user, public_chunks, internal_chunks)
+        system_prompt = build_system_prompt(
+            user, public_chunks, internal_chunks, is_new_dialog
+        )
 
         messages: list[dict[str, str]] = [{"role": "system", "content": system_prompt}]
         if compressed_context:

@@ -33,7 +33,7 @@ import ChatInput from "@/components/ChatInput";
 import ChatView from "@/components/ChatView";
 import HomePage from "@/components/HomePage";
 import SettingsModal from "@/components/SettingsModal";
-import Sidebar from "@/components/Sidebar";
+import Sidebar, { type ChatSortMode } from "@/components/Sidebar";
 import TopBar from "@/components/TopBar";
 import UserAgreementModal from "@/components/UserAgreementModal";
 import type { Chat, Message } from "@/types";
@@ -41,6 +41,7 @@ import type { Chat, Message } from "@/types";
 const AUTH_TOKEN_KEY = "ai-social-support.auth.token";
 const AUTH_USER_KEY = "ai-social-support.auth.user";
 const THEME_KEY = "ai-social-support.theme";
+const CHAT_SORT_KEY = "ai-social-support.chatSortMode";
 const CHAT_PAGE_LIMIT = 100;
 const MESSAGE_PAGE_LIMIT = 100;
 const RECENT_MESSAGE_WINDOW_MS = 15000;
@@ -95,6 +96,15 @@ function readTheme(): ThemeMode {
   }
 
   return readStoredTheme() ?? readSystemTheme();
+}
+
+function readStoredChatSortMode(): ChatSortMode {
+  if (typeof window === "undefined") {
+    return "updated";
+  }
+
+  const stored = window.localStorage.getItem(CHAT_SORT_KEY);
+  return stored === "created" || stored === "updated" ? stored : "updated";
 }
 
 function getHistoryControllerKey(chatId: string): string {
@@ -281,6 +291,9 @@ export default function App() {
   const [isLoadingMoreChats, setIsLoadingMoreChats] = useState(false);
   const [isCreatingChat, setIsCreatingChat] = useState(false);
   const [theme, setTheme] = useState<ThemeMode>(() => initialThemeRef.current);
+  const [chatSortMode, setChatSortMode] = useState<ChatSortMode>(() =>
+    readStoredChatSortMode()
+  );
 
   const isAuthenticated = !!authToken;
   const isDarkTheme = theme === "dark";
@@ -307,6 +320,11 @@ export default function App() {
     document.documentElement.style.colorScheme = theme;
     window.localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(CHAT_SORT_KEY, chatSortMode);
+  }, [chatSortMode]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1438,6 +1456,8 @@ export default function App() {
         hasMoreChats={hasMoreChats}
         onLoadMoreChats={handleLoadMoreChats}
         theme={theme}
+        sortMode={chatSortMode}
+        onSortModeChange={setChatSortMode}
       />
 
       <TopBar
