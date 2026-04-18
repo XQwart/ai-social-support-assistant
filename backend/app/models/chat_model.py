@@ -32,7 +32,9 @@ class ChatModel(Base):
         nullable=False,
     )
 
-    user: Mapped["UserModel"] = relationship("UserModel", back_populates="chats")
+    user: Mapped["UserModel"] = relationship(
+        "UserModel", back_populates="chats", lazy="joined"
+    )
     messages: Mapped[list["MessageModel"]] = relationship(
         "MessageModel",
         back_populates="chat",

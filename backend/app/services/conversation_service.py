@@ -55,7 +55,9 @@ class ConversationService:
             chat=chat, ctx_stats=ctx_stats, current_user_message_id=user_msg.id
         )
 
-        retrieved_chunks = await self._rag_service.retrieve(content)
+        retrieved_chunks = await self._rag_service.retrieve(
+            question=content, place_of_work=chat.user.place_of_work
+        )
         chunks = [
             {
                 "source_name": chunk.source_name,
