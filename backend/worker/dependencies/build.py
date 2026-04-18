@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from redis import Redis
 from threading import Lock
 from qdrant_client.models import VectorParams, Distance
 from contextlib import contextmanager
@@ -33,6 +34,7 @@ from worker.services.chunk_service import ChunkingService
 from worker.services.processing_service import SourceProcessingService
 from worker.services.discovery_service import LinkDiscoveryService
 from worker.services.region_import_service import RegionSourceImportService
+from worker.services.runtime_state_service import RuntimeStateService
 
 logger = logging.getLogger(__name__)
 _lock = Lock()
@@ -46,6 +48,9 @@ class WorkerDependencies:
 
         self._provider = build_embedding_provider(config=config)
         self._qdrant = create_qdrant(url=config.qdrant_url)
+
+        self._redis = Redis.from_url(config.redis_celery_url, decode_responses=True)
+        self._runtime_state_service = RuntimeStateService(redis_client=self._redis)
 
         self.ensure_collection(self._provider.vector_size)
 
@@ -98,6 +103,10 @@ class WorkerDependencies:
             if cls._instance is not None:
                 cls._instance._close()
                 cls._instance = None
+
+    @property
+    def runtime_state_service(self) -> RuntimeStateService:
+        return self._runtime_state_service
 
     def build_processing_service(self, session) -> SourceProcessingService:
 

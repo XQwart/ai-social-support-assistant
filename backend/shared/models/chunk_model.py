@@ -4,13 +4,12 @@ from typing import TYPE_CHECKING
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from shared.database import Base
-from .associations import chats_chunks
 
 if TYPE_CHECKING:
-    from app.models import ChatModel
+    pass
 
 
 class DocumentChunk(Base):
@@ -34,8 +33,4 @@ class DocumentChunk(Base):
         DateTime(timezone=True),
         server_default=func.now(),
         nullable=False,
-    )
-
-    chats: Mapped[list["ChatModel"]] = relationship(
-        "ChatModel", secondary=chats_chunks, back_populates="document_chunks"
     )

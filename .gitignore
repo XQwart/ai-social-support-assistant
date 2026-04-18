@@ -10,3 +10,4 @@ frontend/dist/
 *.old*
 ssl/*
 volumes/*
+data

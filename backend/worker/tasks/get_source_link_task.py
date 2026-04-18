@@ -13,9 +13,16 @@ def get_source_links(self) -> dict:
     deps = WorkerDependencies.get()
     sources = read_json_file(SOURCES_JSON)
 
-    with deps.session_scope() as session:
-        service = deps.build_region_source_import_service(session=session)
+    deps.runtime_state_service.set_sources_status("running")
 
-        result = service.import_from_data(sources=sources)
+    try:
+        with deps.session_scope() as session:
+            service = deps.build_region_source_import_service(session=session)
+            result = service.import_from_data(sources=sources)
 
+        deps.runtime_state_service.set_sources_status("ready")
         return result
+
+    except Exception:
+        deps.runtime_state_service.set_sources_status("failed")
+        raise

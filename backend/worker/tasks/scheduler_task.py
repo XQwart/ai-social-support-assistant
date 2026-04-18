@@ -6,9 +6,15 @@ from worker.dependencies.build import WorkerDependencies
 from worker.services.source.source_crawl_service import SourceCrawlService
 
 
-@app.task(bind=True, name="worker.tasks.scheduler.dispatch_due_crawls")
+@app.task(bind=True, name="worker.tasks.scheduler_task.dispatch_due_crawls")
 def dispatch_due_crawls(self) -> dict:
     deps = WorkerDependencies.get()
+
+    if not deps.runtime_state_service.is_sources_ready():
+        return {
+            "status": "skipped",
+            "reason": "source links are not initialized yet",
+        }
 
     with deps.session_scope() as session:
         source_rep = SourceCrawlRepository(session=session)

@@ -22,7 +22,7 @@ class Config(BaseSettings):
     redis_host: str = "redis"
     redis_port: int = 6973
 
-    postgres_host_1: str = ""
+    postgres_host: str = ""
     postgres_user: str = ""
     postgres_password: str = ""
     postgres_db: str = ""
@@ -32,7 +32,7 @@ class Config(BaseSettings):
     def database_url(self) -> str:
         return (
             f"postgresql+psycopg2://{self.postgres_user}:{self.postgres_password}"
-            f"@{self.postgres_host_1}:{self.postgres_port}/{self.postgres_db}"
+            f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
 
     @property
