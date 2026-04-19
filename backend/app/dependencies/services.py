@@ -80,6 +80,7 @@ def get_conversation_service(
     ctx_stats_service: "ContextStatsServiceDep",
     chat_service: "ChatServiceDep",
     rag_service: "RAGServiceDep",
+    user_service: "UserServiceDep",
     config: ConfigDep,
 ) -> ConversationService:
     return ConversationService(
@@ -89,6 +90,7 @@ def get_conversation_service(
         ctx_stats_service,
         chat_service,
         rag_service,
+        user_service,
         config,
     )
 

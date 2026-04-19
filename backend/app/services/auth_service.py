@@ -70,6 +70,8 @@ class AuthService:
             first_name=user_info.given_name,
             second_name=user_info.family_name,
             place_of_work=user_info.place_of_work,
+            region_reg=user_info.region_reg,
+            region_current=user_info.region_current,
         )
 
         login_code = secrets.token_urlsafe(32)
