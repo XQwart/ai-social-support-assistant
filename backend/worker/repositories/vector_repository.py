@@ -10,10 +10,17 @@ from worker.schemas.document import EmbeddedDocumentChunk
 class VectorRepository:
     _client: QdrantClient
     _collection_name: str
+    _upsert_batch_size: int
 
-    def __init__(self, client: QdrantClient, collection_name: str) -> None:
+    def __init__(
+        self,
+        client: QdrantClient,
+        collection_name: str,
+        upsert_batch_size: int = 512,
+    ) -> None:
         self._client = client
         self._collection_name = collection_name
+        self._upsert_batch_size = upsert_batch_size
 
     def upsert_chunks(
         self,
@@ -24,8 +31,9 @@ class VectorRepository:
         if not embedded_chunks:
             return 0
 
-        points: list[models.PointStruct] = []
         total_chunks = len(embedded_chunks)
+        points: list[models.PointStruct] = []
+
         for chunk in embedded_chunks:
             vector = chunk.vector
             if not vector:
@@ -51,10 +59,12 @@ class VectorRepository:
         if not points:
             return 0
 
-        self._client.upsert(
-            collection_name=self._collection_name,
-            points=points,
-        )
+        for i in range(0, len(points), self._upsert_batch_size):
+            batch = points[i : i + self._upsert_batch_size]
+            self._client.upsert(
+                collection_name=self._collection_name,
+                points=batch,
+            )
 
         return len(points)
 
