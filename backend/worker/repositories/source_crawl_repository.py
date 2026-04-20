@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from worker.core.constants import DEFAULT_CRAWL_INTERVAL
 from worker.models.source import Source
-from worker.models.regions import Region, SourceRegion
+from shared.models.regions import Region, SourceRegion
 
 
 class SourceCrawlRepository:

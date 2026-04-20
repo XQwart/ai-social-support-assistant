@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from worker.core.constants import DEFAULT_CRAWL_INTERVAL
-from worker.models.regions import Region, SourceRegion
+from shared.models.regions import Region, SourceRegion
 from worker.models.source import Source
 
 

@@ -51,7 +51,8 @@ class Config(BaseSettings):
     qdrant_collection: str = "chunk_collection"
 
     rag_distance: Distance = Distance.COSINE
-    rag_top_k: int = 3
+    rag_top_k: int = 6
+    rag_min_per_category: int = 2
     rag_score_threshold: float = 0.65
 
     sber_token_url: str = ""

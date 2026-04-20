@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from worker.models.regions import Region
+from shared.models.regions import Region
 from worker.repositories.region_repository import RegionRepository
 
 

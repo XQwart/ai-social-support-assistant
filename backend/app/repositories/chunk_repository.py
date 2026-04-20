@@ -18,55 +18,71 @@ class ChunkRepository:
     async def search_similar_by_work(
         self,
         embedding: list[float],
+        region: str | None,
         place_of_work: str | None,
     ) -> list[tuple[int, str | None]]:
-        if place_of_work:
-            response = await self._client.query_points(
-                collection_name=self._config.qdrant_collection,
-                prefetch=[
-                    models.Prefetch(
-                        query=embedding,
-                        filter=models.Filter(
-                            must=[
-                                models.IsNullCondition(
-                                    is_null=models.PayloadField(key="place_of_work")
-                                )
-                            ]
-                        ),
-                        limit=self._config.rag_top_k,
-                        score_threshold=self._config.rag_score_threshold,
-                    ),
-                    models.Prefetch(
-                        query=embedding,
-                        filter=models.Filter(
-                            must=[
-                                models.FieldCondition(
-                                    key="place_of_work",
-                                    match=models.MatchValue(value=place_of_work),
-                                )
-                            ]
-                        ),
-                        limit=self._config.rag_top_k,
-                        score_threshold=self._config.rag_score_threshold,
-                    ),
-                ],
-                query=models.RrfQuery(rrf=models.Rrf(weights=[1.0, 2.0])),
-                limit=self._config.rag_top_k,
-            )
-        else:
-            response = await self._client.query_points(
-                collection_name=self._config.qdrant_collection,
+
+        per_category_k = self._config.rag_min_per_category
+        threshold = self._config.rag_score_threshold
+
+        prefetches = [
+            models.Prefetch(
                 query=embedding,
-                query_filter=models.Filter(
+                filter=models.Filter(
                     must=[
                         models.IsNullCondition(
+                            is_null=models.PayloadField(key="region_codes")
+                        ),
+                        models.IsNullCondition(
                             is_null=models.PayloadField(key="place_of_work")
-                        )
+                        ),
                     ]
                 ),
-                limit=self._config.rag_top_k,
-                score_threshold=self._config.rag_score_threshold,
+                limit=per_category_k,
+                score_threshold=threshold,
             )
+        ]
+
+        if region:
+            prefetches.append(
+                models.Prefetch(
+                    query=embedding,
+                    filter=models.Filter(
+                        must=[
+                            models.FieldCondition(
+                                key="region_codes",
+                                match=models.MatchAny(any=[region]),
+                            ),
+                        ]
+                    ),
+                    limit=per_category_k,
+                    score_threshold=threshold,
+                )
+            )
+
+        if place_of_work:
+            prefetches.append(
+                models.Prefetch(
+                    query=embedding,
+                    filter=models.Filter(
+                        must=[
+                            models.FieldCondition(
+                                key="place_of_work",
+                                match=models.MatchValue(value=place_of_work),
+                            ),
+                        ]
+                    ),
+                    limit=per_category_k,
+                    score_threshold=threshold,
+                )
+            )
+
+        response = await self._client.query_points(
+            collection_name=self._config.qdrant_collection,
+            prefetch=prefetches,
+            query=models.FusionQuery(fusion=models.Fusion.RRF),
+            limit=self._config.rag_top_k,
+        )
 
         return [
             (point.payload["text_id"], point.payload.get("place_of_work"))

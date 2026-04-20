@@ -16,6 +16,7 @@ if TYPE_CHECKING:
         LLMService,
         RAGService,
         UserService,
+        RegionService,
     )
     from app.core.config import Config
     from app.models import ChatModel, MessageModel, UserModel
@@ -35,6 +36,7 @@ class ConversationService:
     _chat_service: ChatService
     _rag_service: RAGService
     _user_service: UserService
+    _region_service: RegionService
     _config: Config
 
     def __init__(
@@ -46,6 +48,7 @@ class ConversationService:
         chat_service: ChatService,
         rag_service: RAGService,
         user_service: UserService,
+        region_service: RegionService,
         config: Config,
     ):
         self._llm_service = llm_service
@@ -55,6 +58,7 @@ class ConversationService:
         self._chat_service = chat_service
         self._rag_service = rag_service
         self._user_service = user_service
+        self._region_service = region_service
         self._config = config
 
     async def send_message(self, chat: ChatModel, content: str) -> ConversationResult:
@@ -68,8 +72,11 @@ class ConversationService:
         )
 
         user = chat.user
+        region_code = await self._region_service.get_code_by_name(
+            user.region_current or user.region_reg
+        )  # TODO: Исправить временное решение
         retrieved_chunks = await self._rag_service.retrieve(
-            question=content, place_of_work=user.place_of_work
+            question=content, region=region_code, place_of_work=user.place_of_work
         )
 
         public_chunks = [c for c in retrieved_chunks if not c.is_internal]
