@@ -17,6 +17,7 @@ from app.dependencies.repositories import (
     DocumentRepoDep,
     ChunkRepoDep,
     ContextStatsRepoDep,
+    RegionRepoDep,
 )
 from app.dependencies.http import HTTPSberClientDep
 from app.dependencies.jwt import AccessTokenDep, RefreshTokenDep
@@ -31,6 +32,7 @@ from app.services import (
     RAGService,
     ContextBudgetService,
     ContextStatsService,
+    RegionService,
 )
 
 
@@ -73,6 +75,10 @@ def get_user_service(user_rep: UserRepoDep) -> UserService:
     return UserService(user_rep)
 
 
+def get_region_service(region_rep: RegionRepoDep) -> RegionService:
+    return RegionService(region_rep)
+
+
 def get_conversation_service(
     llm_service: "LLMServiceDep",
     message_service: "MessageServiceDep",
@@ -81,6 +87,7 @@ def get_conversation_service(
     chat_service: "ChatServiceDep",
     rag_service: "RAGServiceDep",
     user_service: "UserServiceDep",
+    region_service: "RegionServiceDep",
     config: ConfigDep,
 ) -> ConversationService:
     return ConversationService(
@@ -91,6 +98,7 @@ def get_conversation_service(
         chat_service,
         rag_service,
         user_service,
+        region_service,
         config,
     )
 
@@ -135,3 +143,4 @@ ContextBudgetServiceDep = Annotated[
     ContextBudgetService, Depends(get_ctx_budget_service)
 ]
 ContextStatsServiceDep = Annotated[ContextStatsService, Depends(get_ctx_stats_service)]
+RegionServiceDep = Annotated[RegionService, Depends(get_region_service)]
