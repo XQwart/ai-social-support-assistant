@@ -6,3 +6,4 @@ from .oauth_repository import OauthRepository
 from .token_repository import TokenRedisRepository
 from .user_repository import UserRepository
 from .context_stats_repository import ContextStatsRepository
+from .region_repository import RegionRepository

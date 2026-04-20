@@ -8,3 +8,4 @@ from .llm.llm_service import LLMService
 from .rag_service import RAGService
 from .context_stats_service import ContextStatsService
 from .context_budget_service import ContextBudgetService
+from .region_service import RegionService

@@ -10,6 +10,7 @@ from app.repositories import (
     DocumentRepository,
     ChunkRepository,
     ContextStatsRepository,
+    RegionRepository,
 )
 from app.dependencies.qdrant import QdrantClientDep
 from app.dependencies.config import ConfigDep
@@ -51,6 +52,10 @@ def get_ctx_stats_repository(
     return ContextStatsRepository(redis, config)
 
 
+def get_region_repo(session: DBSessionDep) -> RegionRepository:
+    return RegionRepository(session)
+
+
 UserRepoDep = Annotated[UserRepository, Depends(get_user_repo)]
 TokenRedisRepoDep = Annotated[TokenRedisRepository, Depends(get_token_redis_repo)]
 OauthRepoDep = Annotated[OauthRepository, Depends(get_auth_redis_repo)]
@@ -61,3 +66,4 @@ ChunkRepoDep = Annotated[ChunkRepository, Depends(get_chunk_repo)]
 ContextStatsRepoDep = Annotated[
     ContextStatsRepository, Depends(get_ctx_stats_repository)
 ]
+RegionRepoDep = Annotated[RegionRepository, Depends(get_region_repo)]

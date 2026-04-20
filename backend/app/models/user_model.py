@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from datetime import datetime
 
-from sqlalchemy import String, func
+from sqlalchemy import Text, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.constants import is_sber_employee_place_of_work
@@ -20,6 +20,9 @@ class UserModel(Base):
     first_name: Mapped[str] = mapped_column(String(200))
     second_name: Mapped[str] = mapped_column(String(200))
     place_of_work: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    region_reg: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    region_current: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    persistent_memory: Mapped[str | None] = mapped_column(Text, nullable=True)
     bank_id: Mapped[str] = mapped_column(String(200), unique=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 

@@ -25,7 +25,10 @@ class RAGService:
         self._chunk_rep = chunk_rep
 
     async def retrieve(
-        self, question: str, place_of_work: str | None = None
+        self,
+        question: str,
+        region: str | None,
+        place_of_work: str | None = None,
     ) -> list[RetrievedChunk]:
         # TODO: Реализовать обработку превышения лимита токенов
 
@@ -34,7 +37,7 @@ class RAGService:
         place_by_id: dict[int, str | None] = {}
         for embedding in embeddings:
             matches = await self._chunk_rep.search_similar_by_work(
-                embedding, place_of_work
+                embedding, region, place_of_work
             )
             for doc_id, chunk_place_of_work in matches:
                 place_by_id.setdefault(doc_id, chunk_place_of_work)
