@@ -1,19 +1,19 @@
 from uuid import uuid4
 from worker.tasks.update_knowledge_task import update_knowledge
 from celery import group
-from worker.services.source_service import SourceService
+from worker.services.source.source_crawl_service import SourceCrawlService
 
 
 class SchedulerService:
-    _source_service: SourceService
+    _source_service: SourceCrawlService
 
-    def __init__(self, source_service: SourceService):
+    def __init__(self, source_service: SourceCrawlService):
         self._source_service = source_service
 
     def dispatch_due_crawls(self) -> dict:
 
         sources = self._source_service.claim_due_sources(
-            limit=50,
+            limit=500,
         )
 
         if not sources:
@@ -28,6 +28,8 @@ class SchedulerService:
                 "id": source.id,
                 "url": source.url,
                 "name": source.name,
+                "document_type": source.document_type,
+                "place_of_work": source.place_of_work,
             }
             for source in sources
         ]

@@ -6,10 +6,12 @@ from sqlalchemy import DateTime, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from shared.database import Base
+from shared.models import chats_chunks
 
 
 if TYPE_CHECKING:
     from app.models import MessageModel, UserModel
+    from shared.models import DocumentChunk
 
 
 class ChatModel(Base):
@@ -30,14 +32,21 @@ class ChatModel(Base):
         nullable=False,
     )
 
-    user: Mapped["UserModel"] = relationship("UserModel", back_populates="chats")
+    user: Mapped["UserModel"] = relationship(
+        "UserModel", back_populates="chats", lazy="joined"
+    )
     messages: Mapped[list["MessageModel"]] = relationship(
         "MessageModel",
         back_populates="chat",
         cascade="all, delete-orphan",
     )
+
     compressed_context: Mapped[str | None] = mapped_column(nullable=True)
     compressed_up_to_message_id: Mapped[int | None] = mapped_column(nullable=True)
 
     last_total_tokens: Mapped[int] = mapped_column(nullable=False, default=0)
     reserve_input_tokens: Mapped[int] = mapped_column(nullable=False, default=0)
+
+    document_chunks: Mapped[list["DocumentChunk"]] = relationship(
+        "DocumentChunk", secondary=chats_chunks
+    )

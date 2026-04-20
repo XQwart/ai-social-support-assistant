@@ -5,11 +5,14 @@ interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   userName: string;
+  placeOfWork: string;
   onLogout: () => void;
   theme: "light" | "dark";
   onThemeChange: (theme: "light" | "dark") => void;
   onAgreementClick: () => void;
 }
+
+const SBERBANK_PLACE_OF_WORK = "ПАО Сбербанк";
 
 type SettingsTab = "general" | "privacy" | "about";
 
@@ -26,6 +29,7 @@ export default function SettingsModal({
   isOpen,
   onClose,
   userName,
+  placeOfWork,
   onLogout,
   theme,
   onThemeChange,
@@ -34,6 +38,8 @@ export default function SettingsModal({
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const [isCrossContextEnabled, setIsCrossContextEnabled] = useState(false);
   const isDark = theme === "dark";
+  const isSberEmployee =
+    placeOfWork.trim().toLowerCase() === SBERBANK_PLACE_OF_WORK.toLowerCase();
 
   if (!isOpen) return null;
 
@@ -128,10 +134,10 @@ export default function SettingsModal({
           <div className="mb-3 flex items-center justify-start md:mb-4">
             <button
               onClick={onClose}
-              className={`flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl transition-colors ${
+              className={`flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl border transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 ${
                 isDark
-                  ? "text-slate-400 hover:bg-white/10 hover:text-slate-200"
-                  : "text-slate-500 hover:bg-slate-100 hover:text-slate-600"
+                  ? "border-white/10 bg-white/6 text-slate-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:text-slate-100"
+                  : "border-white/60 bg-white/45 text-slate-500 hover:text-slate-600"
               }`}
               aria-label="Закрыть"
             >
@@ -204,7 +210,7 @@ export default function SettingsModal({
                 <polyline points="16 17 21 12 16 7" />
                 <line x1="21" y1="12" x2="9" y2="12" />
               </svg>
-              Выйти
+              Выйти из аккаунта
             </button>
           </div>
         </div>
@@ -245,14 +251,31 @@ export default function SettingsModal({
                   role="switch"
                   aria-checked={isCrossContextEnabled}
                   onClick={() => setIsCrossContextEnabled((prev) => !prev)}
-                  className={`relative h-7 w-12 flex-shrink-0 cursor-pointer rounded-full transition-colors ${
-                    isCrossContextEnabled ? "bg-emerald-500" : isDark ? "bg-white/15" : "bg-slate-300/70"
-                  }`}
+                  className="relative h-7 w-12 flex-shrink-0 cursor-pointer rounded-full transition-all duration-300"
+                  style={{
+                    background: isCrossContextEnabled
+                      ? "linear-gradient(135deg, #34d399 0%, #10b981 100%)"
+                      : isDark
+                        ? "rgba(148, 163, 184, 0.28)"
+                        : "rgba(148, 163, 184, 0.45)",
+                    border: isDark
+                      ? "1px solid rgba(255,255,255,0.10)"
+                      : "1px solid rgba(15,23,42,0.06)",
+                    boxShadow: isCrossContextEnabled
+                      ? "0 6px 16px rgba(16,185,129,0.32), inset 0 1px 0 rgba(255,255,255,0.25)"
+                      : isDark
+                        ? "inset 0 1px 2px rgba(0,0,0,0.35)"
+                        : "inset 0 1px 2px rgba(15,23,42,0.10)",
+                  }}
                 >
                   <span
-                    className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow-md transition-transform ${
+                    className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full transition-transform duration-300 ${
                       isCrossContextEnabled ? "translate-x-5" : "translate-x-0"
                     }`}
+                    style={{
+                      background: "linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%)",
+                      boxShadow: "0 2px 6px rgba(15,23,42,0.25), 0 1px 2px rgba(15,23,42,0.18)",
+                    }}
                   />
                 </button>,
                 true
@@ -279,6 +302,35 @@ export default function SettingsModal({
                     <div className={`mt-1 text-[13px] leading-6 ${isDark ? "text-slate-500" : "text-slate-400"}`}>{description}</div>
                   </div>
                 ))}
+
+                <div
+                  className="flex items-start justify-between gap-4 rounded-[22px] border p-4"
+                  style={{ borderColor: secondaryBorder, background: secondarySurface }}
+                >
+                  <div className="min-w-0">
+                    <div className={`text-[15px] font-medium ${isDark ? "text-slate-200" : "text-slate-700"}`}>
+                      Статус сотрудника Сбербанка
+                    </div>
+                    <div className={`mt-1 text-[13px] leading-6 ${isDark ? "text-slate-500" : "text-slate-400"}`}>
+                      {isSberEmployee
+                        ? `Место работы: ${placeOfWork}`
+                        : "Пользователь не является сотрудником ПАО Сбербанк"}
+                    </div>
+                  </div>
+                  <span
+                    className={`shrink-0 rounded-full px-3 py-1 text-[12px] font-semibold ${
+                      isSberEmployee
+                        ? isDark
+                          ? "bg-emerald-500/15 text-emerald-300"
+                          : "bg-emerald-100 text-emerald-700"
+                        : isDark
+                          ? "bg-white/[0.06] text-slate-300"
+                          : "bg-slate-200/70 text-slate-600"
+                    }`}
+                  >
+                    {isSberEmployee ? "Сотрудник" : "Не сотрудник"}
+                  </span>
+                </div>
 
                 <button
                   type="button"
@@ -328,7 +380,7 @@ export default function SettingsModal({
                 background: isDark ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.75)",
               }}
             >
-              Выйти
+              Выйти из аккаунта
             </button>
           </div>
         </div>

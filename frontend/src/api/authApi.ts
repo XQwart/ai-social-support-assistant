@@ -160,11 +160,18 @@ export interface MockLoginResponse {
   user: UserInfo;
 }
 
-export async function mockLoginRequest(): Promise<MockLoginResponse> {
-  const res = await fetch(`${API_BASE}/auth/mock-login`, {
-    method: "POST",
-    credentials: "include",
-  });
+export type MockUserStatus = "employed" | "unemployed";
+
+export async function mockLoginRequest(
+  status: MockUserStatus
+): Promise<MockLoginResponse> {
+  const res = await fetch(
+    `${API_BASE}/auth/mock-login/${encodeURIComponent(status)}`,
+    {
+      method: "POST",
+      credentials: "include",
+    }
+  );
 
   if (!res.ok) {
     const body = await res.json().catch(() => null);

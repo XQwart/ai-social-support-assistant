@@ -69,3 +69,17 @@ alembic-current:
 
 alembic-history:
 	$(DC_DEV) run --rm $(ALEMBIC_SERVICE) alembic history
+
+	
+
+test-dispatch:
+	$(DC_DEV) run --rm celery celery -A worker.celery_app call worker.tasks.scheduler_task.dispatch_due_crawls
+
+test-link:
+	$(DC_DEV) run --rm celery celery -A worker.celery_app call worker.tasks.get_source_link_task.get_source_links
+
+prod-dispatch:
+	$(DC_PROD) run --rm celery celery -A worker.celery_app call worker.tasks.scheduler_task.dispatch_due_crawls
+
+prod-link:
+	$(DC_PROD) run --rm celery celery -A worker.celery_app call worker.tasks.get_source_link_task.get_source_links

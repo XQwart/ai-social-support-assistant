@@ -25,7 +25,9 @@ def create_ai_clients(config: Config) -> tuple[LLMClient, LLMClient, EmbeddingCl
                 else chat_client
             )
             embedding_client = PolzaEmbeddingClient(
-                config, model_name=config.polza_ai_embedding_model
+                config,
+                model_name=config.polza_ai_embedding_model,
+                vector_size=config.polza_ai_embedding_vector_size,
             )
 
             return chat_client, compress_client, embedding_client
@@ -37,7 +39,9 @@ def create_ai_clients(config: Config) -> tuple[LLMClient, LLMClient, EmbeddingCl
                 else chat_client
             )
             embedding_client = GigaChatEmbeddingClient(
-                config, model_name=config.gigachat_embedding_model
+                config,
+                model_name=config.gigachat_embedding_model,
+                vector_size=config.gigachat_embedding_vector_size,
             )
 
             return chat_client, compress_client, embedding_client

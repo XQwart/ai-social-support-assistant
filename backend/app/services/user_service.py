@@ -31,9 +31,11 @@ class UserService:
     async def get_or_create_by_bank_id(
         self,
         bank_id: str,
-        first_name: str = "",
-        second_name: str = "",
-        place_of_work: str | None = None,
+        first_name: str,
+        second_name: str,
+        place_of_work: str | None,
+        region_reg: str | None,
+        region_current: str | None,
     ) -> UserModel:
         user = await self._user_rep.get_by_bank_id(bank_id)
 
@@ -43,6 +45,15 @@ class UserService:
                 first_name=first_name,
                 second_name=second_name,
                 place_of_work=place_of_work,
+                region_reg=region_reg,
+                region_current=region_current,
             )
 
         return user
+
+    async def reset_user_memory(self, user_id: int) -> None:
+        await self._user_rep.reset_user_memory(user_id)
+
+    async def update_user_memory(self, user: UserModel, **fields) -> None:
+        if fields:
+            await self._user_rep.update_user_memory(user, **fields)

@@ -90,12 +90,13 @@ export default function ChatInput({
         "w-full",
         mode === "hero"
           ? "mx-auto max-w-[760px]"
-          : "mx-auto max-w-4xl px-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-3 md:px-4 md:pb-4"
+          : "px-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-3 md:px-5 md:pb-4"
       )}
     >
       <div
         className={cn(
-          "relative flex min-h-[58px] items-center gap-3 overflow-hidden rounded-[28px] border px-4 py-2.5 shadow-[0_10px_35px_rgba(15,23,42,0.05)] backdrop-blur-2xl transition-all",
+          mode === "dock" && "mx-auto w-full max-w-4xl",
+          "relative flex min-h-[44px] items-center gap-2 overflow-hidden rounded-[22px] border px-3 py-1.5 shadow-[0_10px_35px_rgba(15,23,42,0.05)] backdrop-blur-2xl transition-all sm:min-h-[58px] sm:gap-3 sm:rounded-[28px] sm:px-4 sm:py-2.5",
           isDark
             ? mode === "hero"
               ? "border-white/10 bg-[rgba(10,24,20,0.82)]"
@@ -137,10 +138,10 @@ export default function ChatInput({
               }
             }}
             className={cn(
-              "custom-scrollbar block max-h-40 min-h-[24px] flex-1 resize-none bg-transparent py-[8px] align-middle outline-none",
+              "custom-scrollbar block max-h-40 min-h-[22px] flex-1 resize-none bg-transparent py-1 align-middle outline-none sm:min-h-[24px] sm:py-[8px]",
               isDark
-                ? "text-[15px] leading-6 text-slate-100 placeholder:text-slate-500"
-                : "text-[15px] leading-6 text-slate-800 placeholder:text-slate-400",
+                ? "text-[14px] leading-5 text-slate-100 placeholder:text-slate-500 sm:text-[15px] sm:leading-6"
+                : "text-[14px] leading-5 text-slate-800 placeholder:text-slate-400 sm:text-[15px] sm:leading-6",
               mode === "hero" ? "md:text-base" : ""
             )}
             aria-label="Поле ввода сообщения"
@@ -151,7 +152,7 @@ export default function ChatInput({
             onClick={() => void submit()}
             aria-disabled={!canSend}
             className={cn(
-              "relative z-10 inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-2xl transition-all",
+              "relative z-10 inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center self-end rounded-xl transition-all sm:h-11 sm:w-11 sm:self-auto sm:rounded-2xl",
               canSend
                 ? "bg-[linear-gradient(135deg,#12b981,#0ea5a4)] text-white shadow-[0_10px_30px_rgba(16,185,129,0.34)] hover:scale-[1.03] hover:shadow-[0_14px_34px_rgba(16,185,129,0.38)] active:scale-[0.97]"
                 : isDark

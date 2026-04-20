@@ -1,8 +1,11 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
+import re
+import logging
 
 from app.models.message_model import MessageRole
 from app.schemas.message_schemas import ConversationResult
+from app.schemas.conversation_schemas import MemoryExtraction
 
 if TYPE_CHECKING:
     from . import (
@@ -11,10 +14,18 @@ if TYPE_CHECKING:
         ContextStatsService,
         MessageService,
         LLMService,
+        RAGService,
+        UserService,
+        RegionService,
     )
     from app.core.config import Config
-    from app.models import ChatModel, MessageModel
+    from app.models import ChatModel, MessageModel, UserModel
     from app.schemas.chat_schemas import ChatContextStats
+
+
+logger = logging.getLogger(__name__)
+
+_BLOCK_RE = re.compile(r"<(region|memory)>\s*(.*?)\s*</\1>", re.DOTALL)
 
 
 class ConversationService:
@@ -23,6 +34,9 @@ class ConversationService:
     _ctx_budget_service: ContextBudgetService
     _ctx_stats_service: ContextStatsService
     _chat_service: ChatService
+    _rag_service: RAGService
+    _user_service: UserService
+    _region_service: RegionService
     _config: Config
 
     def __init__(
@@ -32,6 +46,9 @@ class ConversationService:
         ctx_budget_service: ContextBudgetService,
         ctx_stats_service: ContextStatsService,
         chat_service: ChatService,
+        rag_service: RAGService,
+        user_service: UserService,
+        region_service: RegionService,
         config: Config,
     ):
         self._llm_service = llm_service
@@ -39,6 +56,9 @@ class ConversationService:
         self._ctx_budget_service = ctx_budget_service
         self._ctx_stats_service = ctx_stats_service
         self._chat_service = chat_service
+        self._rag_service = rag_service
+        self._user_service = user_service
+        self._region_service = region_service
         self._config = config
 
     async def send_message(self, chat: ChatModel, content: str) -> ConversationResult:
@@ -51,11 +71,35 @@ class ConversationService:
             chat=chat, ctx_stats=ctx_stats, current_user_message_id=user_msg.id
         )
 
+        user = chat.user
+        region_code = await self._region_service.get_code_by_name(
+            user.region_current or user.region_reg
+        )  # TODO: Исправить временное решение
+        retrieved_chunks = await self._rag_service.retrieve(
+            question=content, region=region_code, place_of_work=user.place_of_work
+        )
+
+        public_chunks = [c for c in retrieved_chunks if not c.is_internal]
+        internal_chunks = (
+            [c for c in retrieved_chunks if c.is_internal]
+            if user.is_sber_employee
+            else []
+        )
+
         completion = await self._llm_service.generate_response(
+            user=user,
             user_message=content,
             chat_history=chat_history,
+            public_chunks=public_chunks,
+            internal_chunks=internal_chunks,
             compressed_context=compressed_context,
         )
+
+        clean_response, extraction = self._split_response_and_memory(
+            completion.text or ""
+        )
+        if extraction.has_updates:
+            await self._try_update_user_memory(user=user, extraction=extraction)
 
         usage_updates = self._ctx_budget_service.build_usage_updates(
             ctx_stats=ctx_stats,
@@ -66,7 +110,7 @@ class ConversationService:
             await self._ctx_stats_service.update_chat_stats(chat, **usage_updates)
 
         assistant_msg = await self._message_service.send_message(
-            chat_id=chat.id, message=completion.text or "", role=MessageRole.ASSISTANT
+            chat_id=chat.id, message=clean_response, role=MessageRole.ASSISTANT
         )
 
         await self._chat_service.update_chat(chat)
@@ -136,3 +180,39 @@ class ConversationService:
 
     def _to_history(self, messages: list[MessageModel]) -> list[dict[str, str]]:
         return [{"role": m.role.value, "content": m.content} for m in messages]
+
+    def _split_response_and_memory(
+        self, raw_response: str
+    ) -> tuple[str, MemoryExtraction]:
+        region: str | None = None
+        memory: str | None = None
+
+        for match in _BLOCK_RE.finditer(raw_response):
+            tag = match.group(1)
+            value = match.group(2).strip()
+
+            if not value or value.lower() == "null":
+                continue
+
+            if tag == "region":
+                region = value
+            elif tag == "memory":
+                memory = value
+
+        clean_response = _BLOCK_RE.sub("", raw_response).strip()
+
+        return clean_response, MemoryExtraction(region=region, memory=memory)
+
+    async def _try_update_user_memory(
+        self, user: UserModel, extraction: MemoryExtraction
+    ) -> None:
+        updates: dict[str, str] = {}
+        if extraction.region:
+            updates["region_current"] = extraction.region
+        if extraction.memory:
+            updates["persistent_memory"] = extraction.memory
+
+        try:
+            await self._user_service.update_user_memory(user, **updates)
+        except Exception:
+            logger.warning("Failed to update user memory", exc_info=True)

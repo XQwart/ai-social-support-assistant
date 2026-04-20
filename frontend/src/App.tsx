@@ -33,7 +33,7 @@ import ChatInput from "@/components/ChatInput";
 import ChatView from "@/components/ChatView";
 import HomePage from "@/components/HomePage";
 import SettingsModal from "@/components/SettingsModal";
-import Sidebar from "@/components/Sidebar";
+import Sidebar, { type ChatSortMode } from "@/components/Sidebar";
 import TopBar from "@/components/TopBar";
 import UserAgreementModal from "@/components/UserAgreementModal";
 import type { Chat, Message } from "@/types";
@@ -41,6 +41,7 @@ import type { Chat, Message } from "@/types";
 const AUTH_TOKEN_KEY = "ai-social-support.auth.token";
 const AUTH_USER_KEY = "ai-social-support.auth.user";
 const THEME_KEY = "ai-social-support.theme";
+const CHAT_SORT_KEY = "ai-social-support.chatSortMode";
 const CHAT_PAGE_LIMIT = 100;
 const MESSAGE_PAGE_LIMIT = 100;
 const RECENT_MESSAGE_WINDOW_MS = 15000;
@@ -95,6 +96,15 @@ function readTheme(): ThemeMode {
   }
 
   return readStoredTheme() ?? readSystemTheme();
+}
+
+function readStoredChatSortMode(): ChatSortMode {
+  if (typeof window === "undefined") {
+    return "updated";
+  }
+
+  const stored = window.localStorage.getItem(CHAT_SORT_KEY);
+  return stored === "created" || stored === "updated" ? stored : "updated";
 }
 
 function getHistoryControllerKey(chatId: string): string {
@@ -281,6 +291,9 @@ export default function App() {
   const [isLoadingMoreChats, setIsLoadingMoreChats] = useState(false);
   const [isCreatingChat, setIsCreatingChat] = useState(false);
   const [theme, setTheme] = useState<ThemeMode>(() => initialThemeRef.current);
+  const [chatSortMode, setChatSortMode] = useState<ChatSortMode>(() =>
+    readStoredChatSortMode()
+  );
 
   const isAuthenticated = !!authToken;
   const isDarkTheme = theme === "dark";
@@ -307,6 +320,11 @@ export default function App() {
     document.documentElement.style.colorScheme = theme;
     window.localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(CHAT_SORT_KEY, chatSortMode);
+  }, [chatSortMode]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1438,6 +1456,8 @@ export default function App() {
         hasMoreChats={hasMoreChats}
         onLoadMoreChats={handleLoadMoreChats}
         theme={theme}
+        sortMode={chatSortMode}
+        onSortModeChange={setChatSortMode}
       />
 
       <TopBar
@@ -1533,32 +1553,55 @@ export default function App() {
           aria-labelledby="delete-dialog-title"
         >
           <div
-            className="absolute inset-0 bg-black/55 backdrop-blur-[4px]"
+            className="absolute inset-0 bg-black/55 backdrop-blur-[6px]"
             onClick={() => setPendingDeleteChatId(null)}
           />
 
           <div
-            className="relative z-10 w-full max-w-[360px] rounded-[24px] border p-5 shadow-[0_30px_80px_rgba(0,0,0,0.36)]"
+            className="dialog-pop relative z-10 w-full max-w-[400px] overflow-hidden rounded-[28px] border"
             style={{
-              borderColor: theme === "dark" ? "#233230" : "rgba(226,232,240,0.8)",
-              background: theme === "dark"
-                ? "linear-gradient(180deg, rgba(13,36,31,0.98) 0%, rgba(9,28,24,0.98) 100%)"
-                : "linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.98) 100%)",
+              borderColor: isDarkTheme ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.8)",
+              background: isDarkTheme
+                ? "linear-gradient(180deg, rgba(14,38,33,0.98) 0%, rgba(9,26,22,0.98) 100%)"
+                : "linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(247,250,249,0.98) 100%)",
+              boxShadow: isDarkTheme
+                ? "0 40px 90px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05)"
+                : "0 40px 90px rgba(15,23,42,0.22), inset 0 1px 0 rgba(255,255,255,0.9)",
+              backdropFilter: "blur(28px) saturate(160%)",
+              WebkitBackdropFilter: "blur(28px) saturate(160%)",
             }}
           >
-            <div className="mb-5 flex items-start gap-3">
+            <div
+              className="pointer-events-none absolute inset-x-0 top-0 h-[140px]"
+              aria-hidden="true"
+              style={{
+                background: isDarkTheme
+                  ? "radial-gradient(120% 80% at 50% 0%, rgba(251,113,133,0.22) 0%, rgba(251,113,133,0) 70%)"
+                  : "radial-gradient(120% 80% at 50% 0%, rgba(254,202,202,0.6) 0%, rgba(254,202,202,0) 70%)",
+              }}
+            />
+
+            <div className="relative flex flex-col items-center px-6 pb-6 pt-7 text-center">
               <div
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl"
+                className="mb-4 flex h-16 w-16 items-center justify-center rounded-[22px]"
                 style={{
-                  background: theme === "dark" ? "rgba(251, 113, 133, 0.15)" : "rgba(254, 202, 202, 0.55)",
+                  background: isDarkTheme
+                    ? "linear-gradient(135deg, rgba(251,113,133,0.22) 0%, rgba(244,63,94,0.16) 100%)"
+                    : "linear-gradient(135deg, rgba(254,205,211,0.9) 0%, rgba(254,226,226,0.7) 100%)",
+                  border: isDarkTheme
+                    ? "1px solid rgba(251,113,133,0.28)"
+                    : "1px solid rgba(254,205,211,0.9)",
+                  boxShadow: isDarkTheme
+                    ? "inset 0 1px 0 rgba(255,255,255,0.05), 0 10px 26px rgba(244,63,94,0.18)"
+                    : "inset 0 1px 0 rgba(255,255,255,0.8), 0 10px 26px rgba(244,63,94,0.12)",
                 }}
               >
                 <svg
-                  width="22"
-                  height="22"
+                  width="28"
+                  height="28"
                   viewBox="0 0 24 24"
                   fill="none"
-                  stroke={theme === "dark" ? "#fb7185" : "#ef4444"}
+                  stroke={isDarkTheme ? "#fb7185" : "#e11d48"}
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -1571,44 +1614,63 @@ export default function App() {
                 </svg>
               </div>
 
-              <div className="min-w-0 pt-1">
-                <div id="delete-dialog-title" className={theme === "dark" ? "text-[22px] font-bold text-slate-50" : "text-[22px] font-bold text-slate-900"}>
-                  Удалить чат?
-                </div>
-                <div className={theme === "dark" ? "mt-3 text-[16px] leading-7 text-slate-400" : "mt-3 text-[16px] leading-7 text-slate-600"}>
-                  Этот чат и вся история сообщений будут удалены без возможности восстановления.
-                </div>
+              <div
+                id="delete-dialog-title"
+                className={isDarkTheme ? "text-[20px] font-bold tracking-tight text-slate-50" : "text-[20px] font-bold tracking-tight text-slate-900"}
+              >
+                Удалить чат?
               </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => setPendingDeleteChatId(null)}
-                className="flex h-14 flex-1 cursor-pointer items-center justify-center rounded-2xl border text-[16px] font-semibold transition-all hover:-translate-y-0.5"
-                style={{
-                  borderColor: theme === "dark" ? "#233230" : "rgba(226,232,240,0.8)",
-                  background: theme === "dark" ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.78)",
-                  color: theme === "dark" ? "#d1d5db" : "#475569",
-                }}
+              <div
+                className={isDarkTheme ? "mt-2 max-w-[300px] text-[14px] leading-6 text-slate-400" : "mt-2 max-w-[300px] text-[14px] leading-6 text-slate-500"}
               >
-                Отмена
-              </button>
+                История сообщений будет удалена без возможности восстановления.
+              </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  const chatId = pendingDeleteChatId;
-                  setPendingDeleteChatId(null);
-                  if (chatId) {
-                    void performDeleteChat(chatId);
-                  }
-                }}
-                className="flex h-14 flex-1 cursor-pointer items-center justify-center rounded-2xl text-[16px] font-semibold text-white transition-all hover:-translate-y-0.5"
-                style={{ background: "#ff275a" }}
-              >
-                Удалить
-              </button>
+              <div className="mt-6 flex w-full flex-col-reverse gap-2.5 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => setPendingDeleteChatId(null)}
+                  className="flex h-12 flex-1 cursor-pointer items-center justify-center rounded-2xl border text-[14px] font-semibold transition-all hover:-translate-y-0.5 active:translate-y-0"
+                  style={{
+                    borderColor: isDarkTheme ? "rgba(255,255,255,0.1)" : "rgba(226,232,240,0.95)",
+                    background: isDarkTheme ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.85)",
+                    color: isDarkTheme ? "#e2e8f0" : "#475569",
+                  }}
+                >
+                  Отмена
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const chatId = pendingDeleteChatId;
+                    setPendingDeleteChatId(null);
+                    if (chatId) {
+                      void performDeleteChat(chatId);
+                    }
+                  }}
+                  className="flex h-12 flex-1 cursor-pointer items-center justify-center gap-2 rounded-2xl text-[14px] font-semibold text-white shadow-[0_14px_32px_rgba(244,63,94,0.38)] transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_38px_rgba(244,63,94,0.48)] active:translate-y-0"
+                  style={{
+                    background: "linear-gradient(135deg, #fb7185 0%, #e11d48 100%)",
+                  }}
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.4"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M3 6h18" />
+                    <path d="M8 6V4h8v2" />
+                    <path d="M6 6l1 14h10l1-14" />
+                  </svg>
+                  Удалить
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1627,6 +1689,7 @@ export default function App() {
         isOpen={isSettingsModalOpen}
         onClose={handleCloseSettings}
         userName={userFullName}
+        placeOfWork={userInfo.placeOfWork}
         onLogout={handleLogout}
         theme={theme}
         onThemeChange={setTheme}

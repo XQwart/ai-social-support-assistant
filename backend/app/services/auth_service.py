@@ -70,6 +70,8 @@ class AuthService:
             first_name=user_info.given_name,
             second_name=user_info.family_name,
             place_of_work=user_info.place_of_work,
+            region_reg=user_info.region_reg,
+            region_current=user_info.region_current,
         )
 
         login_code = secrets.token_urlsafe(32)
@@ -86,17 +88,28 @@ class AuthService:
 
         return params
 
-    async def mock_login_user(self) -> tuple[UserModel, AuthTokenPair]:
-        bank_id = "wythdgsraferi4538trfhsa7837hfas"
-        name = "Ivan"
-        last_name = "Ivanov"
-        place_of_work = "Sberbank"
+    async def mock_login_user(self, status: str) -> tuple[UserModel, AuthTokenPair]:
+        users_data = {
+            "employed": {
+                "bank_id": "wythdgsraferi4538trfhsa7837hfas",
+                "first_name": "Ivan",
+                "second_name": "Ivanov",
+                "place_of_work": "ПАО Сбербанк",
+                "region_reg": "Московская область",
+                "region_current": None,
+            },
+            "unemployed": {
+                "bank_id": "jdfbhIUErfbdfhdIWewdsdfPPwedsfd",
+                "first_name": "Petr",
+                "second_name": "Petrov",
+                "place_of_work": None,
+                "region_reg": None,
+                "region_current": None,
+            },
+        }
 
         user = await self._user_service.get_or_create_by_bank_id(
-            bank_id=bank_id,
-            first_name=name,
-            second_name=last_name,
-            place_of_work=place_of_work,
+            **users_data.get(status, users_data["employed"])
         )
 
         tokens = await self._generate_and_save_tokens(user_id=user.id)

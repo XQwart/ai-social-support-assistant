@@ -10,17 +10,28 @@ from worker.schemas.document import EmbeddedDocumentChunk
 class VectorRepository:
     _client: QdrantClient
     _collection_name: str
+    _upsert_batch_size: int
 
-    def __init__(self, client: QdrantClient, collection_name: str) -> None:
+    def __init__(
+        self,
+        client: QdrantClient,
+        collection_name: str,
+        upsert_batch_size: int = 512,
+    ) -> None:
         self._client = client
         self._collection_name = collection_name
+        self._upsert_batch_size = upsert_batch_size
 
     def upsert_chunks(
-        self, embedded_chunks: Sequence[EmbeddedDocumentChunk], regions: list[str]
+        self,
+        embedded_chunks: Sequence[EmbeddedDocumentChunk],
+        regions: list[str],
+        place_of_work: str | None = None,
     ) -> int:
         if not embedded_chunks:
             return 0
 
+        total_chunks = len(embedded_chunks)
         points: list[models.PointStruct] = []
 
         for chunk in embedded_chunks:
@@ -32,8 +43,9 @@ class VectorRepository:
                 "text_id": chunk.id,
                 "source_id": chunk.source_id,
                 "region_codes": regions,
-                "access_level": chunk.access_level,
+                "place_of_work": place_of_work,
                 "chunk_index": chunk.chunk_index,
+                "total_chunks": total_chunks,
             }
 
             points.append(
@@ -47,10 +59,12 @@ class VectorRepository:
         if not points:
             return 0
 
-        self._client.upsert(
-            collection_name=self._collection_name,
-            points=points,
-        )
+        for i in range(0, len(points), self._upsert_batch_size):
+            batch = points[i : i + self._upsert_batch_size]
+            self._client.upsert(
+                collection_name=self._collection_name,
+                points=batch,
+            )
 
         return len(points)
 

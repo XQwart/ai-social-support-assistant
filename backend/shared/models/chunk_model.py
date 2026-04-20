@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import TYPE_CHECKING
 
 from datetime import datetime
 
@@ -6,6 +7,9 @@ from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from shared.database import Base
+
+if TYPE_CHECKING:
+    pass
 
 
 class DocumentChunk(Base):
@@ -19,7 +23,7 @@ class DocumentChunk(Base):
     )
 
     source_url: Mapped[str] = mapped_column(String(2048), nullable=False)
-    source_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    source_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
 

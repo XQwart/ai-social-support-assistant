@@ -20,6 +20,24 @@ class SberUserInfo(BaseModel):
     given_name: str
     family_name: str
     place_of_work: str | None = None
+    address_reg: dict | None = None
+    address_of_actual_residence: dict | None = None
+
+    @property
+    def region_reg(self) -> str | None:
+        return self._get_region(self.address_reg)
+
+    @property
+    def region_current(self) -> str | None:
+        return self._get_region(self.address_of_actual_residence)
+
+    def _get_region(self, address: dict | None) -> str | None:
+        if address is None:
+            return None
+
+        region = address["region"]
+
+        return region if region else None
 
 
 class AuthResponse(BaseModel):
