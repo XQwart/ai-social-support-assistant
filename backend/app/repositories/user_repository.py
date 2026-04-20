@@ -1,4 +1,4 @@
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import UserModel
@@ -39,6 +39,14 @@ class UserRepository:
         await self._session.commit()
         await self._session.refresh(user)
         return user
+
+    async def reset_user_memory(self, user_id: int) -> None:
+        await self._session.execute(
+            update(UserModel)
+            .where(UserModel.id == user_id)
+            .values(region_current=None, persistent_memory=None)
+        )
+        await self._session.commit()
 
     async def update_user_memory(self, user: UserModel, **fields) -> None:
         for field, value in fields.items():

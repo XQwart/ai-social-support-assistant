@@ -51,6 +51,9 @@ class UserService:
 
         return user
 
+    async def reset_user_memory(self, user_id: int) -> None:
+        await self._user_rep.reset_user_memory(user_id)
+
     async def update_user_memory(self, user: UserModel, **fields) -> None:
         if fields:
             await self._user_rep.update_user_memory(user, **fields)
