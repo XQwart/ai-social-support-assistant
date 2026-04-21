@@ -26,6 +26,7 @@ SYSTEM_PROMPT_IDENTITY = (
     "коротко и без извинений, и сразу вернись к помощи по теме."
 )
 
+# TODO: Удалить
 SYSTEM_PROMPT_GREETING = (
     "ПРИВЕТСТВИЕ:\n"
     "Это самое начало нового диалога — вы с пользователем общаетесь впервые в этом чате. "
@@ -35,6 +36,7 @@ SYSTEM_PROMPT_GREETING = (
     "рассказа о себе и своих возможностях."
 )
 
+# TODO: Удалить
 SYSTEM_PROMPT_NO_GREETING = (
     "ПРИВЕТСТВИЕ (ВАЖНО):\n"
     "Диалог уже идёт — вы уже обменивались сообщениями. "
@@ -181,42 +183,6 @@ SYSTEM_PROMPT_RULES = (
 )
 
 
-SYSTEM_PROMPT_MEMORY_EXTRACTION = (
-    "ИЗВЛЕЧЕНИЕ ФАКТОВ (ОБЯЗАТЕЛЬНО В КАЖДОМ ОТВЕТЕ):\n"
-    "После основного ответа добавь два служебных блока.\n"
-    "Они не видны пользователю — это системные данные.\n\n"
-    "Блок 1 — регион:\n"
-    "<region>название субъекта РФ</region>\n"
-    "Заполняй, если пользователь в ЭТОМ сообщении:\n"
-    "- назвал место проживания ('я живу в Казани' → Республика Татарстан)\n"
-    "- интересуется мерами для конкретного региона "
-    "('что положено в Краснодарском крае?' → Краснодарский край)\n"
-    "- подтвердил регион ('да, живу там' → тот регион, о котором шла речь)\n"
-    "Если город — определи субъект РФ. "
-    "Если регион не упоминался — пиши null.\n\n"
-    "Блок 2 — факты о пользователе:\n"
-    "<memory>обновлённые факты</memory>\n"
-    "Заполняй, если пользователь сообщил новые факты о себе: "
-    "дети, статус, инвалидность, доход, жильё и т.п.\n"
-    "Правила:\n"
-    "- Верни ПОЛНЫЙ текст памяти: старые факты (из профиля выше) + новые.\n"
-    "- Не дублируй регион — он хранится отдельно.\n"
-    "- Новый факт противоречит старому — бери новый.\n"
-    "- Не выдумывай. Только то, что пользователь явно сказал.\n"
-    "- Игнорируй гипотетическое и вопросы за других людей.\n"
-    "- Формат: короткие пункты через дефис, максимум 15.\n"
-    "- Если ничего нового — пиши null.\n\n"
-    "Пример:\n"
-    "...основной ответ пользователю...\n"
-    "<region>Краснодарский край</region>\n"
-    "<memory>\n"
-    "- двое детей: 3 года и 7 лет\n"
-    "- в разводе, воспитывает одна\n"
-    "- работает, доход ниже прожиточного минимума\n"
-    "</memory>"
-)
-
-
 def _user_profile_section(user: UserModel) -> str:
     first_name = (user.first_name or "").strip() or "не указано"
     employee_status = "да" if user.is_sber_employee else "нет"
@@ -259,6 +225,7 @@ def _user_profile_section(user: UserModel) -> str:
     return profile
 
 
+# TODO: Удалить
 def _dialog_state_section(is_new_dialog: bool) -> str:
     if is_new_dialog:
         return (
@@ -274,6 +241,7 @@ def _dialog_state_section(is_new_dialog: bool) -> str:
     )
 
 
+# TODO: Удалить
 def _public_chunks_section(chunks: list[RetrievedChunk]) -> str:
     if not chunks:
         return ""
@@ -292,6 +260,7 @@ def _public_chunks_section(chunks: list[RetrievedChunk]) -> str:
     )
 
 
+# TODO: Удалить
 def _internal_chunks_section(
     chunks: list[RetrievedChunk], user_is_employee: bool
 ) -> str:
@@ -306,19 +275,13 @@ def _internal_chunks_section(
     )
 
 
-def build_system_prompt(
-    user: UserModel,
-    public_chunks: list[RetrievedChunk],
-    internal_chunks: list[RetrievedChunk],
-    is_new_dialog: bool,
-) -> str:
+def build_system_prompt(user: UserModel) -> str:
     sections = [
         SYSTEM_PROMPT_ROLE,
         SYSTEM_PROMPT_IDENTITY,
         _user_profile_section(user),
-        SYSTEM_PROMPT_MEMORY_EXTRACTION,
-        _dialog_state_section(is_new_dialog),
-        SYSTEM_PROMPT_GREETING if is_new_dialog else SYSTEM_PROMPT_NO_GREETING,
+        # _dialog_state_section(is_new_dialog),
+        # SYSTEM_PROMPT_GREETING if is_new_dialog else SYSTEM_PROMPT_NO_GREETING,
         SYSTEM_PROMPT_INFO_GATHERING,
         SYSTEM_PROMPT_CLOSING,
         SYSTEM_PROMPT_OFFTOPIC,
@@ -329,8 +292,7 @@ def build_system_prompt(
         SYSTEM_PROMPT_RULES,
     ]
     prompt = "\n\n".join(sections)
-    prompt += _public_chunks_section(public_chunks)
-    prompt += _internal_chunks_section(internal_chunks, user.is_sber_employee)
+
     return prompt
 
 
@@ -360,6 +322,7 @@ COMPRESS_CONTEXT_SYSTEM = (
     "- Будь лаконичен: суммарно не больше 15 пунктов."
 )
 
+# TODO: Удалить
 COMPRESSED_CONTEXT_PREFIX = (
     "Резюме предыдущей части диалога (используй при ответе; "
     "не задавай повторно уже известные факты; "

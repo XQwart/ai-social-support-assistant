@@ -1,5 +1,4 @@
 from datetime import datetime
-from dataclasses import dataclass
 
 from pydantic import BaseModel, ConfigDict
 
@@ -23,10 +22,3 @@ class ChatsPageResponse(BaseModel):
     total: int
     limit: int
     offset: int
-
-
-@dataclass(slots=True)
-class ChatContextStats:
-    last_total_tokens: int
-    reserve_input_tokens: int
-    recent_input_deltas: list[int]

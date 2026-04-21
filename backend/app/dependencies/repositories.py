@@ -9,7 +9,6 @@ from app.repositories import (
     UserRepository,
     DocumentRepository,
     ChunkRepository,
-    ContextStatsRepository,
     RegionRepository,
 )
 from app.dependencies.qdrant import QdrantClientDep
@@ -46,12 +45,6 @@ def get_chunk_repo(client: QdrantClientDep, config: ConfigDep) -> ChunkRepositor
     return ChunkRepository(client, config)
 
 
-def get_ctx_stats_repository(
-    redis: RedisDep, config: ConfigDep
-) -> ContextStatsRepository:
-    return ContextStatsRepository(redis, config)
-
-
 def get_region_repo(session: DBSessionDep) -> RegionRepository:
     return RegionRepository(session)
 
@@ -63,7 +56,4 @@ ChatRepoDep = Annotated[ChatRepository, Depends(get_chat_repo)]
 MessageRepoDep = Annotated[MessageRepository, Depends(get_message_repo)]
 DocumentRepoDep = Annotated[DocumentRepository, Depends(get_document_repo)]
 ChunkRepoDep = Annotated[ChunkRepository, Depends(get_chunk_repo)]
-ContextStatsRepoDep = Annotated[
-    ContextStatsRepository, Depends(get_ctx_stats_repository)
-]
 RegionRepoDep = Annotated[RegionRepository, Depends(get_region_repo)]

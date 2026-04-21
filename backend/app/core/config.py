@@ -27,6 +27,8 @@ class Config(BaseSettings):
     postgres_db: str
     postgres_port: int
 
+    checkpointer_pool_max_conn: int = 20
+
     @property
     def database_url(self) -> str:
         return (
@@ -106,6 +108,11 @@ class Config(BaseSettings):
 
     context_size: int = 64
     summary_limit: int = 10
+
+    llm_summarization_tokens_trigger: int = 24000
+    llm_summarization_messages_trigger: int = 60
+
+    llm_summarization_tokens_keep: int = 8000
 
     llm_context_window_tokens: int = 128000
     llm_summary_trigger_ratio: float = 0.8

@@ -5,18 +5,19 @@ from app.core.constants import is_sber_employee_place_of_work
 from app.schemas.rag_schemas import RetrievedChunk
 
 if TYPE_CHECKING:
-    from app.clients.base_clients import EmbeddingClient
+    from langchain_core.embeddings.embeddings import Embeddings
+
     from app.repositories import DocumentRepository, ChunkRepository
 
 
 class RAGService:
-    _client: EmbeddingClient
+    _client: Embeddings
     _document_rep: DocumentRepository
     _chunk_rep: ChunkRepository
 
     def __init__(
         self,
-        client: EmbeddingClient,
+        client: Embeddings,
         document_rep: DocumentRepository,
         chunk_rep: ChunkRepository,
     ) -> None:
@@ -30,9 +31,7 @@ class RAGService:
         region: str | None,
         place_of_work: str | None = None,
     ) -> list[RetrievedChunk]:
-        # TODO: Реализовать обработку превышения лимита токенов
-
-        embeddings = await self._client.get_embeddings([question])
+        embeddings = await self._client.aembed_documents([question])
 
         place_by_id: dict[int, str | None] = {}
         for embedding in embeddings:
