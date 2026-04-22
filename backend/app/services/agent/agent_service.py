@@ -45,7 +45,7 @@ class AgentService:
         checkpointer: BaseCheckpointSaver,
         config: Config,
     ) -> None:
-        self._llm = chat_llm
+        self._chat_llm = chat_llm
         self._compress_llm = compress_llm
         self._region_service = region_service
         self._rag_service = rag_service
@@ -138,7 +138,7 @@ class AgentService:
         ]
 
         return create_agent(
-            model=self._llm,
+            model=self._chat_llm,
             tools=tools,
             middleware=middleware,
             checkpointer=self._checkpointer,
