@@ -287,13 +287,13 @@ def _internal_chunks_section(
     )
 
 
-def build_system_prompt(user: UserModel) -> str:
+def build_system_prompt(user: UserModel, is_new_dialog: bool) -> str:
     sections = [
         SYSTEM_PROMPT_ROLE,
         SYSTEM_PROMPT_IDENTITY,
         _user_profile_section(user),
         # _dialog_state_section(is_new_dialog),
-        # SYSTEM_PROMPT_GREETING if is_new_dialog else SYSTEM_PROMPT_NO_GREETING,
+        SYSTEM_PROMPT_GREETING if is_new_dialog else SYSTEM_PROMPT_NO_GREETING,
         SYSTEM_PROMPT_TOOLS,
         SYSTEM_PROMPT_INFO_GATHERING,
         SYSTEM_PROMPT_CLOSING,

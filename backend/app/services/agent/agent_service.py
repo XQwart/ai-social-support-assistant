@@ -53,7 +53,9 @@ class AgentService:
         self._checkpointer = checkpointer
         self._config = config
 
-    async def run(self, chat_id: int, user: UserModel, content: str) -> str:
+    async def run(
+        self, chat_id: int, user: UserModel, content: str, is_new_dialog: bool
+    ) -> str:
         logger.info(
             "Запрос к ИИ: user_id=%s, is_sber=%s, user_message='%s'",
             user.id,
@@ -61,24 +63,64 @@ class AgentService:
             content[:100],
         )
 
-        graph = self._create_graph(user)
-        try:
-            response = await graph.ainvoke(
-                {"messages": [HumanMessage(content=content)]},
-                config={
-                    "configurable": {"thread_id": str(chat_id)},
-                    "recursion_limit": self._config.agent_recursion_limit,
-                },
-            )
-            print(response.keys())
+        graph = self._create_graph(user, is_new_dialog)
+        config = {
+            "configurable": {"thread_id": str(chat_id)},
+            "recursion_limit": self._config.agent_recursion_limit,
+        }
 
-            return response["messages"][-1].content
+        try:
+            final_message = ""
+
+            async for event in graph.astream_events(
+                {"messages": [HumanMessage(content=content)]},
+                config=config,
+                version="v2",
+            ):
+                kind = event["event"]
+                name = event.get("name", "")
+
+                match kind:
+                    case "on_chain_start":
+                        logger.debug("Старт узла: %s", name)
+
+                    case "on_chat_model_start":
+                        logger.debug("LLM думает: %s", name)
+
+                    case "on_tool_start":
+                        tool_input = event["data"].get("input", {})
+                        logger.info(
+                            "Вызов инструмента: %s | input: %s", name, tool_input
+                        )
+
+                    case "on_tool_end":
+                        tool_output = event["data"].get("output", "")
+                        logger.info(
+                            "Инструмент завершён: %s | output: %s",
+                            name,
+                            str(tool_output)[:200],
+                        )
+
+                    case "on_chat_model_end":
+                        output = event["data"].get("output")
+                        if output:
+                            final_message = output.content
+                            logger.debug("LLM ответил: %s", final_message[:100])
+
+                    case "on_chain_end":
+                        logger.debug("Узел завершён: %s", name)
+
+            if not final_message:
+                state = await graph.aget_state(config)
+                return state.values["messages"][-1].content
+
+            return final_message
+
         except Exception:
             logger.exception("Критическая ошибка при обращении к ИИ")
-
             return FALLBACK_AI_UNAVAILABLE
 
-    def _create_graph(self, user: UserModel) -> CompiledStateGraph:
+    def _create_graph(self, user: UserModel, is_new_dialog: bool) -> CompiledStateGraph:
         tools = create_user_tools(
             user, self._user_service, self._rag_service, self._region_service
         )
@@ -100,5 +142,5 @@ class AgentService:
             tools=tools,
             middleware=middleware,
             checkpointer=self._checkpointer,
-            system_prompt=build_system_prompt(user),
+            system_prompt=build_system_prompt(user, is_new_dialog),
         )
