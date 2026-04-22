@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 def make_memory_tool(user: UserModel, user_service: UserService) -> BaseTool:
 
     @tool
-    async def update_memory(
+    async def save_user_facts(
         region: str | None = None, facts: list[str] | None = None
     ) -> str:
         """Обновить сохранённую информацию о пользователе.
@@ -68,4 +68,4 @@ def make_memory_tool(user: UserModel, user_service: UserService) -> BaseTool:
 
         return "Данные обновлены"
 
-    return update_memory
+    return save_user_facts
