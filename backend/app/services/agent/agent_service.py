@@ -57,10 +57,11 @@ class AgentService:
         self, chat_id: int, user: UserModel, content: str, is_new_dialog: bool
     ) -> str:
         logger.info(
-            "Запрос к ИИ: user_id=%s, is_sber=%s, user_message='%s'",
+            "Запрос к ИИ: user_id=%s, is_sber=%s, user_message='%s', is_new_dialog=%s",
             user.id,
             user.is_sber_employee,
             content[:100],
+            is_new_dialog,
         )
 
         graph = self._create_graph(user, is_new_dialog)
@@ -103,9 +104,18 @@ class AgentService:
 
                     case "on_chat_model_end":
                         output = event["data"].get("output")
-                        if output:
-                            final_message = output.content
-                            logger.debug("LLM ответил: %s", final_message[:100])
+                        if output and output.content:
+                            tool_calls = getattr(output, "tool_calls", [])
+                            if not tool_calls:
+                                final_message = output.content
+                                logger.debug(
+                                    "LLM финальный ответ: %s", final_message[:100]
+                                )
+                            else:
+                                logger.debug(
+                                    "LLM вызывает инструменты: %s",
+                                    [tc["name"] for tc in tool_calls],
+                                )
 
                     case "on_chain_end":
                         logger.debug("Узел завершён: %s", name)
