@@ -80,7 +80,8 @@ class Config(BaseSettings):
     code_ttl: timedelta = timedelta(seconds=30)
     oauth_ttl: timedelta = timedelta(minutes=10)
 
-    ai_provider: AIProvider = AIProvider.GIGACHAT
+    llm_provider: AIProvider = AIProvider.GIGACHAT
+    embedding_provider: AIProvider = AIProvider.GIGACHAT
 
     agent_max_tool_calls: int = 4
     agent_recursion_limit: int = 10

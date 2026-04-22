@@ -9,7 +9,7 @@ from .database import create_engine, create_session_maker
 from .redis import create_redis
 from .logger import setup_logging
 from .http import create_sber_http_client
-from .llm import create_ai_clients
+from .llm import create_llm_clients, create_embedding_client
 from .qdrant import create_qdrant_client, ensure_collection
 
 
@@ -26,9 +26,10 @@ async def lifespan(app: FastAPI):
     session_maker = create_session_maker(engine)
     redis = create_redis(config)
     http_client = create_sber_http_client(config)
-    chat_llm_client, compress_llm_client, embedding_client, vector_size = (
-        create_ai_clients(config)
-    )
+
+    chat_llm_client, compress_llm_client = create_llm_clients(config)
+    embedding_client, vector_size = create_embedding_client(config)
+
     checkpointer = await create_checkpointer(config)
     qdrant = create_qdrant_client(url=config.qdrant_url)
     await ensure_collection(
