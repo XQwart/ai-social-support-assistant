@@ -16,6 +16,15 @@ def build_dunamic_prompt(request: ModelRequest) -> str:
 
     region_current = profile.get("region_current")
 
+    print(
+        ctx.first_name,
+        region_current or profile.get("region_reg"),
+        region_current,
+        profile.get("persistent_memory"),
+        ctx.is_sber_employee,
+        ctx.is_new_dialog,
+    )
+
     return build_system_prompt(
         first_name=ctx.first_name,
         effective_region=region_current or profile.get("region_reg"),
