@@ -11,3 +11,5 @@ frontend/dist/
 ssl/*
 volumes/*
 data
+dev
+backend/celerybeat-schedule.db
