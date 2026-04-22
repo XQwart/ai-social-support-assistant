@@ -8,16 +8,18 @@ from langchain_core.messages.human import HumanMessage
 
 from app.agent.state import SOCAgentState, UserContext
 from app.agent.tools import create_user_tools
-from app.agent.middlewares import build_dunamic_prompt, MemoryToolStateMiddleware
+from app.agent.middlewares import (
+    build_dunamic_prompt,
+    MemoryToolStateMiddleware,
+    ToolBudgetMiddleware,
+)
 from app.agent.prompts import (
     COMPRESS_CONTEXT_SYSTEM,
     FALLBACK_AI_UNAVAILABLE,
-    FALLBACK_EMPTY_RESPONSE,
 )
 
 if TYPE_CHECKING:
     from langchain_core.language_models.chat_models import BaseChatModel
-    from langgraph.graph.state import CompiledStateGraph
     from langgraph.checkpoint.base import BaseCheckpointSaver
 
     from app.core.config import Config
@@ -151,6 +153,7 @@ class AgentService:
         )
 
         middleware = [
+            ToolBudgetMiddleware(self._config.agent_max_tool_calls),
             build_dunamic_prompt,
             MemoryToolStateMiddleware(),
             SummarizationMiddleware(

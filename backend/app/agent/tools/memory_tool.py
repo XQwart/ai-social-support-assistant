@@ -56,6 +56,9 @@ def make_memory_tool(user: UserModel, user_service: UserService) -> BaseTool:
         except Exception:
             logger.warning("Failed to update user memory", exc_info=True)
 
-        return "Данные обновлены"
+        return (
+            "Данные сохранены. Теперь используй полученную информацию "
+            "и ответь пользователю на его вопрос."
+        )
 
     return save_user_facts

@@ -147,11 +147,10 @@ def build_system_prompt(
             is_sber_employee,
         ),
         SYSTEM_PROMPT_GREETING if is_new_dialog else SYSTEM_PROMPT_NO_GREETING,
-        SYSTEM_PROMPT_TOOLS,
-        SYSTEM_PROMPT_FORMATTING,
         SYSTEM_PROMPT_FORMATTING,
         SYSTEM_PROMPT_RULES,
         SYSTEM_PROMPT_EMPLOYEE_RULE,
+        SYSTEM_PROMPT_TOOLS,
         SYSTEM_PROMPT_SOURCES,
     ]
     prompt = "\n\n".join(sections)

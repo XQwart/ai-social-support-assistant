@@ -42,6 +42,7 @@ def make_retrive_tool(
 
         return (
             _format_chunks(public_chunks, internal_chunks)
+            + "\n\nИспользуй найденную информацию для ответа пользователю."
             if public_chunks or internal_chunks
             else "В базе знаний не найдено релевантных документов по этому запросу."
         )
