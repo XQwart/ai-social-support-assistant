@@ -182,6 +182,18 @@ SYSTEM_PROMPT_RULES = (
     "- Будь вежливым, эмпатичным и по делу — но по-человечески."
 )
 
+SYSTEM_PROMPT_TOOLS = (
+    "ИСПОЛЬЗОВАНИЕ ИНСТРУМЕНТОВ:\n"
+    "- search_knowledge_base: используй ТОЛЬКО когда пользователь спрашивает "
+    "о конкретных мерах поддержки, льготах, пособиях. НЕ используй на приветствия.\n"
+    "- update_memory: используй ТОЛЬКО когда пользователь ЯВНО сообщил новый факт "
+    "о себе (регион, семья, статус и т.п.). НЕ используй на приветствия, вопросы, "
+    "благодарности.\n"
+    "- Если сообщение пользователя — приветствие, благодарность или small talk — "
+    "просто ответь текстом, НЕ вызывая никаких инструментов.\n"
+    "- НИКОГДА не вызывай инструмент повторно с теми же или пустыми параметрами."
+)
+
 
 def _user_profile_section(user: UserModel) -> str:
     first_name = (user.first_name or "").strip() or "не указано"
@@ -282,6 +294,7 @@ def build_system_prompt(user: UserModel) -> str:
         _user_profile_section(user),
         # _dialog_state_section(is_new_dialog),
         # SYSTEM_PROMPT_GREETING if is_new_dialog else SYSTEM_PROMPT_NO_GREETING,
+        SYSTEM_PROMPT_TOOLS,
         SYSTEM_PROMPT_INFO_GATHERING,
         SYSTEM_PROMPT_CLOSING,
         SYSTEM_PROMPT_OFFTOPIC,

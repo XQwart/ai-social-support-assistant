@@ -82,6 +82,8 @@ class Config(BaseSettings):
 
     ai_provider: AIProvider = AIProvider.GIGACHAT
 
+    agent_recursion_limit: int = 10
+
     polza_ai_api_key: str = ""
     polza_ai_base_url: str = "https://polza.ai/api/v1"
     polza_ai_model: str = "xiaomi/mimo-v2-flash"

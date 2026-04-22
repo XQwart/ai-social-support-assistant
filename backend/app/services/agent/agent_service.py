@@ -65,7 +65,10 @@ class AgentService:
         try:
             response = await graph.ainvoke(
                 {"messages": [HumanMessage(content=content)]},
-                config={"configurable": {"thread_id": str(chat_id)}},
+                config={
+                    "configurable": {"thread_id": str(chat_id)},
+                    "recursion_limit": self._config.agent_recursion_limit,
+                },
             )
             print(response.keys())
 
