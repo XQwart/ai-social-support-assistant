@@ -53,12 +53,8 @@ class ConversationService:
             chat_id=chat.id, message=content, role=MessageRole.USER
         )
 
-        messages_count = await self._message_service.count_messages(chat.id)
         response = await self._agent_service.run(
-            chat_id=chat.id,
-            user=chat.user,
-            content=content,
-            is_new_dialog=messages_count <= 2,
+            chat_id=chat.id, user=chat.user, content=content
         )
 
         assistant_msg = await self._message_service.send_message(

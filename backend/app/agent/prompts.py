@@ -201,12 +201,18 @@ SYSTEM_PROMPT_TOOLS = """
 """
 
 
-def _user_profile_section(user: UserModel) -> str:
-    first_name = (user.first_name or "").strip() or "не указано"
-    employee_status = "да" if user.is_sber_employee else "нет"
+def _user_profile_section(
+    first_name: str,
+    effective_region: str | None,
+    region_current: str | None,
+    persistent_memory: str | None,
+    is_sber_employee: bool,
+) -> str:
+    first_name = (first_name or "").strip() or "не указано"
+    employee_status = "да" if is_sber_employee else "нет"
 
-    if effective_region := user.region_current or user.region_reg:
-        if user.region_current:
+    if effective_region:
+        if region_current:
             region_line = f"- Регион: {effective_region} (указан пользователем)"
         else:
             region_line = (
@@ -228,10 +234,10 @@ def _user_profile_section(user: UserModel) -> str:
         f"{region_line}\n"
     )
 
-    if user.persistent_memory:
+    if persistent_memory:
         profile += (
             "\nИзвестные факты о пользователе (из предыдущих диалогов):\n"
-            f"{user.persistent_memory}\n"
+            f"{persistent_memory}\n"
             "Не переспрашивай эти факты. Учитывай при ответе. "
             "Учитывай при формировании запроса к search_knowledge_base."
         )
@@ -244,11 +250,24 @@ def _user_profile_section(user: UserModel) -> str:
     return profile
 
 
-def build_system_prompt(user: UserModel, is_new_dialog: bool) -> str:
+def build_system_prompt(
+    first_name: str,
+    effective_region: str | None,
+    region_current: str | None,
+    persistent_memory: str | None,
+    is_sber_employee: bool,
+    is_new_dialog: bool,
+) -> str:
     sections = [
         SYSTEM_PROMPT_ROLE,
         SYSTEM_PROMPT_IDENTITY,
-        _user_profile_section(user),
+        _user_profile_section(
+            first_name,
+            effective_region,
+            region_current,
+            persistent_memory,
+            is_sber_employee,
+        ),
         SYSTEM_PROMPT_GREETING if is_new_dialog else SYSTEM_PROMPT_NO_GREETING,
         SYSTEM_PROMPT_TOOLS,
         SYSTEM_PROMPT_INFO_GATHERING,

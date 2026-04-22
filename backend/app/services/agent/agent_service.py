@@ -6,11 +6,13 @@ from langchain.agents import create_agent
 from langchain.agents.middleware import SummarizationMiddleware
 from langchain_core.messages.human import HumanMessage
 
+from app.agent.state import SOCAgentState, UserContext
 from app.agent.tools import create_user_tools
-from .prompts import (
-    build_system_prompt,
+from app.agent.middlewares import build_dunamic_prompt, MemoryToolStateMiddleware
+from app.agent.prompts import (
     COMPRESS_CONTEXT_SYSTEM,
     FALLBACK_AI_UNAVAILABLE,
+    FALLBACK_EMPTY_RESPONSE,
 )
 
 if TYPE_CHECKING:
@@ -53,9 +55,15 @@ class AgentService:
         self._checkpointer = checkpointer
         self._config = config
 
-    async def run(
-        self, chat_id: int, user: UserModel, content: str, is_new_dialog: bool
-    ) -> str:
+    async def run(self, chat_id: int, user: UserModel, content: str) -> str:
+        graph = self._create_graph(user)
+        config = {
+            "configurable": {"thread_id": str(chat_id)},
+            "recursion_limit": self._config.agent_recursion_limit,
+        }
+
+        state = await graph.aget_state(config)
+        is_new_dialog = not state.values.get("messages")
         logger.info(
             "Запрос к ИИ: user_id=%s, is_sber=%s, user_message='%s', is_new_dialog=%s",
             user.id,
@@ -64,18 +72,24 @@ class AgentService:
             is_new_dialog,
         )
 
-        graph = self._create_graph(user, is_new_dialog)
-        config = {
-            "configurable": {"thread_id": str(chat_id)},
-            "recursion_limit": self._config.agent_recursion_limit,
-        }
-
         try:
             final_message = ""
 
             async for event in graph.astream_events(
-                {"messages": [HumanMessage(content=content)]},
+                {
+                    "messages": [HumanMessage(content=content)],
+                    "user_profile": {
+                        "region_current": user.region_current,
+                        "persistent_memory": user.persistent_memory,
+                    },
+                },
                 config=config,
+                context=UserContext(
+                    first_name=user.first_name,
+                    region_reg=user.region_reg,
+                    is_sber_employee=user.is_sber_employee,
+                    is_new_dialog=is_new_dialog,
+                ),
                 version="v2",
             ):
                 kind = event["event"]
@@ -128,14 +142,17 @@ class AgentService:
 
         except Exception:
             logger.exception("Критическая ошибка при обращении к ИИ")
+
             return FALLBACK_AI_UNAVAILABLE
 
-    def _create_graph(self, user: UserModel, is_new_dialog: bool) -> CompiledStateGraph:
+    def _create_graph(self, user: UserModel):
         tools = create_user_tools(
             user, self._user_service, self._rag_service, self._region_service
         )
 
         middleware = [
+            build_dunamic_prompt,
+            MemoryToolStateMiddleware(),
             SummarizationMiddleware(
                 model=self._compress_llm,
                 trigger=[
@@ -144,7 +161,7 @@ class AgentService:
                 ],
                 keep=("tokens", self._config.llm_summarization_tokens_keep),
                 summary_prompt=COMPRESS_CONTEXT_SYSTEM,
-            )
+            ),
         ]
 
         return create_agent(
@@ -152,5 +169,6 @@ class AgentService:
             tools=tools,
             middleware=middleware,
             checkpointer=self._checkpointer,
-            system_prompt=build_system_prompt(user, is_new_dialog),
+            context_schema=UserContext,
+            state_schema=SOCAgentState,
         )
