@@ -24,39 +24,39 @@ services:
         condition: service_started
       migrations:
         condition: service_completed_successfully
-  celery:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.worker
-    image: backend-worker:latest
-    env_file:
-      - .env
-    working_dir: /code
-    command: celery -A worker.celery_app worker -l info -c 1
-    volumes:
-      - ./backend:/code
-    depends_on:
-      redis:
-        condition: service_started
-      migrations:
-        condition: service_completed_successfully
-    restart: unless-stopped
-    shm_size: "1gb"
+  # celery:
+  #   build:
+  #     context: ./backend
+  #     dockerfile: Dockerfile.worker
+  #   image: backend-worker:latest
+  #   env_file:
+  #     - .env
+  #   working_dir: /code
+  #   command: celery -A worker.celery_app worker -l info -c 1
+  #   volumes:
+  #     - ./backend:/code
+  #   depends_on:
+  #     redis:
+  #       condition: service_started
+  #     migrations:
+  #       condition: service_completed_successfully
+  #   restart: unless-stopped
+  #   shm_size: "1gb"
 
-  celery-beat:
-    image: backend-worker:latest
-    env_file:
-      - .env
-    working_dir: /code
-    command: celery -A worker.celery_app beat -l info
-    volumes:
-      - ./backend:/code
-    depends_on:
-      redis:
-        condition: service_started
-      migrations:
-        condition: service_completed_successfully
-    restart: unless-stopped
+  # celery-beat:
+  #   image: backend-worker:latest
+  #   env_file:
+  #     - .env
+  #   working_dir: /code
+  #   command: celery -A worker.celery_app beat -l info
+  #   volumes:
+  #     - ./backend:/code
+  #   depends_on:
+  #     redis:
+  #       condition: service_started
+  #     migrations:
+  #       condition: service_completed_successfully
+  #   restart: unless-stopped
   migrations:
     image: backend:latest
     env_file:

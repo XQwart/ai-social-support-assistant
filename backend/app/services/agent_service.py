@@ -12,10 +12,13 @@ from app.agent.middlewares import (
     build_dunamic_prompt,
     MemoryToolStateMiddleware,
     ToolBudgetMiddleware,
+    ToolGuardMiddleware,
 )
+from app.agent.response_sanitizer import sanitize_final_message
 from app.agent.prompts import (
     COMPRESS_CONTEXT_SYSTEM,
     FALLBACK_AI_UNAVAILABLE,
+    FALLBACK_EMPTY_RESPONSE,
 )
 
 if TYPE_CHECKING:
@@ -138,9 +141,25 @@ class AgentService:
 
             if not final_message:
                 state = await graph.aget_state(config)
-                return state.values["messages"][-1].content
+                messages = state.values.get("messages") or []
+                final_message = messages[-1].content if messages else ""
 
-            return final_message
+            cleaned = sanitize_final_message(final_message)
+            if not cleaned:
+                logger.warning(
+                    "Пустой ответ ИИ после санитизации (длина до=%s)",
+                    len(final_message or ""),
+                )
+                return FALLBACK_EMPTY_RESPONSE
+
+            if cleaned != final_message:
+                logger.info(
+                    "Ответ ИИ очищен от служебных строк: %s → %s символов",
+                    len(final_message),
+                    len(cleaned),
+                )
+
+            return cleaned
 
         except Exception:
             logger.exception("Критическая ошибка при обращении к ИИ")
@@ -154,6 +173,7 @@ class AgentService:
 
         middleware = [
             ToolBudgetMiddleware(self._config.agent_max_tool_calls),
+            ToolGuardMiddleware(),
             build_dunamic_prompt,
             MemoryToolStateMiddleware(),
             SummarizationMiddleware(
