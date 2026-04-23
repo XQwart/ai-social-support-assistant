@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import logging
+import asyncio
 from redis import Redis
 from threading import Lock
+from collections.abc import AsyncIterator
+from sqlalchemy.ext.asyncio import AsyncSession
 from qdrant_client.models import VectorParams, Distance
-from contextlib import contextmanager
+from contextlib import asynccontextmanager
 from worker.core.config import get_config, Config
 from worker.services.embedding.build import build_embedding_provider
 from worker.db.qdrant import create_qdrant
@@ -35,6 +38,8 @@ from worker.services.processing_service import SourceProcessingService
 from worker.services.discovery_service import LinkDiscoveryService
 from worker.services.region_import_service import RegionSourceImportService
 from worker.services.runtime_state_service import RuntimeStateService
+from worker.services.quests_service import ChunkQuestionLLMService
+from worker.services.llm.build import build_llm_client
 
 logger = logging.getLogger(__name__)
 _lock = Lock()
@@ -42,20 +47,33 @@ _lock = Lock()
 
 class WorkerDependencies:
     _instance: WorkerDependencies | None = None
+    _init_lock: asyncio.Lock | None = None
 
     def __init__(self, config: Config) -> None:
         self._config = config
 
-        self._provider = build_embedding_provider(config=config)
-        self._qdrant = create_qdrant(url=config.qdrant_url)
+    @classmethod
+    def _get_init_lock(cls) -> asyncio.Lock:
+        if cls._init_lock is None:
+            cls._init_lock = asyncio.Lock()
+        return cls._init_lock
 
-        self._redis = Redis.from_url(config.redis_celery_url, decode_responses=True)
+    async def _ainit(self) -> None:
+        self._provider = build_embedding_provider(config=self._config)
+        self._qdrant = create_qdrant(url=self._config.qdrant_url)
+        self._llm_client = build_llm_client(config=self._config)
+        self._quest_service = ChunkQuestionLLMService(llm_client=self._llm_client)
+
+        self._redis = Redis.from_url(
+            self._config.redis_celery_url,
+            decode_responses=True,
+        )
         self._runtime_state_service = RuntimeStateService(redis_client=self._redis)
 
-        self.ensure_collection(self._provider.vector_size)
+        await self.ensure_collections(self._provider.vector_size)
 
-        self._sessionmaker = create_session(config.database_url)
-        self._fetcher = WebPageFetcher(default_timeout=config.default_timeout)
+        self._sessionmaker = create_session(self._config.database_url)
+        self._fetcher = WebPageFetcher(default_timeout=self._config.default_timeout)
         self._text_extractor = HtmlTextExtractor()
         self._link_extractor = HtmlLinkExtractor()
         self._pdf_extractor = PdfTextExtractor()
@@ -67,52 +85,67 @@ class WorkerDependencies:
         )
 
         self._chunking_service = ChunkingService(
-            embedding_model=config.polza_ai_embedding_model,
+            embedding_model=self._config.polza_ai_embedding_model,
         )
         self._embedding_service = EmbeddingService(
             provider=self._provider,
-            model=config.polza_ai_embedding_model,
+            model=self._config.polza_ai_embedding_model,
         )
 
         logger.info("WorkerDependencies инициализированы")
 
-    @contextmanager
-    def session_scope(self):
+    @asynccontextmanager
+    async def session_scope(self) -> AsyncIterator[AsyncSession]:
         session = self._sessionmaker()
+
         try:
             yield session
-            session.commit()
+            await session.commit()
         except Exception:
-            session.rollback()
+            await session.rollback()
             raise
         finally:
-            session.close()
+            await session.close()
 
     @classmethod
-    def get(cls) -> WorkerDependencies:
+    async def get(cls) -> WorkerDependencies:
         if cls._instance is None:
             with _lock:
-                if cls._instance is None:
-                    config = get_config()
-                    cls._instance = cls(config)
+                instance_missing = cls._instance is None
+            if instance_missing:
+                config = get_config()
+                instance = cls(config)
+                await instance._ainit()
+                with _lock:
+                    if cls._instance is None:
+                        cls._instance = instance
+
+        if cls._instance is None:
+            raise RuntimeError("WorkerDependencies is not initialized")
+
         return cls._instance
 
     @classmethod
-    def reset(cls) -> None:
+    async def reset(cls) -> None:
         with _lock:
-            if cls._instance is not None:
-                cls._instance._close()
-                cls._instance = None
+            instance = cls._instance
+            cls._instance = None
+
+        if instance is not None:
+            await instance._close()
 
     @property
     def runtime_state_service(self) -> RuntimeStateService:
         return self._runtime_state_service
 
-    def build_processing_service(self, session) -> SourceProcessingService:
+    def build_processing_service(
+        self, session: AsyncSession
+    ) -> SourceProcessingService:
 
         vector_rep = VectorRepository(
             client=self._qdrant,
-            collection_name=self._config.qdrant_collection,
+            questions_collection_name=self._config.questions_collection_name,
+            chunks_collection_name=self._config.chunks_collection_name,
         )
         chunk_rep = ChunkRepository(session=session)
         document_service = DocumentService(
@@ -127,6 +160,7 @@ class WorkerDependencies:
             embedding_service=self._embedding_service,
             document_service=document_service,
             chunking_service=self._chunking_service,
+            quest_service=self._quest_service,
             source_service=source_service,
         )
 
@@ -149,27 +183,50 @@ class WorkerDependencies:
             link_discovery_service=link_service,
         )
 
-    def ensure_collection(self, vector_size: int) -> None:
-        if not self._qdrant.collection_exists(self._config.qdrant_collection):
-            self._qdrant.create_collection(
-                collection_name=self._config.qdrant_collection,
-                vectors_config=VectorParams(
-                    size=vector_size,
-                    distance=Distance.COSINE,
-                ),
-            )
+    async def ensure_collections(self, vector_size: int) -> None:
+        await self._ensure_collection(
+            collection_name=self._config.chunks_collection_name,
+            vector_size=vector_size,
+        )
+        await self._ensure_collection(
+            collection_name=self._config.questions_collection_name,
+            vector_size=vector_size,
+        )
 
-    def _close(self) -> None:
+    async def _ensure_collection(
+        self,
+        collection_name: str,
+        vector_size: int,
+    ) -> None:
+        exists = await self._qdrant.collection_exists(collection_name)
+        if exists:
+            logger.info("Qdrant collection already exists: %s", collection_name)
+            return
+
+        await self._qdrant.create_collection(
+            collection_name=collection_name,
+            vectors_config=VectorParams(
+                size=vector_size,
+                distance=Distance.COSINE,
+            ),
+        )
+        logger.info("Qdrant collection created: %s", collection_name)
+
+    async def _close(self) -> None:
         try:
             self._parsing_service.close()
         except Exception:
             pass
         try:
-            self._qdrant.close()
+            await self._qdrant.close()
         except Exception:
             pass
         try:
-            self._provider.close()
+            await self._provider.aclose()
+        except Exception:
+            pass
+        try:
+            await self._llm_client.aclose()
         except Exception:
             pass
         logger.info("WorkerDependencies закрыты")

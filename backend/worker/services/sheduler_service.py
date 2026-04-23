@@ -10,9 +10,9 @@ class SchedulerService:
     def __init__(self, source_service: SourceCrawlService):
         self._source_service = source_service
 
-    def dispatch_due_crawls(self) -> dict:
+    async def dispatch_due_crawls(self) -> dict:
 
-        sources = self._source_service.claim_due_sources(
+        sources = await self._source_service.claim_due_sources(
             limit=500,
         )
 

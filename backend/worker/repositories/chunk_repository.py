@@ -3,19 +3,19 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from sqlalchemy import delete, select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.models import DocumentChunk
 from worker.schemas.document import DocumentChunkCreate, StoredDocumentChunk
 
 
 class ChunkRepository:
-    _session: Session
+    _session: AsyncSession
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    def create_many(
+    async def create_many(
         self,
         chunks: Sequence[DocumentChunkCreate],
     ) -> list[StoredDocumentChunk]:
@@ -35,7 +35,7 @@ class ChunkRepository:
             self._session.add(row)
             rows.append(row)
 
-        self._session.flush()
+        await self._session.flush()
 
         return [
             StoredDocumentChunk(
@@ -49,18 +49,21 @@ class ChunkRepository:
             for row in rows
         ]
 
-    def delete_by_source_id(self, source_id: int) -> int:
+    async def delete_by_source_id(self, source_id: int) -> int:
         stmt = (
             delete(DocumentChunk)
             .where(DocumentChunk.source_id == source_id)
             .returning(DocumentChunk.id)
         )
 
-        result = self._session.execute(stmt)
+        result = await self._session.execute(stmt)
         deleted_ids = result.scalars().all()
         return len(deleted_ids)
 
-    def get_by_ids(self, chunk_ids: Sequence[int]) -> list[StoredDocumentChunk]:
+    async def get_by_ids(
+        self,
+        chunk_ids: Sequence[int],
+    ) -> list[StoredDocumentChunk]:
         if not chunk_ids:
             return []
 
@@ -70,7 +73,8 @@ class ChunkRepository:
             .order_by(DocumentChunk.id.asc())
         )
 
-        rows = list(self._session.scalars(stmt).all())
+        result = await self._session.execute(stmt)
+        rows = list(result.scalars().all())
 
         return [
             StoredDocumentChunk(
@@ -84,14 +88,15 @@ class ChunkRepository:
             for row in rows
         ]
 
-    def get_by_source_id(self, source_id: int) -> list[StoredDocumentChunk]:
+    async def get_by_source_id(self, source_id: int) -> list[StoredDocumentChunk]:
         stmt = (
             select(DocumentChunk)
             .where(DocumentChunk.source_id == source_id)
             .order_by(DocumentChunk.chunk_index.asc())
         )
 
-        rows = list(self._session.scalars(stmt).all())
+        result = await self._session.execute(stmt)
+        rows = list(result.scalars().all())
 
         return [
             StoredDocumentChunk(

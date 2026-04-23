@@ -1,17 +1,13 @@
-from openai import OpenAI, DefaultHttpxClient
+from openai import AsyncOpenAI
 
 from worker.core.config import Config
 
 
-def build_polza_ai_client(config: Config, timeout: int = 60) -> OpenAI:
+def build_polza_ai_client(config: Config, timeout: int = 60) -> AsyncOpenAI:
 
-    http_client = DefaultHttpxClient(
-        verify=False,
-        timeout=timeout,
-    )
-    return OpenAI(
+    return AsyncOpenAI(
         api_key=config.polza_ai_api_key,
         base_url=config.polza_ai_base_url,
-        http_client=http_client,
+        timeout=timeout,
         max_retries=2,
     )

@@ -7,6 +7,7 @@ from worker.services.document_service import DocumentService
 from worker.services.embedding.embedding_service import EmbeddingService
 from worker.services.chunk_service import ChunkingService
 from worker.services.source.source_crawl_service import SourceCrawlService
+from worker.services.quests_service import ChunkQuestionLLMService
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +19,7 @@ class SourceProcessingService:
         document_service: DocumentService,
         embedding_service: EmbeddingService,
         chunking_service: ChunkingService,
+        quest_service: ChunkQuestionLLMService,
         source_service: SourceCrawlService,
     ) -> None:
         self._parsing = parsing_service
@@ -25,35 +27,36 @@ class SourceProcessingService:
         self._embeddings = embedding_service
         self._chunking = chunking_service
         self._sources = source_service
+        self._quest_service = quest_service
 
-    def process_source(self, source: dict) -> dict:
+    async def process_source(self, source: dict) -> dict:
         source_id = source["id"]
         url = source["url"]
         name = source["name"]
         document_type = source["document_type"]
         place_of_work = source["place_of_work"]
+
         try:
-            result = self._do_process(
+            result = await self._do_process(
                 source_id=source_id,
                 url=url,
                 name=name,
                 document_type=document_type,
                 place_of_work=place_of_work,
             )
-
         except Exception as e:
             logger.exception("Ошибка обработки source_id=%s", source_id)
-            self._sources.mark_failed(source_id, error=str(e))
+            await self._sources.mark_failed(source_id, error=str(e))
             return {
                 "source_id": source_id,
                 "status": "failed",
                 "error": str(e),
             }
 
-        self._sources.mark_success(source_id)
+        await self._sources.mark_success(source_id)
         return result
 
-    def _do_process(
+    async def _do_process(
         self,
         source_id: int,
         url: str,
@@ -62,11 +65,14 @@ class SourceProcessingService:
         place_of_work: str | None = None,
     ) -> dict:
         document = self._parsing.parse_source(
-            source_id=source_id, url=url, name=name, document_type=document_type
+            source_id=source_id,
+            url=url,
+            name=name,
+            document_type=document_type,
         )
 
         if not document:
-            self._sources.mark_failed(source_id, error="empty")
+            await self._sources.mark_failed(source_id, error="empty")
             return {
                 "source_id": source_id,
                 "status": "skipped",
@@ -74,25 +80,48 @@ class SourceProcessingService:
             }
 
         chunks = self._chunking.split_document(document=document)
-        stored_chunks = self._documents.save_chunks(
+
+        stored_chunks = await self._documents.save_chunks(
             source_id=source_id,
             chunks=chunks,
         )
 
-        embedded_chunks = self._embeddings.create_embeddings(stored_chunks)
-        regions = self._sources.get_region_codes_by_source_id(source_id=source_id)
+        embedded_chunks = await self._embeddings.create_embeddings(stored_chunks)
 
-        vectors_count = self._documents.save_vectors(
+        regions = await self._sources.get_region_codes_by_source_id(
+            source_id=source_id,
+        )
+
+        chunk_vectors_count = await self._documents.save_vectors(
             source_id=source_id,
             embedded_chunks=embedded_chunks,
             regions=regions,
             place_of_work=place_of_work,
         )
 
+        generated_questions = await self._quest_service.generate_for_chunks(
+            stored_chunks,
+        )
+
+        question_vectors_count = 0
+        if generated_questions:
+            embedded_questions = await self._embeddings.create_question_embeddings(
+                generated_questions
+            )
+
+            question_vectors_count = await self._documents.save_question_vectors(
+                source_id=source_id,
+                embedded_questions=embedded_questions,
+                regions=regions,
+                place_of_work=place_of_work,
+            )
+
         return {
             "source_id": source_id,
             "url": url,
             "status": "success",
             "chunks_count": len(chunks),
-            "vectors_count": vectors_count or 0,
+            "chunk_vectors_count": chunk_vectors_count or 0,
+            "questions_count": len(generated_questions),
+            "question_vectors_count": question_vectors_count or 0,
         }

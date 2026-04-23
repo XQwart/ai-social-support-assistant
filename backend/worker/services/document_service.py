@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 from worker.repositories.vector_repository import VectorRepository
 from worker.repositories.chunk_repository import ChunkRepository
 from worker.schemas.document import (
     DocumentChunkCreate,
     StoredDocumentChunk,
     EmbeddedDocumentChunk,
+    EmbeddedChunkQuestion,
 )
 
 
@@ -19,22 +22,38 @@ class DocumentService:
         self._vector_rep = vector_rep
         self._chunk_rep = chunk_rep
 
-    def save_chunks(
+    async def save_chunks(
         self,
         source_id: int,
         chunks: list[DocumentChunkCreate],
     ) -> list[StoredDocumentChunk]:
-        self._chunk_rep.delete_by_source_id(source_id)
-        chunk_stored = self._chunk_rep.create_many(chunks)
+        await self._chunk_rep.delete_by_source_id(source_id)
+        return await self._chunk_rep.create_many(chunks)
 
-        return chunk_stored
-
-    def save_vectors(
+    async def save_vectors(
         self,
         source_id: int,
         embedded_chunks: list[EmbeddedDocumentChunk],
         regions: list[str],
         place_of_work: str | None = None,
     ) -> int:
-        self._vector_rep.delete_by_source_id(source_id)
-        return self._vector_rep.upsert_chunks(embedded_chunks, regions, place_of_work)
+        await self._vector_rep.delete_chunks_by_source_id(source_id)
+        return await self._vector_rep.upsert_chunks(
+            embedded_chunks,
+            regions,
+            place_of_work,
+        )
+
+    async def save_question_vectors(
+        self,
+        source_id: int,
+        embedded_questions: list[EmbeddedChunkQuestion],
+        regions: list[str],
+        place_of_work: str | None = None,
+    ) -> int:
+        await self._vector_rep.delete_questions_by_source_id(source_id)
+        return await self._vector_rep.upsert_questions(
+            embedded_questions,
+            regions,
+            place_of_work,
+        )

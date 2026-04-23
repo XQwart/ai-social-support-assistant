@@ -1,5 +1,5 @@
-from qdrant_client import QdrantClient
+from qdrant_client import AsyncQdrantClient
 
 
-def create_qdrant(url: str) -> QdrantClient:
-    return QdrantClient(url=url)
+def create_qdrant(url: str) -> AsyncQdrantClient:
+    return AsyncQdrantClient(url=url)

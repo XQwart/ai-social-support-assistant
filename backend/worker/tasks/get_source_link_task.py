@@ -1,28 +1,41 @@
-import logging
+from __future__ import annotations
+
+from celery import chord
 
 from worker.celery_app import app
-from worker.dependencies.build import WorkerDependencies
 from worker.core.constants import SOURCES_JSON
-from worker.utils.read_json import read_json_file
-
-logger = logging.getLogger(__name__)
+from worker.tasks.import_one_source import import_one_source
+from worker.tasks.finaliz_source_import import finalize_source_import
+from worker.utils.read_json import read_json_file, build_source_jobs
 
 
 @app.task(bind=True, name="worker.tasks.get_source_link_task.get_source_links")
 def get_source_links(self) -> dict:
-    deps = WorkerDependencies.get()
-    sources = read_json_file(SOURCES_JSON)
+    from worker.dependencies.build import WorkerDependencies
+    import asyncio
 
-    deps.runtime_state_service.set_sources_status("running")
+    async def _run() -> dict:
+        deps = await WorkerDependencies.get()
+        sources = read_json_file(SOURCES_JSON)
+        jobs = build_source_jobs(sources)
 
-    try:
-        with deps.session_scope() as session:
-            service = deps.build_region_source_import_service(session=session)
-            result = service.import_from_data(sources=sources)
+        if not jobs:
+            return {
+                "status": "noop",
+                "scheduled_count": 0,
+                "message": "No sources found",
+            }
 
-        deps.runtime_state_service.set_sources_status("ready")
-        return result
+        deps.runtime_state_service.set_sources_status("running")
 
-    except Exception:
-        deps.runtime_state_service.set_sources_status("failed")
-        raise
+        chord(
+            (import_one_source.s(job) for job in jobs),
+            finalize_source_import.s(),
+        ).apply_async()
+
+        return {
+            "status": "scheduled",
+            "scheduled_count": len(jobs),
+        }
+
+    return asyncio.run(_run())
