@@ -21,6 +21,7 @@ from app.dependencies.repositories import (
 )
 from app.dependencies.http import HTTPSberClientDep
 from app.dependencies.jwt import AccessTokenDep, RefreshTokenDep
+from app.dependencies.prompt import PromptServiceDep
 from app.services import (
     AgentService,
     AuthService,
@@ -102,6 +103,7 @@ def get_agent_service(
     user_service: "UserServiceDep",
     checkpointer: CheckpointerDep,
     config: ConfigDep,
+    prompt_service: PromptServiceDep,
 ) -> AgentService:
     return AgentService(
         chat_llm,
@@ -111,6 +113,7 @@ def get_agent_service(
         user_service,
         checkpointer,
         config,
+        prompt_service,
     )
 
 

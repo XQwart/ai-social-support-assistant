@@ -15,11 +15,6 @@ from app.agent.middlewares import (
     ToolGuardMiddleware,
 )
 from app.agent.response_sanitizer import sanitize_final_message
-from app.agent.prompts import (
-    COMPRESS_CONTEXT_SYSTEM,
-    FALLBACK_AI_UNAVAILABLE,
-    FALLBACK_EMPTY_RESPONSE,
-)
 
 if TYPE_CHECKING:
     from langchain_core.language_models.chat_models import BaseChatModel
@@ -28,6 +23,7 @@ if TYPE_CHECKING:
     from app.core.config import Config
     from app.models import UserModel
     from app.services import RegionService, RAGService, UserService
+    from app.services.prompt_service import PromptService
 
 
 logger = logging.getLogger(__name__)
@@ -41,6 +37,7 @@ class AgentService:
     _user_service: UserService
     _checkpointer: BaseCheckpointSaver
     _config: Config
+    _prompt_service: PromptService
 
     def __init__(
         self,
@@ -51,6 +48,7 @@ class AgentService:
         user_service: UserService,
         checkpointer: BaseCheckpointSaver,
         config: Config,
+        prompt_service: PromptService,
     ) -> None:
         self._chat_llm = chat_llm
         self._compress_llm = compress_llm
@@ -59,6 +57,7 @@ class AgentService:
         self._user_service = user_service
         self._checkpointer = checkpointer
         self._config = config
+        self._prompt_service = prompt_service
 
     async def run(self, chat_id: int, user: UserModel, content: str) -> str:
         graph = self._create_graph(user)
@@ -150,7 +149,7 @@ class AgentService:
                     "Пустой ответ ИИ после санитизации (длина до=%s)",
                     len(final_message or ""),
                 )
-                return FALLBACK_EMPTY_RESPONSE
+                return self._prompt_service.get("FALLBACK_EMPTY_RESPONSE")
 
             if cleaned != final_message:
                 logger.info(
@@ -164,7 +163,7 @@ class AgentService:
         except Exception:
             logger.exception("Критическая ошибка при обращении к ИИ")
 
-            return FALLBACK_AI_UNAVAILABLE
+            return self._prompt_service.get("FALLBACK_AI_UNAVAILABLE")
 
     def _create_graph(self, user: UserModel):
         tools = create_user_tools(
@@ -174,7 +173,7 @@ class AgentService:
         middleware = [
             ToolBudgetMiddleware(self._config.agent_max_tool_calls),
             ToolGuardMiddleware(),
-            build_dunamic_prompt,
+            build_dunamic_prompt(self._prompt_service.get),
             MemoryToolStateMiddleware(),
             SummarizationMiddleware(
                 model=self._compress_llm,
@@ -183,7 +182,7 @@ class AgentService:
                     ("messages", self._config.llm_summarization_messages_trigger),
                 ],
                 keep=("tokens", self._config.llm_summarization_tokens_keep),
-                summary_prompt=COMPRESS_CONTEXT_SYSTEM,
+                summary_prompt=self._prompt_service.get("COMPRESS_CONTEXT_SYSTEM"),
             ),
         ]
 

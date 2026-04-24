@@ -7,3 +7,4 @@ from .sberid_service import SberIdService
 from .user_service import UserService
 from .rag_service import RAGService
 from .region_service import RegionService
+from .prompt_service import PromptService

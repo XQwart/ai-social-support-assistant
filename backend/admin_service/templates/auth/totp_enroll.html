@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Настройка 2FA — {{ app_name }}{% endblock %}
+
+{% block content %}
+<section class="card">
+    <h1>Настройка 2FA</h1>
+    <p>Отсканируйте QR-код в приложении-аутентификаторе и введите шестизначный код для подтверждения.</p>
+    {% if qr_data_uri %}
+    <p><img src="{{ qr_data_uri }}" alt="QR-код для настройки 2FA" class="totp-qr"></p>
+    {% endif %}
+    {% if secret %}
+    <p>Секрет (можно ввести вручную):
+        <code class="totp-secret">{{ secret }}</code>
+    </p>
+    {% endif %}
+    {% if error %}
+    <div class="alert alert-error">{{ error }}</div>
+    {% endif %}
+    <form method="post" action="{{ base_path }}/totp/verify">
+        <input type="hidden" name="csrf_token" value="{{ request.cookies.get('admin_csrf', '') }}">
+        <label>
+            Код из приложения
+            <input type="text" name="code" inputmode="numeric" pattern="[0-9 ]*" required>
+        </label>
+        <button type="submit" class="btn btn-primary">Подтвердить</button>
+    </form>
+</section>
+{% endblock %}

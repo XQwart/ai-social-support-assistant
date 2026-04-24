@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Новый чанк — {{ app_name }}{% endblock %}
+
+{% block content %}
+<section class="card">
+    <p><a href="{{ base_path }}/chunks">← Все чанки</a></p>
+    <h1>Новый чанк</h1>
+    <p class="muted">Текст будет проиндексирован сразу после сохранения.</p>
+
+    {% if error %}
+    <div class="alert alert-error">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="{{ base_path }}/chunks">
+        <input type="hidden" name="csrf_token" value="{{ request.cookies.get('admin_csrf', '') }}">
+        <label>
+            Источник
+            <select name="source_id" required>
+                <option value="">— выберите источник —</option>
+                {% for source in sources %}
+                <option value="{{ source.id }}" {% if preselected_source_id == source.id %}selected{% endif %}>
+                    {{ source.name or source.url }}
+                </option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            Текст чанка
+            <textarea name="text" rows="16" required>{{ draft_text }}</textarea>
+        </label>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Создать и проиндексировать</button>
+            <a class="btn btn-secondary" href="{{ base_path }}/chunks">Отмена</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

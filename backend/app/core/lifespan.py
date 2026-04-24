@@ -3,6 +3,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.services.prompt_service import PromptService
+
 from .checkpointer import create_checkpointer
 from .config import get_config
 from .database import create_engine, create_session_maker
@@ -39,6 +41,9 @@ async def lifespan(app: FastAPI):
         distance=config.rag_distance,
     )
 
+    prompt_service = PromptService(session_maker=session_maker, redis=redis)
+    await prompt_service.start()
+
     app.state.db_engine = engine
     app.state.session_maker = session_maker
     app.state.checkpointer = checkpointer
@@ -49,12 +54,14 @@ async def lifespan(app: FastAPI):
     app.state.compress_llm_client = compress_llm_client
     app.state.embedding_client = embedding_client
     app.state.qdrant = qdrant
+    app.state.prompt_service = prompt_service
 
     logger.info("Application started successfully")
 
     try:
         yield
     finally:
+        await prompt_service.stop()
         await checkpointer.conn.close()
         await http_client.aclose()
         await qdrant.close()

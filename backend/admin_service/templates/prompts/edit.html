@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}{{ prompt.key }} — Промпты{% endblock %}
+
+{% block content %}
+<section class="card">
+    <p><a href="{{ base_path }}/prompts">← Все промпты</a></p>
+    <h1><code>{{ prompt.key }}</code></h1>
+    {% if description %}
+    <p class="muted">{{ description }}</p>
+    {% endif %}
+    <p>Версия: v{{ prompt.version }} · Обновлён: {{ prompt.updated_at.strftime("%Y-%m-%d %H:%M") }}</p>
+    {% if request.query_params.get("saved") %}
+    <div class="alert alert-success">Сохранено. Новые диалоги будут использовать обновлённый текст.</div>
+    {% endif %}
+    {% if error %}
+    <div class="alert alert-error">{{ error }}</div>
+    {% endif %}
+    <form method="post" action="{{ base_path }}/prompts/{{ prompt.key }}">
+        <input type="hidden" name="csrf_token" value="{{ request.cookies.get('admin_csrf', '') }}">
+        <label>
+            Тело промпта
+            <textarea name="body" rows="20" class="prompt-editor" required>{% if draft_body is defined %}{{ draft_body }}{% else %}{{ prompt.body }}{% endif %}</textarea>
+        </label>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Сохранить</button>
+            <a class="btn btn-secondary" href="{{ base_path }}/prompts/{{ prompt.key }}/history">История</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

@@ -10,6 +10,7 @@ from app.repositories import (
     DocumentRepository,
     ChunkRepository,
     RegionRepository,
+    PromptRepository,
 )
 from app.dependencies.qdrant import QdrantClientDep
 from app.dependencies.config import ConfigDep
@@ -49,6 +50,10 @@ def get_region_repo(session: DBSessionDep) -> RegionRepository:
     return RegionRepository(session)
 
 
+def get_prompt_repo(session: DBSessionDep) -> PromptRepository:
+    return PromptRepository(session)
+
+
 UserRepoDep = Annotated[UserRepository, Depends(get_user_repo)]
 TokenRedisRepoDep = Annotated[TokenRedisRepository, Depends(get_token_redis_repo)]
 OauthRepoDep = Annotated[OauthRepository, Depends(get_auth_redis_repo)]
@@ -57,3 +62,4 @@ MessageRepoDep = Annotated[MessageRepository, Depends(get_message_repo)]
 DocumentRepoDep = Annotated[DocumentRepository, Depends(get_document_repo)]
 ChunkRepoDep = Annotated[ChunkRepository, Depends(get_chunk_repo)]
 RegionRepoDep = Annotated[RegionRepository, Depends(get_region_repo)]
+PromptRepoDep = Annotated[PromptRepository, Depends(get_prompt_repo)]

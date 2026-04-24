@@ -6,3 +6,4 @@ from .oauth_repository import OauthRepository
 from .token_repository import TokenRedisRepository
 from .user_repository import UserRepository
 from .region_repository import RegionRepository
+from .prompt_repository import PromptRepository

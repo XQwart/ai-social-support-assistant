@@ -27,17 +27,30 @@ class VectorRepository:
         embedded_chunks: Sequence[EmbeddedDocumentChunk],
         regions: list[str],
         place_of_work: str | None = None,
-    ) -> int:
+    ) -> dict[int, str]:
+        """Upsert embedded chunks and return a mapping ``chunk_id -> qdrant_point_id``.
+
+        The caller (typically :class:`worker.services.document_service.DocumentService`)
+        is responsible for persisting the returned mapping back to the
+        ``chunks`` table via :meth:`ChunkRepository.set_qdrant_point_ids`,
+        so subsequent admin edits can target the exact Qdrant point
+        without scanning ``payload.text_id``.
+        """
+
         if not embedded_chunks:
-            return 0
+            return {}
 
         total_chunks = len(embedded_chunks)
         points: list[models.PointStruct] = []
+        chunk_id_to_point_id: dict[int, str] = {}
 
         for chunk in embedded_chunks:
             vector = chunk.vector
             if not vector:
                 continue
+
+            point_id = str(uuid4())
+            chunk_id_to_point_id[chunk.id] = point_id
 
             payload = {
                 "text_id": chunk.id,
@@ -50,14 +63,14 @@ class VectorRepository:
 
             points.append(
                 models.PointStruct(
-                    id=str(uuid4()),
+                    id=point_id,
                     vector=vector,
                     payload=payload,
                 )
             )
 
         if not points:
-            return 0
+            return {}
 
         for i in range(0, len(points), self._upsert_batch_size):
             batch = points[i : i + self._upsert_batch_size]
@@ -66,7 +79,7 @@ class VectorRepository:
                 points=batch,
             )
 
-        return len(points)
+        return chunk_id_to_point_id
 
     def delete_by_source_id(self, source_id: int) -> None:
         self._client.delete(

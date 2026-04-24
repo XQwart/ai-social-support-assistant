@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from uuid import UUID
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from shared.models import DocumentChunk
@@ -48,6 +49,33 @@ class ChunkRepository:
             )
             for row in rows
         ]
+
+    def set_qdrant_point_ids(
+        self,
+        mapping: Mapping[int, str | UUID],
+    ) -> int:
+        """Persist the mapping ``chunk_id -> qdrant_point_id`` in bulk.
+
+        Returns the number of rows actually updated.
+        """
+
+        if not mapping:
+            return 0
+
+        updated = 0
+        for chunk_id, point_id in mapping.items():
+            point_uuid = (
+                point_id if isinstance(point_id, UUID) else UUID(str(point_id))
+            )
+            stmt = (
+                update(DocumentChunk)
+                .where(DocumentChunk.id == chunk_id)
+                .values(qdrant_point_id=point_uuid)
+            )
+            result = self._session.execute(stmt)
+            updated += int(result.rowcount or 0)
+
+        return updated
 
     def delete_by_source_id(self, source_id: int) -> int:
         stmt = (

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ app_name }}{% endblock %}</title>
+    <link rel="stylesheet" href="{{ base_path }}/static/admin.css">
+    <script src="{{ base_path }}/static/htmx.min.js" defer></script>
+</head>
+<body>
+{% if admin %}
+<header class="topbar">
+    <div class="brand">
+        <a href="{{ base_path }}/">{{ app_name }}</a>
+    </div>
+    <nav class="nav-links">
+        <a href="{{ base_path }}/">Обзор</a>
+        <a href="{{ base_path }}/prompts">Промпты</a>
+        <a href="{{ base_path }}/chunks">Чанки</a>
+        <a href="{{ base_path }}/admins">Администраторы</a>
+        <a href="{{ base_path }}/totp/enroll">2FA</a>
+        <a href="{{ base_path }}/change-password">Сменить пароль</a>
+    </nav>
+    <div class="account">
+        <span class="username">{{ admin.username }}</span>
+        <form method="post" action="{{ base_path }}/logout" class="inline-form">
+            <input type="hidden" name="csrf_token" value="{{ request.cookies.get('admin_csrf', '') }}">
+            <button type="submit" class="link-button">Выйти</button>
+        </form>
+    </div>
+</header>
+{% endif %}
+
+<main class="container">
+    {% block content %}{% endblock %}
+</main>
+</body>
+</html>

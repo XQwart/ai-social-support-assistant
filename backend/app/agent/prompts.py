@@ -167,9 +167,24 @@ def build_system_prompt(
     persistent_memory: str | None,
     is_sber_employee: bool,
     is_new_dialog: bool,
+    prompt_provider=None,
 ) -> str:
+    """Assemble the full system prompt.
+
+    ``prompt_provider`` is an optional ``Callable[[str], str]`` that
+    returns the live body for a given prompt key. When omitted the
+    function falls back to the module-level constants, preserving the
+    original behaviour for tests and scripts that import this module
+    without the full backend wiring.
+    """
+    resolve = prompt_provider or (lambda key: DEFAULT_PROMPTS.get(key, ""))
+
+    greeting_key = (
+        "SYSTEM_PROMPT_GREETING" if is_new_dialog else "SYSTEM_PROMPT_NO_GREETING"
+    )
+
     sections = [
-        SYSTEM_PROMPT_ROLE,
+        resolve("SYSTEM_PROMPT_ROLE"),
         _user_profile_section(
             first_name,
             effective_region,
@@ -177,12 +192,12 @@ def build_system_prompt(
             persistent_memory,
             is_sber_employee,
         ),
-        SYSTEM_PROMPT_GREETING if is_new_dialog else SYSTEM_PROMPT_NO_GREETING,
-        SYSTEM_PROMPT_RULES,
-        SYSTEM_PROMPT_TOOLS,
-        SYSTEM_PROMPT_ACCESS_CONTROL,
-        SYSTEM_PROMPT_FORMATTING,
-        SYSTEM_PROMPT_CRITICAL,
+        resolve(greeting_key),
+        resolve("SYSTEM_PROMPT_RULES"),
+        resolve("SYSTEM_PROMPT_TOOLS"),
+        resolve("SYSTEM_PROMPT_ACCESS_CONTROL"),
+        resolve("SYSTEM_PROMPT_FORMATTING"),
+        resolve("SYSTEM_PROMPT_CRITICAL"),
     ]
     return "\n\n".join(sections)
 
@@ -222,3 +237,45 @@ FALLBACK_AI_UNAVAILABLE = (
     "Пожалуйста, попробуйте чуть позже или загляните на портал "
     "[Госуслуги — Социальный навигатор](https://www.gosuslugi.ru/social-navigator)."
 )
+
+
+# Mapping of prompt keys -> default body. The admin panel seeds the
+# `prompts` table from this dict on first migration, and the backend
+# :class:`app.services.PromptService` falls back to these values if the
+# DB row is missing or the DB is temporarily unreachable. Keep keys in
+# sync with the module-level constants above so a DB wipe never
+# silently drops the agent's instructions.
+DEFAULT_PROMPTS: dict[str, str] = {
+    "SYSTEM_PROMPT_ROLE": SYSTEM_PROMPT_ROLE,
+    "SYSTEM_PROMPT_GREETING": SYSTEM_PROMPT_GREETING,
+    "SYSTEM_PROMPT_NO_GREETING": SYSTEM_PROMPT_NO_GREETING,
+    "SYSTEM_PROMPT_RULES": SYSTEM_PROMPT_RULES,
+    "SYSTEM_PROMPT_TOOLS": SYSTEM_PROMPT_TOOLS,
+    "SYSTEM_PROMPT_ACCESS_CONTROL": SYSTEM_PROMPT_ACCESS_CONTROL,
+    "SYSTEM_PROMPT_FORMATTING": SYSTEM_PROMPT_FORMATTING,
+    "SYSTEM_PROMPT_CRITICAL": SYSTEM_PROMPT_CRITICAL,
+    "COMPRESS_CONTEXT_SYSTEM": COMPRESS_CONTEXT_SYSTEM,
+    "FALLBACK_EMPTY_RESPONSE": FALLBACK_EMPTY_RESPONSE,
+    "FALLBACK_AI_UNAVAILABLE": FALLBACK_AI_UNAVAILABLE,
+}
+
+
+# Short human-readable descriptions used by the admin panel to label
+# each prompt in the list view. Keyed by the same constant names as
+# ``DEFAULT_PROMPTS``.
+PROMPT_DESCRIPTIONS: dict[str, str] = {
+    "SYSTEM_PROMPT_ROLE": "Роль ассистента и общий тон ответов",
+    "SYSTEM_PROMPT_GREETING": "Инструкция для первого сообщения диалога",
+    "SYSTEM_PROMPT_NO_GREETING": "Инструкция для продолжающегося диалога",
+    "SYSTEM_PROMPT_RULES": "Базовые правила работы с фактами и инструментами",
+    "SYSTEM_PROMPT_TOOLS": "Правила вызова инструментов (search, save_user_facts)",
+    "SYSTEM_PROMPT_ACCESS_CONTROL": "Контроль доступа к корпоративным источникам",
+    "SYSTEM_PROMPT_FORMATTING": "Markdown-форматирование ответа",
+    "SYSTEM_PROMPT_CRITICAL": "Критические запреты и требования к ответу",
+    "COMPRESS_CONTEXT_SYSTEM": (
+        "Промпт модуля суммаризации диалога. "
+        "Обязан содержать плейсхолдер {messages}."
+    ),
+    "FALLBACK_EMPTY_RESPONSE": "Запасной ответ при пустом ответе ИИ",
+    "FALLBACK_AI_UNAVAILABLE": "Запасной ответ при недоступности ИИ",
+}

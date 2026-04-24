@@ -37,4 +37,9 @@ class DocumentService:
         place_of_work: str | None = None,
     ) -> int:
         self._vector_rep.delete_by_source_id(source_id)
-        return self._vector_rep.upsert_chunks(embedded_chunks, regions, place_of_work)
+        chunk_id_to_point_id = self._vector_rep.upsert_chunks(
+            embedded_chunks, regions, place_of_work
+        )
+        if chunk_id_to_point_id:
+            self._chunk_rep.set_qdrant_point_ids(chunk_id_to_point_id)
+        return len(chunk_id_to_point_id)
