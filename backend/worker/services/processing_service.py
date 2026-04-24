@@ -64,7 +64,7 @@ class SourceProcessingService:
         document_type: str,
         place_of_work: str | None = None,
     ) -> dict:
-        document = self._parsing.parse_source(
+        document = await self._parsing.parse_source(
             source_id=source_id,
             url=url,
             name=name,

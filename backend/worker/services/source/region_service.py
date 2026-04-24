@@ -9,8 +9,4 @@ class RegionService:
         self._region_repository = region_repository
 
     async def get_or_create(self, code: str, name: str) -> Region:
-        region = await self._region_repository.get_by_code(code)
-        if region is not None:
-            return region
-
-        return await self._region_repository.create(code=code, name=name)
+        return await self._region_repository.get_or_create(code=code, name=name)

@@ -189,7 +189,7 @@ class WorkerDependencies:
 
     async def aclose(self) -> None:
         try:
-            self._parsing_service.close()
+            await self._parsing_service.aclose()
         except Exception:
             logger.exception("Failed to close parsing service")
 

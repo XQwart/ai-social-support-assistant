@@ -65,7 +65,7 @@ class LinkDiscoveryService:
 
             visited.add(current_url)
 
-            html = self._fetcher.get_html_fast(current_url)
+            html = await self._fetcher.get_html_fast(current_url)
             if not html:
                 continue
 

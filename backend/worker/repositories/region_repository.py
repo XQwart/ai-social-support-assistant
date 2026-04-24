@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.dialects.postgresql import insert
 
 from shared.models.regions import Region
 
@@ -15,8 +16,28 @@ class RegionRepository:
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def create(self, code: str, name: str) -> Region:
-        region = Region(code=code, name=name)
-        self._session.add(region)
-        await self._session.flush()
+    async def get_or_create(self, code: str, name: str) -> Region:
+        stmt = (
+            insert(Region)
+            .values(code=code, name=name)
+            .on_conflict_do_nothing(index_elements=[Region.code])
+            .returning(Region.id)
+        )
+
+        result = await self._session.execute(stmt)
+        inserted_id = result.scalar_one_or_none()
+
+        if inserted_id is not None:
+            region = await self.get_by_code(code)
+            if region is None:
+                raise RuntimeError(f"Region {code} inserted but not found")
+            return region
+
+        region = await self.get_by_code(code)
+        if region is None:
+            raise RuntimeError(f"Region {code} not found after conflict")
+
+        if region.name != name:
+            region.name = name
+
         return region
