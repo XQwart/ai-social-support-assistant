@@ -1,5 +1,4 @@
 import logging
-
 from celery import Celery
 from celery.schedules import crontab
 from celery.signals import setup_logging, worker_shutdown
@@ -26,6 +25,8 @@ app = Celery(
         "worker.tasks.update_knowledge_task",
         "worker.tasks.scheduler_task",
         "worker.tasks.get_source_link_task",
+        "worker.tasks.import_one_source_task",
+        "worker.tasks.finalize_source_import_task",
     ],
 )
 
@@ -58,6 +59,7 @@ app.conf.beat_schedule = {
 
 @worker_shutdown.connect
 def cleanup_on_shutdown(**kwargs):
-    from worker.dependencies.build import WorkerDependencies
+    from worker.dependencies.runtime import AsyncRuntime
 
-    WorkerDependencies.reset()
+    runtime = AsyncRuntime.get()
+    runtime.close()

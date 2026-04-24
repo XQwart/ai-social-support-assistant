@@ -82,3 +82,30 @@ class RegionSourceImportService:
 
         logger.info("Импорт source завершён: %s", result)
         return result
+
+    def aggregate_results(self, results: list[dict]) -> dict:
+        total_processed_pages = 0
+        total_found_links = 0
+        total_unique_found = 0
+        total_created_links = 0
+        total_skipped_existing = 0
+
+        for item in results:
+            total_processed_pages += item.get("processed_pages", 0)
+            total_found_links += item.get("found_links", 0)
+            total_unique_found += item.get("unique_found_links", 0)
+            total_created_links += item.get("created_discovered_sources", 0)
+            total_skipped_existing += item.get("skipped_existing_discovered_sources", 0)
+
+        result = {
+            "sources_processed": len(results),
+            "processed_pages": total_processed_pages,
+            "found_links": total_found_links,
+            "unique_found_links": total_unique_found,
+            "created_discovered_sources": total_created_links,
+            "skipped_existing_discovered_sources": total_skipped_existing,
+            "max_depth": self._max_depth,
+        }
+
+        logger.info("Импорт регионов и source завершён: %s", result)
+        return result

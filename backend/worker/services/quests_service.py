@@ -15,7 +15,7 @@ class ChunkQuestionLLMService:
     def __init__(
         self,
         llm_client: LLMClient,
-        questions_per_chunk: int = 3,
+        questions_per_chunk: int = 2,
         max_tokens: int = 512,
         temperature: float = 0.1,
         concurrency: int = 10,
@@ -38,9 +38,12 @@ class ChunkQuestionLLMService:
             max_tokens=self._max_tokens,
             temperature=self._temperature,
         )
-
+        logger.info("chunk_id=%s raw_text=%r", chunk.id, raw_text[:1000])
         questions_text = self._parse_questions(raw_text)
+        if not questions_text:
+            return []
 
+        logger.info(questions_text)
         return [
             GeneratedChunkQuestion(
                 chunk_id=chunk.id,
@@ -79,21 +82,37 @@ class ChunkQuestionLLMService:
         return [question for batch in results for question in batch]
 
     def _build_messages(self, chunk_text: str) -> list[dict[str, str]]:
+
         return [
             {
                 "role": "system",
                 "content": (
-                    "Ты генерируешь поисковые вопросы для retrieval-системы. "
+                    "Ты генерируешь поисковые запросы для retrieval-системы. "
                     "Верни только JSON-массив строк без пояснений и без markdown."
                 ),
             },
             {
                 "role": "user",
                 "content": (
-                    f"Сгенерируй до {self._questions_per_chunk} разных вопросов по тексту.\n"
-                    "Каждый вопрос должен отражать отдельный важный смысл текста.\n"
+                    f"Сгенерируй до {self._questions_per_chunk} разных поисковых запросов по тексту.\n"
+                    "Каждый запрос должен помогать найти этот фрагмент документа.\n"
+                    "Запросы должны быть разными по смыслу, а не просто перефразами.\n"
+                    "Старайся покрывать разные интенты, если они есть в тексте: "
+                    "кто имеет право, какие условия, какие документы нужны, как оформить, "
+                    "какой размер выплаты, какие сроки, кто принимает решение, облагается ли налогом.\n"
                     "Не повторяй один и тот же смысл разными словами.\n"
-                    "Если значимых вопросов меньше, верни меньше.\n"
+                    "Не пиши слишком общие запросы без конкретного предмета.\n"
+                    "Если в тексте есть только один полезный смысл, верни один запрос.\n"
+                    "Если самостоятельных поисковых запросов нет, верни [].\n\n"
+                    "Примеры хороших запросов:\n"
+                    "- Кто может получить материальную помощь?\n"
+                    "- Какие документы нужны для компенсации расходов на ЭКО?\n"
+                    "- Как оформить ежемесячное пособие неработающему пенсионеру?\n"
+                    "- Облагается ли НДФЛ компенсация медицинских расходов на ребенка?\n\n"
+                    "Примеры плохих запросов:\n"
+                    "- Какие выплаты предусмотрены?\n"
+                    "- Какие документы нужны?\n"
+                    "- компенсация документы выплаты\n\n"
                     "Ответ верни только в виде JSON-массива строк.\n\n"
                     f"Текст:\n{chunk_text}"
                 ),
@@ -106,19 +125,31 @@ class ChunkQuestionLLMService:
             return []
 
         parsed = self._try_parse_json(raw_text)
-        if not parsed:
+        if parsed is None:
             parsed = self._fallback_parse_lines(raw_text)
 
         result: list[str] = []
         seen: set[str] = set()
+        invalid_values = {
+            "",
+            "[]",
+            "[ ]",
+            "null",
+            "none",
+            "нет вопросов",
+            "нет подходящих вопросов",
+            "no questions",
+        }
 
         for item in parsed:
             cleaned = " ".join(item.split()).strip()
-            if not cleaned:
+            normalized = cleaned.casefold()
+
+            if normalized in invalid_values:
                 continue
 
-            if not cleaned.endswith("?"):
-                cleaned += "?"
+            if not cleaned:
+                continue
 
             key = cleaned.casefold()
             if key in seen:
@@ -129,17 +160,17 @@ class ChunkQuestionLLMService:
 
         return result[: self._questions_per_chunk]
 
-    def _try_parse_json(self, raw_text: str) -> list[str]:
+    def _try_parse_json(self, raw_text: str) -> list[str] | None:
         match = re.search(r"\[[\s\S]*\]", raw_text)
         json_text = match.group(0) if match else raw_text
 
         try:
             data = json.loads(json_text)
         except Exception:
-            return []
+            return None
 
         if not isinstance(data, list):
-            return []
+            return None
 
         return [item for item in data if isinstance(item, str)]
 

@@ -1,6 +1,5 @@
 from uuid import uuid4
-from worker.tasks.update_knowledge_task import update_knowledge
-from celery import group
+from celery import group, signature
 from worker.services.source.source_crawl_service import SourceCrawlService
 
 
@@ -39,7 +38,11 @@ class SchedulerService:
         source_ids = [payload["id"] for payload in source_payloads]
 
         group(
-            update_knowledge.s(source_payload) for source_payload in source_payloads
+            signature(
+                "worker.tasks.update_knowledge.update_knowledge",
+                args=[source_payload],
+            )
+            for source_payload in source_payloads
         ).apply_async()
 
         return {

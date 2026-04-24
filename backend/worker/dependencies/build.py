@@ -1,24 +1,29 @@
 from __future__ import annotations
 
 import logging
-import asyncio
-from redis import Redis
-from threading import Lock
 from collections.abc import AsyncIterator
-from sqlalchemy.ext.asyncio import AsyncSession
-from qdrant_client.models import VectorParams, Distance
 from contextlib import asynccontextmanager
-from worker.core.config import get_config, Config
-from worker.services.embedding.build import build_embedding_provider
+
+from redis import Redis
+from qdrant_client.models import Distance, VectorParams
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from worker.core.config import Config, get_config
 from worker.db.qdrant import create_qdrant
 from worker.db.session import create_session
 from worker.repositories import (
     ChunkRepository,
-    VectorRepository,
-    SourceRegistrationRepository,
-    SourceCrawlRepository,
     RegionRepository,
+    SourceCrawlRepository,
+    SourceRegistrationRepository,
+    VectorRepository,
 )
+from worker.services.chunk_service import ChunkingService
+from worker.services.discovery_service import LinkDiscoveryService
+from worker.services.document_service import DocumentService
+from worker.services.embedding.build import build_embedding_provider
+from worker.services.embedding.embedding_service import EmbeddingService
+from worker.services.llm.build import build_llm_client
 from worker.services.parsing import (
     DocumentParsingService,
     HtmlLinkExtractor,
@@ -26,37 +31,31 @@ from worker.services.parsing import (
     PdfTextExtractor,
     WebPageFetcher,
 )
-from worker.services.source import (
-    SourceRegistrationService,
-    SourceCrawlService,
-    RegionService,
-)
-from worker.services.embedding.embedding_service import EmbeddingService
-from worker.services.document_service import DocumentService
-from worker.services.chunk_service import ChunkingService
 from worker.services.processing_service import SourceProcessingService
-from worker.services.discovery_service import LinkDiscoveryService
+from worker.services.quests_service import ChunkQuestionLLMService
 from worker.services.region_import_service import RegionSourceImportService
 from worker.services.runtime_state_service import RuntimeStateService
-from worker.services.quests_service import ChunkQuestionLLMService
-from worker.services.llm.build import build_llm_client
+from worker.services.source import (
+    RegionService,
+    SourceCrawlService,
+    SourceRegistrationService,
+)
 
 logger = logging.getLogger(__name__)
-_lock = Lock()
 
 
 class WorkerDependencies:
-    _instance: WorkerDependencies | None = None
-    _init_lock: asyncio.Lock | None = None
-
     def __init__(self, config: Config) -> None:
         self._config = config
 
     @classmethod
-    def _get_init_lock(cls) -> asyncio.Lock:
-        if cls._init_lock is None:
-            cls._init_lock = asyncio.Lock()
-        return cls._init_lock
+    async def create(
+        cls,
+        config: Config | None = None,
+    ) -> "WorkerDependencies":
+        instance = cls(config or get_config())
+        await instance._ainit()
+        return instance
 
     async def _ainit(self) -> None:
         self._provider = build_embedding_provider(config=self._config)
@@ -70,9 +69,8 @@ class WorkerDependencies:
         )
         self._runtime_state_service = RuntimeStateService(redis_client=self._redis)
 
-        await self.ensure_collections(self._provider.vector_size)
-
         self._sessionmaker = create_session(self._config.database_url)
+
         self._fetcher = WebPageFetcher(default_timeout=self._config.default_timeout)
         self._text_extractor = HtmlTextExtractor()
         self._link_extractor = HtmlLinkExtractor()
@@ -92,12 +90,13 @@ class WorkerDependencies:
             model=self._config.polza_ai_embedding_model,
         )
 
-        logger.info("WorkerDependencies инициализированы")
+        await self.ensure_collections(self._provider.vector_size)
+
+        logger.info("WorkerDependencies initialized")
 
     @asynccontextmanager
     async def session_scope(self) -> AsyncIterator[AsyncSession]:
         session = self._sessionmaker()
-
         try:
             yield session
             await session.commit()
@@ -107,41 +106,14 @@ class WorkerDependencies:
         finally:
             await session.close()
 
-    @classmethod
-    async def get(cls) -> WorkerDependencies:
-        if cls._instance is None:
-            with _lock:
-                instance_missing = cls._instance is None
-            if instance_missing:
-                config = get_config()
-                instance = cls(config)
-                await instance._ainit()
-                with _lock:
-                    if cls._instance is None:
-                        cls._instance = instance
-
-        if cls._instance is None:
-            raise RuntimeError("WorkerDependencies is not initialized")
-
-        return cls._instance
-
-    @classmethod
-    async def reset(cls) -> None:
-        with _lock:
-            instance = cls._instance
-            cls._instance = None
-
-        if instance is not None:
-            await instance._close()
-
     @property
     def runtime_state_service(self) -> RuntimeStateService:
         return self._runtime_state_service
 
     def build_processing_service(
-        self, session: AsyncSession
+        self,
+        session: AsyncSession,
     ) -> SourceProcessingService:
-
         vector_rep = VectorRepository(
             client=self._qdrant,
             questions_collection_name=self._config.questions_collection_name,
@@ -164,7 +136,10 @@ class WorkerDependencies:
             source_service=source_service,
         )
 
-    def build_region_source_import_service(self, session):
+    def build_region_source_import_service(
+        self,
+        session: AsyncSession,
+    ) -> RegionSourceImportService:
         region_rep = RegionRepository(session=session)
         region_service = RegionService(region_repository=region_rep)
 
@@ -212,21 +187,25 @@ class WorkerDependencies:
         )
         logger.info("Qdrant collection created: %s", collection_name)
 
-    async def _close(self) -> None:
+    async def aclose(self) -> None:
         try:
             self._parsing_service.close()
         except Exception:
-            pass
+            logger.exception("Failed to close parsing service")
+
         try:
             await self._qdrant.close()
         except Exception:
-            pass
+            logger.exception("Failed to close qdrant client")
+
         try:
             await self._provider.aclose()
         except Exception:
-            pass
+            logger.exception("Failed to close embedding provider")
+
         try:
             await self._llm_client.aclose()
         except Exception:
-            pass
-        logger.info("WorkerDependencies закрыты")
+            logger.exception("Failed to close llm client")
+
+        logger.info("WorkerDependencies closed")
