@@ -828,10 +828,22 @@ class PdfTextExtractor:
 
     @staticmethod
     def _cleanup_common_pdf_artifacts(text: str) -> str:
+        """
+        Общие исправления артефактов после извлечения PDF.
+        """
+
         text = re.sub(
-            r"(?<=[А-Яа-яЁё])\d{1,2}(?=\s+[а-яё])",
-            "",
+            r"\b(не\s+менее)(?=\d)",
+            r"\1 ",
             text,
+            flags=re.IGNORECASE,
+        )
+
+        text = re.sub(
+            r"\b(не\s+более)(?=\d)",
+            r"\1 ",
+            text,
+            flags=re.IGNORECASE,
         )
 
         text = re.sub(
@@ -841,12 +853,7 @@ class PdfTextExtractor:
             flags=re.IGNORECASE,
         )
 
-        text = re.sub(
-            r"\b(не\s+менее)(?=\d)",
-            r"\1 ",
-            text,
-            flags=re.IGNORECASE,
-        )
+        text = PdfTextExtractor._remove_inline_footnote_markers(text)
 
         text = re.sub(
             r"-\s*\n(\d+(?:\.\d+)+\.?\s+настоящего)",
@@ -862,6 +869,48 @@ class PdfTextExtractor:
         )
 
         return text
+
+    @staticmethod
+    def _remove_inline_footnote_markers(text: str) -> str:
+
+        protected_previous_words = {
+            "менее",
+            "более",
+            "старше",
+            "младше",
+            "около",
+            "примерно",
+            "свыше",
+            "до",
+        }
+
+        protected_next_words = {
+            "лет",
+            "рублей",
+            "руб",
+            "дней",
+            "месяцев",
+            "года",
+            "год",
+        }
+
+        pattern = re.compile(
+            r"(?P<word>[А-Яа-яЁё]+)(?P<num>\d{1,2})(?=\s+(?P<next>[а-яё]+))"
+        )
+
+        def replace(match: re.Match[str]) -> str:
+            word = match.group("word")
+            next_word = match.group("next").lower()
+
+            if word.lower() in protected_previous_words:
+                return match.group(0)
+
+            if next_word in protected_next_words:
+                return match.group(0)
+
+            return word
+
+        return pattern.sub(replace, text)
 
     def _process_page_footnotes(
         self,

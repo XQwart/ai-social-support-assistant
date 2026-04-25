@@ -15,9 +15,9 @@ class ChunkQuestionLLMService:
     def __init__(
         self,
         llm_client: LLMClient,
-        questions_per_chunk: int = 2,
-        max_tokens: int = 512,
-        temperature: float = 0.1,
+        questions_per_chunk: int = 3,
+        max_tokens: int = 1024,
+        temperature: float = 0.2,
         concurrency: int = 10,
     ) -> None:
 
@@ -38,8 +38,9 @@ class ChunkQuestionLLMService:
             max_tokens=self._max_tokens,
             temperature=self._temperature,
         )
-        logger.info("chunk_text=%s", chunk.text)
+        logger.info("chunk_text=%s  raw_text=%s", chunk.text[1000:], raw_text)
         questions_text = self._parse_questions(raw_text)
+
         if not questions_text:
             return []
 
@@ -170,7 +171,7 @@ class ChunkQuestionLLMService:
             seen.add(key)
             result.append(cleaned)
 
-        return result[: self._questions_per_chunk]
+        return result
 
     def _try_parse_json(self, raw_text: str) -> list[str] | None:
         match = re.search(r"\[[\s\S]*\]", raw_text)
