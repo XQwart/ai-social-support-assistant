@@ -25,6 +25,8 @@ services:
       migrations:
         condition: service_completed_successfully
   celery:
+    profiles:
+      - celery
     build:
       context: ./backend
       dockerfile: Dockerfile.worker
@@ -44,6 +46,8 @@ services:
     shm_size: "1gb"
 
   celery-beat:
+    profiles:
+      - celery
     image: backend-worker:latest
     env_file:
       - .env

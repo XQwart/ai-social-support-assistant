@@ -19,40 +19,43 @@ prod-up:
 	$(DC_PROD) up -d --remove-orphans
 
 prod-build:
-	$(DC_PROD) build
+	$(DC_PROD) --profile celery build
 
 prod-stop:
-	$(DC_PROD) stop
+	$(DC_PROD) --profile celery stop
 
 prod-down:
-	$(DC_PROD) down --remove-orphans
+	$(DC_PROD) --profile celery down --remove-orphans
 
 prod-clean:
-	$(DC_PROD) down -v --remove-orphans
+	$(DC_PROD) --profile celery down -v --remove-orphans
 
 prod-logs:
-	$(DC_PROD) logs -f --tail=200
+	$(DC_PROD) --profile celery logs -f --tail=200
 
-
+prod-worker:
+	$(DC_PROD) --profile celery up -d
 
 dev-up:
 	$(DC_DEV) up -d --remove-orphans
 
 dev-build:
-	$(DC_DEV) build
+	$(DC_DEV) --profile celery build
 
 dev-stop:
-	$(DC_DEV) stop
+	$(DC_DEV) --profile celery stop
 
 dev-down:
-	$(DC_DEV) down --remove-orphans
+	$(DC_DEV) --profile celery down --remove-orphans
 
 dev-clean:
-	$(DC_DEV) down -v --remove-orphans
+	$(DC_DEV) --profile celery down -v --remove-orphans
 
 dev-logs:
-	$(DC_DEV) logs -f --tail=200
+	$(DC_DEV) --profile celery logs -f --tail=200
 
+dev-worker:
+	$(DC_DEV) --profile celery up -d
 
 
 alembic-rev:
