@@ -131,7 +131,7 @@ class LinkDiscoveryService:
 
     @staticmethod
     def _deduplicate_links(links: list[DiscoveredLink]) -> list[DiscoveredLink]:
-         unique_links_map: dict[str, DiscoveredLink] = {}
+        unique_links_map: dict[str, DiscoveredLink] = {}
 
         for link in links:
             unique_links_map.setdefault(link.url, link)
