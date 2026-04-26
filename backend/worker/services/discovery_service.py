@@ -131,10 +131,12 @@ class LinkDiscoveryService:
 
     @staticmethod
     def _deduplicate_links(links: list[DiscoveredLink]) -> list[DiscoveredLink]:
-        unique_links_map: dict[str, DiscoveredLink] = {}
+         unique_links_map: dict[str, DiscoveredLink] = {}
 
         for link in links:
-            if link.url not in unique_links_map:
-                unique_links_map[link.url] = link
+            unique_links_map.setdefault(link.url, link)
 
-        return list(unique_links_map.values())
+        return sorted(
+            unique_links_map.values(),
+            key=lambda link: link.url,
+        )

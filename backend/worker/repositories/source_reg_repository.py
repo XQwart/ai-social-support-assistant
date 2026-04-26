@@ -22,11 +22,6 @@ class SourceRegistrationRepository:
         place_of_work: str | None,
         name: str | None = None,
     ) -> tuple[Source, bool]:
-        """
-        Возвращает:
-        - Source
-        - created: True, если запись реально была создана
-        """
 
         stmt = (
             pg_insert(Source)
@@ -54,7 +49,7 @@ class SourceRegistrationRepository:
 
             if source is None:
                 raise RuntimeError(
-                    f"Source was inserted but not found by id={created_source_id}"
+                    f"Source was created but not found by id={created_source_id}"
                 )
 
             return source, True
@@ -62,7 +57,7 @@ class SourceRegistrationRepository:
         existing_source = await self.get_by_url(url)
 
         if existing_source is None:
-            raise RuntimeError(f"Source with url={url} was not inserted and not found")
+            raise RuntimeError(f"Source was not created and not found by url={url}")
 
         return existing_source, False
 
@@ -103,5 +98,6 @@ class SourceRegistrationRepository:
             .where(SourceRegion.source_id == source_id)
             .order_by(Region.code.asc())
         )
+
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
