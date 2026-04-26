@@ -22,19 +22,16 @@ class SourceRegistrationService:
         place_of_work: str | None,
         name: str | None = None,
     ) -> Source:
-        source = await self._source_repository.get_by_url(url)
-
-        if source is not None:
-            return source
-
         document_type = detect_document_type(url)
 
-        return await self._source_repository.create_source(
+        source, _created = await self._source_repository.get_or_create_source(
             url=url,
             name=name,
             document_type=document_type,
             place_of_work=place_of_work,
         )
+
+        return source
 
     async def get_region_codes_by_source_id(self, source_id: int) -> list[str]:
         return await self._source_repository.get_region_codes_by_source_id(source_id)
@@ -56,6 +53,7 @@ class SourceRegistrationService:
             source_id=source.id,
             region_id=region_id,
         )
+
         return source
 
     async def register_discovered_sources(
@@ -66,21 +64,17 @@ class SourceRegistrationService:
         if not links:
             return []
 
-        urls = [link.url for link in links]
-        existing_urls = await self._source_repository.get_existing_urls(urls)
-
         created_sources: list[Source] = []
 
         for link in links:
-            if link.url in existing_urls:
-                continue
-
-            source = await self._source_repository.create_source(
+            source, created = await self._source_repository.get_or_create_source(
                 url=link.url,
                 name=None,
                 document_type=link.document_type,
                 place_of_work=place_of_work,
             )
-            created_sources.append(source)
+
+            if created:
+                created_sources.append(source)
 
         return created_sources

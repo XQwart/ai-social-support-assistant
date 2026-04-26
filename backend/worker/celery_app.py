@@ -42,9 +42,9 @@ app.conf.update(
 )
 
 app.conf.beat_schedule = {
-    "dispatch-due-crawls-every-20-minutes": {
+    "dispatch-due-crawls-every-15-minutes": {
         "task": "worker.tasks.scheduler_task.dispatch_due_crawls",
-        "schedule": crontab(minute="*/20"),
+        "schedule": crontab(minute="*/15"),
     },
     "get-source-links-every-2-months": {
         "task": "worker.tasks.get_source_link_task.get_source_links",
