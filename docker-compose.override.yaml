@@ -24,6 +24,7 @@ services:
       - ./frontend:/code
       - frontend_node_modules:/code/node_modules
   celery:
+    mem_limit: 1g
     profiles:
       - celery
     build:

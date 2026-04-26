@@ -38,7 +38,6 @@ class ChunkQuestionLLMService:
             max_tokens=self._max_tokens,
             temperature=self._temperature,
         )
-        logger.info("chunk_text=%s  raw_text=%s", chunk.text[1000:], raw_text)
         questions_text = self._parse_questions(raw_text)
 
         if not questions_text:

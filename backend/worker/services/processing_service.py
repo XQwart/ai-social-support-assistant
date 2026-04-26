@@ -45,8 +45,10 @@ class SourceProcessingService:
                 place_of_work=place_of_work,
             )
         except Exception as e:
+            error_msg = str(e)
+            e.__traceback__ = None
             logger.exception("Ошибка обработки source_id=%s", source_id)
-            await self._sources.mark_failed(source_id, error=str(e))
+            await self._sources.mark_failed(source_id, error=error_msg)
             return {
                 "source_id": source_id,
                 "status": "failed",
@@ -80,11 +82,15 @@ class SourceProcessingService:
             }
 
         chunks = self._chunking.split_document(document=document)
+        del document
 
         stored_chunks = await self._documents.save_chunks(
             source_id=source_id,
             chunks=chunks,
         )
+
+        chunks_count = len(chunks)
+        del chunks
 
         embedded_chunks = await self._embeddings.create_embeddings(stored_chunks)
 
@@ -98,16 +104,19 @@ class SourceProcessingService:
             regions=regions,
             place_of_work=place_of_work,
         )
+        del embedded_chunks
 
         generated_questions = await self._quest_service.generate_for_chunks(
             stored_chunks,
         )
+        del stored_chunks
 
         question_vectors_count = 0
         if generated_questions:
             embedded_questions = await self._embeddings.create_question_embeddings(
                 generated_questions
             )
+            del generated_questions
 
             question_vectors_count = await self._documents.save_question_vectors(
                 source_id=source_id,
@@ -115,12 +124,13 @@ class SourceProcessingService:
                 regions=regions,
                 place_of_work=place_of_work,
             )
+            del embedded_questions
 
         return {
             "source_id": source_id,
             "url": url,
             "status": "success",
-            "chunks_count": len(chunks),
+            "chunks_count": chunks_count,
             "chunk_vectors_count": chunk_vectors_count or 0,
             "questions_count": len(generated_questions),
             "question_vectors_count": question_vectors_count or 0,

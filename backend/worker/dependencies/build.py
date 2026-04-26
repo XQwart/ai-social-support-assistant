@@ -104,6 +104,7 @@ class WorkerDependencies:
             await session.rollback()
             raise
         finally:
+            session.expunge_all()
             await session.close()
 
     @property
@@ -207,5 +208,18 @@ class WorkerDependencies:
             await self._llm_client.aclose()
         except Exception:
             logger.exception("Failed to close llm client")
+
+        # --- НОВОЕ ---
+        try:
+            self._redis.close()
+        except Exception:
+            logger.exception("Failed to close redis client")
+
+        try:
+            engine = self._sessionmaker.kw.get("bind")
+            if engine:
+                await engine.dispose()
+        except Exception:
+            logger.exception("Failed to dispose SQLAlchemy engine")
 
         logger.info("WorkerDependencies closed")
