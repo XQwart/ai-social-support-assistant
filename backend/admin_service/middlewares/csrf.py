@@ -1,11 +1,12 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
+from urllib.parse import parse_qs
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import PlainTextResponse, Response
+from starlette.requests import Request
 
 if TYPE_CHECKING:
-    from starlette.requests import Request
     from starlette.types import ASGIApp
 
     from admin_service.core.security import CSRFTokenSigner
@@ -52,7 +53,15 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         cookie_token = request.cookies.get(CSRF_COOKIE_NAME)
 
         if request.method not in _SAFE_METHODS:
-            submitted = await self._extract_submitted_token(request)
+            body = await request.body()
+
+            submitted = self._extract_submitted_token_raw(
+                body=body,
+                headers=request.headers,
+            )
+
+            request = Request(request.scope, receive=self._make_receive(body))
+
             if (
                 not cookie_token
                 or not submitted
@@ -64,13 +73,20 @@ class CSRFMiddleware(BaseHTTPMiddleware):
                     status_code=403,
                 )
 
+        need_new_cookie = False
+
+        if cookie_token and self._signer.validate(cookie_token):
+            request.state.csrf_token = cookie_token
+        else:
+            request.state.csrf_token = self._signer.issue()
+            need_new_cookie = True
+
         response = await call_next(request)
 
-        if not cookie_token or not self._signer.validate(cookie_token):
-            new_token = self._signer.issue()
+        if need_new_cookie:
             response.set_cookie(
                 key=CSRF_COOKIE_NAME,
-                value=new_token,
+                value=request.state.csrf_token,
                 httponly=False,
                 secure=self._force_https,
                 samesite="strict",
@@ -79,24 +95,32 @@ class CSRFMiddleware(BaseHTTPMiddleware):
 
         return response
 
+    def _make_receive(self, body: bytes):
+        sent = False
+
+        async def receive():
+            nonlocal sent
+            if sent:
+                return {"type": "http.request", "body": b"", "more_body": False}
+            sent = True
+            return {"type": "http.request", "body": body, "more_body": False}
+
+        return receive
+
     def _is_exempt(self, path: str) -> bool:
         if path in _EXEMPT_PATHS:
             return True
         return any(path.startswith(prefix) for prefix in _EXEMPT_PATH_PREFIXES)
 
-    async def _extract_submitted_token(self, request: "Request") -> str | None:
-        header = request.headers.get(CSRF_HEADER_NAME)
+    def _extract_submitted_token_raw(self, headers, body: bytes) -> str | None:
+        header = headers.get(CSRF_HEADER_NAME)
         if header:
             return header
 
-        content_type = request.headers.get("content-type", "")
-        if content_type.startswith("application/x-www-form-urlencoded") or \
-                content_type.startswith("multipart/form-data"):
-            try:
-                form = await request.form()
-                value = form.get(CSRF_FORM_FIELD)
-                if isinstance(value, str):
-                    return value
-            except Exception:  # noqa: BLE001
-                return None
+        content_type = headers.get("content-type", "")
+        if content_type.startswith("application/x-www-form-urlencoded"):
+            data = parse_qs(body.decode("utf-8", "ignore"))
+            v = data.get(CSRF_FORM_FIELD, [None])[0]
+            return v if isinstance(v, str) else None
+
         return None

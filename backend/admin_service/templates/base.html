@@ -24,7 +24,7 @@
     <div class="account">
         <span class="username">{{ admin.username }}</span>
         <form method="post" action="{{ base_path }}/logout" class="inline-form">
-            <input type="hidden" name="csrf_token" value="{{ request.cookies.get('admin_csrf', '') }}">
+            <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
             <button type="submit" class="link-button">Выйти</button>
         </form>
     </div>

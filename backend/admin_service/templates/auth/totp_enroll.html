@@ -18,7 +18,7 @@
     <div class="alert alert-error">{{ error }}</div>
     {% endif %}
     <form method="post" action="{{ base_path }}/totp/verify">
-        <input type="hidden" name="csrf_token" value="{{ request.cookies.get('admin_csrf', '') }}">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
         <label>
             Код из приложения
             <input type="text" name="code" inputmode="numeric" pattern="[0-9 ]*" required>

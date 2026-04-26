@@ -13,7 +13,7 @@
     {% endif %}
 
     <form method="post" action="{{ base_path }}/chunks">
-        <input type="hidden" name="csrf_token" value="{{ request.cookies.get('admin_csrf', '') }}">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
         <label>
             Источник
             <select name="source_id" required>

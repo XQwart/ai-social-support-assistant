@@ -27,7 +27,7 @@
     {% endif %}
 
     <form method="post" action="{{ base_path }}/chunks/{{ chunk.id }}">
-        <input type="hidden" name="csrf_token" value="{{ request.cookies.get('admin_csrf', '') }}">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
         <label>
             Текст чанка
             <textarea name="text" rows="16" required>{% if draft_text is defined %}{{ draft_text }}{% else %}{{ chunk.text }}{% endif %}</textarea>
@@ -41,7 +41,7 @@
 
     <form method="post" action="{{ base_path }}/chunks/{{ chunk.id }}/delete" class="danger-zone"
           onsubmit="return confirm('Удалить чанк #{{ chunk.id }} безвозвратно?');">
-        <input type="hidden" name="csrf_token" value="{{ request.cookies.get('admin_csrf', '') }}">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
         <button type="submit" class="btn btn-danger">Удалить чанк</button>
     </form>
 </section>

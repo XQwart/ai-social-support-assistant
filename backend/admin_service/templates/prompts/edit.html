@@ -17,7 +17,7 @@
     <div class="alert alert-error">{{ error }}</div>
     {% endif %}
     <form method="post" action="{{ base_path }}/prompts/{{ prompt.key }}">
-        <input type="hidden" name="csrf_token" value="{{ request.cookies.get('admin_csrf', '') }}">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
         <label>
             Тело промпта
             <textarea name="body" rows="20" class="prompt-editor" required>{% if draft_body is defined %}{{ draft_body }}{% else %}{{ prompt.body }}{% endif %}</textarea>

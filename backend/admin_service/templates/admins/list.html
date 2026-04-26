@@ -47,12 +47,12 @@
                 {% if item.is_active %}
                 <form method="post" action="{{ base_path }}/admins/{{ item.id }}/disable" class="inline-form"
                       onsubmit="return confirm('Отключить администратора {{ item.username }}?');">
-                    <input type="hidden" name="csrf_token" value="{{ request.cookies.get('admin_csrf', '') }}">
+                    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                     <button type="submit" class="link-button danger">Отключить</button>
                 </form>
                 {% else %}
                 <form method="post" action="{{ base_path }}/admins/{{ item.id }}/enable" class="inline-form">
-                    <input type="hidden" name="csrf_token" value="{{ request.cookies.get('admin_csrf', '') }}">
+                    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                     <button type="submit" class="link-button">Включить</button>
                 </form>
                 {% endif %}
@@ -60,7 +60,7 @@
                 {% if item.is_totp_enabled %}
                 <form method="post" action="{{ base_path }}/admins/{{ item.id }}/reset-totp" class="inline-form"
                       onsubmit="return confirm('Сбросить 2FA для {{ item.username }}?');">
-                    <input type="hidden" name="csrf_token" value="{{ request.cookies.get('admin_csrf', '') }}">
+                    <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
                     <button type="submit" class="link-button danger">Сбросить 2FA</button>
                 </form>
                 {% endif %}
@@ -74,7 +74,7 @@
 <section class="card">
     <h2>Добавить администратора</h2>
     <form method="post" action="{{ base_path }}/admins/new">
-        <input type="hidden" name="csrf_token" value="{{ request.cookies.get('admin_csrf', '') }}">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
         <label>
             Логин
             <input type="text" name="username" required maxlength="100" autocomplete="off">

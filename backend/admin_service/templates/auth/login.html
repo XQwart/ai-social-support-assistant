@@ -15,7 +15,7 @@
         <div class="alert alert-error">{{ error }}</div>
         {% endif %}
         <form method="post" action="{{ base_path }}/login">
-            <input type="hidden" name="csrf_token" value="{{ request.cookies.get('admin_csrf', '') }}">
+            <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
             <label>
                 Логин
                 <input type="text" name="username" value="{{ username }}" autocomplete="username" required>

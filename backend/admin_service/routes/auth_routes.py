@@ -86,9 +86,7 @@ async def login_submit(
             request,
             "auth/login.html",
             {
-                "error": (
-                    "Слишком много попыток. Попробуйте позже."
-                ),
+                "error": ("Слишком много попыток. Попробуйте позже."),
                 "username": username,
             },
             status_code=429,
@@ -143,7 +141,9 @@ async def logout(
 # ---------------------------------------------------------------------------
 # Change password
 # ---------------------------------------------------------------------------
-@router.get("/change-password", response_class=HTMLResponse, name="change_password_form")
+@router.get(
+    "/change-password", response_class=HTMLResponse, name="change_password_form"
+)
 async def change_password_form(
     request: Request,
     admin: CurrentAdminDep,
