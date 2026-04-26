@@ -15,8 +15,8 @@ class RegionSourceImportService:
         region_service: RegionService,
         source_registration_service: SourceRegistrationService,
         link_discovery_service: LinkDiscoveryService,
-        max_depth: int = 0,
-        max_pages: int = 30,
+        max_depth: int = 2,
+        max_pages: int = 100,
     ) -> None:
         self._max_depth = max_depth
         self._max_pages = max_pages
