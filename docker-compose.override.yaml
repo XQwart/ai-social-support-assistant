@@ -24,7 +24,8 @@ services:
       - ./frontend:/code
       - frontend_node_modules:/code/node_modules
   celery:
-    mem_limit: 1g
+    mem_limit: 2g
+    memswap_limit: 2g
     profiles:
       - celery
     build:
@@ -34,7 +35,14 @@ services:
     env_file:
       - .env
     working_dir: /code
-    command: celery -A worker.celery_app worker -l info -c 1
+    command: >
+      celery -A worker.celery_app worker
+      -l info
+      -c 2
+      -Ofair
+      --prefetch-multiplier=1
+      --max-tasks-per-child=20
+      --max-memory-per-child=700000
     volumes:
       - ./backend:/code
     depends_on:

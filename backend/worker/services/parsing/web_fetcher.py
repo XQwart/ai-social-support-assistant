@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 
 import httpx
+import asyncio
 from playwright.async_api import Browser, Playwright, async_playwright
 
 from worker.core.constants import USER_AGENT, BLOCKED_RESOURCES_RE
@@ -21,6 +22,8 @@ class WebPageFetcher:
         self._default_timeout = default_timeout
         self._pw = None
         self._browser = None
+        self._browser_lock = asyncio.Lock()
+        self._playwright_semaphore = asyncio.Semaphore(2)
 
         timeout = httpx.Timeout(
             connect=5,
@@ -179,60 +182,70 @@ class WebPageFetcher:
         return "text/html" in content_type or "application/xhtml+xml" in content_type
 
     async def _get_browser(self) -> Browser:
-        if self._browser is None:
-            self._pw = await async_playwright().start()
-            self._browser = await self._pw.chromium.launch(
-                headless=True,
-                args=[
-                    "--no-sandbox",
-                    "--disable-dev-shm-usage",
-                    "--disable-gpu",
-                    "--disable-extensions",
-                ],
-            )
-        return self._browser
+        if self._browser is not None:
+            return self._browser
+
+        async with self._browser_lock:
+            if self._browser is None:
+                self._pw = await async_playwright().start()
+                self._browser = await self._pw.chromium.launch(
+                    headless=True,
+                    args=[
+                        "--no-sandbox",
+                        "--disable-dev-shm-usage",
+                        "--disable-gpu",
+                        "--disable-extensions",
+                    ],
+                )
+
+            return self._browser
 
     async def _fetch_with_playwright(self, url: str) -> str | None:
-        try:
-            browser = await self._get_browser()
-            context = await browser.new_context(
-                user_agent=USER_AGENT,
-                ignore_https_errors=True,
-            )
-
+        async with self._playwright_semaphore:
             try:
-                page = await context.new_page()
-                await page.route(BLOCKED_RESOURCES_RE, lambda route: route.abort())
-
-                await page.goto(
-                    url,
-                    wait_until="domcontentloaded",
-                    timeout=self._default_timeout * 1000,
+                browser = await self._get_browser()
+                context = await browser.new_context(
+                    user_agent=USER_AGENT,
+                    ignore_https_errors=True,
                 )
 
                 try:
-                    await page.wait_for_load_state("networkidle", timeout=10_000)
-                except Exception:
-                    pass
+                    page = await context.new_page()
 
-                try:
-                    await page.wait_for_selector(
-                        "body > *:not(script):not(style)",
-                        state="attached",
-                        timeout=5_000,
+                    async def abort_blocked(route):
+                        await route.abort()
+
+                    await page.route(BLOCKED_RESOURCES_RE, abort_blocked)
+
+                    await page.goto(
+                        url,
+                        wait_until="domcontentloaded",
+                        timeout=self._default_timeout * 1000,
                     )
-                except Exception:
-                    pass
 
-                return await page.content()
+                    try:
+                        await page.wait_for_load_state("networkidle", timeout=10_000)
+                    except Exception:
+                        pass
 
-            finally:
-                await context.close()
+                    try:
+                        await page.wait_for_selector(
+                            "body > *:not(script):not(style)",
+                            state="attached",
+                            timeout=5_000,
+                        )
+                    except Exception:
+                        pass
 
-        except Exception:
-            logger.exception("Playwright: ошибка при загрузке %s", url)
-            await self._close_browser()
-            return None
+                    return await page.content()
+
+                finally:
+                    await context.close()
+
+            except Exception:
+                logger.exception("Playwright: ошибка при загрузке %s", url)
+                await self._close_browser()
+                return None
 
     async def _close_browser(self) -> None:
         if self._browser:
