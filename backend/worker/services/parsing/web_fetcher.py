@@ -50,8 +50,8 @@ class WebPageFetcher:
         html = await self._fetch_with_httpx(url)
         if html:
             return html
-
-        return await self._fetch_with_playwright(url)
+        return None
+        # return await self._fetch_with_playwright(url)
 
     async def get_html_fast(self, url: str) -> str | None:
         return await self._fetch_with_httpx(url)
