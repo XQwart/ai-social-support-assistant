@@ -25,6 +25,7 @@ services:
       migrations:
         condition: service_completed_successfully
   celery:
+    init: true 
     mem_limit: 2g
     memswap_limit: 2g
     profiles:
