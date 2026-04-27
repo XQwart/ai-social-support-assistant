@@ -24,6 +24,7 @@ class WebPageFetcher:
         self._browser = None
         self._browser_lock = asyncio.Lock()
         self._playwright_semaphore = asyncio.Semaphore(2)
+        self._MAX_USES_BEFORE_RESTART = 50
 
         timeout = httpx.Timeout(
             connect=5,
@@ -50,8 +51,8 @@ class WebPageFetcher:
         html = await self._fetch_with_httpx(url)
         if html:
             return html
-        return None
-        # return await self._fetch_with_playwright(url)
+
+        return await self._fetch_with_playwright(url)
 
     async def get_html_fast(self, url: str) -> str | None:
         return await self._fetch_with_httpx(url)
@@ -182,10 +183,16 @@ class WebPageFetcher:
         return "text/html" in content_type or "application/xhtml+xml" in content_type
 
     async def _get_browser(self) -> Browser:
-        if self._browser is not None:
-            return self._browser
-
         async with self._browser_lock:
+            if (
+                self._browser is not None
+                and self._browser_use_count >= self._MAX_USES_BEFORE_RESTART
+            ):
+                logger.info(
+                    "Рестарт браузера после %d контекстов", self._browser_use_count
+                )
+                await self._close_browser()
+
             if self._browser is None:
                 self._pw = await async_playwright().start()
                 self._browser = await self._pw.chromium.launch(
@@ -197,7 +204,9 @@ class WebPageFetcher:
                         "--disable-extensions",
                     ],
                 )
+                self._browser_use_count = 0
 
+            self._browser_use_count += 1
             return self._browser
 
     async def _fetch_with_playwright(self, url: str) -> str | None:
