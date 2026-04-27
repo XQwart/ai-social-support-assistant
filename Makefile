@@ -86,3 +86,6 @@ prod-dispatch:
 
 prod-link:
 	$(DC_PROD) run --rm celery celery -A worker.celery_app call worker.tasks.get_source_link_task.get_source_links
+
+set-ready:
+	docker exec -it ai-social-support-assistant-redis-1 redis-cli -n 1 SET "system:init_sources_status" "ready"

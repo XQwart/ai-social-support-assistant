@@ -18,7 +18,7 @@ class ChunkQuestionLLMService:
         questions_per_chunk: int = 3,
         max_tokens: int = 1024,
         temperature: float = 0.2,
-        concurrency: int = 10,
+        concurrency: int = 5,
     ) -> None:
 
         self._llm_client = llm_client
