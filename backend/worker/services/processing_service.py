@@ -105,11 +105,11 @@ class SourceProcessingService:
             place_of_work=place_of_work,
         )
         del embedded_chunks
-
         generated_questions = await self._quest_service.generate_for_chunks(
             stored_chunks,
         )
         del stored_chunks
+        generated_questions_count = len(generated_questions)
 
         question_vectors_count = 0
         if generated_questions:
@@ -132,6 +132,6 @@ class SourceProcessingService:
             "status": "success",
             "chunks_count": chunks_count,
             "chunk_vectors_count": chunk_vectors_count or 0,
-            "questions_count": len(generated_questions),
+            "questions_count": generated_questions_count,
             "question_vectors_count": question_vectors_count or 0,
         }
