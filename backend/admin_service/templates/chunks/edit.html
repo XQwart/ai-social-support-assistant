@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Чанк #{{ chunk.id }} — {{ app_name }}{% endblock %}
+
+{% block content %}
+<section class="card">
+    <p><a href="{{ base_path }}/chunks">← Все чанки</a></p>
+    <h1>Чанк #{{ chunk.id }}</h1>
+    <p class="muted">
+        Источник: {{ chunk.source_name or chunk.source_url or "—" }}
+        · Индекс: {{ chunk.chunk_index }}
+        {% if chunk.qdrant_point_id %}
+        · Qdrant point: <code>{{ chunk.qdrant_point_id }}</code>
+        {% else %}
+        · <span class="muted">не загружен в Qdrant</span>
+        {% endif %}
+    </p>
+
+    {% if request.query_params.get("saved") %}
+    <div class="alert alert-success">Сохранено и переиндексировано.</div>
+    {% endif %}
+    {% if request.query_params.get("delete_failed") %}
+    <div class="alert alert-error">Не удалось удалить чанк. Проверьте логи и состояние Qdrant.</div>
+    {% endif %}
+    {% if error %}
+    <div class="alert alert-error">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="{{ base_path }}/chunks/{{ chunk.id }}">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+        <label>
+            Текст чанка
+            <textarea name="text" rows="16" required>{% if draft_text is defined %}{{ draft_text }}{% else %}{{ chunk.text }}{% endif %}</textarea>
+        </label>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Сохранить и переиндексировать</button>
+        </div>
+    </form>
+
+    <hr>
+
+    <form method="post" action="{{ base_path }}/chunks/{{ chunk.id }}/delete" class="danger-zone"
+          onsubmit="return confirm('Удалить чанк #{{ chunk.id }} безвозвратно?');">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+        <button type="submit" class="btn btn-danger">Удалить чанк</button>
+    </form>
+</section>
+{% endblock %}

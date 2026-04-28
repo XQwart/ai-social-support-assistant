@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Промпты — {{ app_name }}{% endblock %}
+
+{% block content %}
+<section class="card">
+    <h1>Системные промпты</h1>
+    <p>Изменения вступают в силу для следующих диалогов после сохранения.</p>
+    <table class="data-table">
+        <thead>
+        <tr>
+            <th>Ключ</th>
+            <th>Описание</th>
+            <th>Версия</th>
+            <th>Обновлён</th>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for prompt in prompts %}
+        <tr>
+            <td><code>{{ prompt.key }}</code></td>
+            <td>{{ descriptions.get(prompt.key) or prompt.description or "—" }}</td>
+            <td>v{{ prompt.version }}</td>
+            <td>{{ prompt.updated_at.strftime("%Y-%m-%d %H:%M") }}</td>
+            <td>
+                <a href="{{ base_path }}/prompts/{{ prompt.key }}">Изменить</a>
+                ·
+                <a href="{{ base_path }}/prompts/{{ prompt.key }}/history">История</a>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

@@ -27,6 +27,8 @@ class Config(BaseSettings):
     postgres_db: str
     postgres_port: int
 
+    checkpointer_pool_max_conn: int = 20
+
     @property
     def database_url(self) -> str:
         return (
@@ -78,7 +80,12 @@ class Config(BaseSettings):
     code_ttl: timedelta = timedelta(seconds=30)
     oauth_ttl: timedelta = timedelta(minutes=10)
 
-    ai_provider: AIProvider = AIProvider.GIGACHAT
+    llm_provider: AIProvider = AIProvider.GIGACHAT
+    embedding_provider: AIProvider = AIProvider.GIGACHAT
+
+    agent_max_tool_calls: int = 4
+    agent_max_rag_per_turn: int = 2
+    agent_recursion_limit: int = 10
 
     polza_ai_api_key: str = ""
     polza_ai_base_url: str = "https://polza.ai/api/v1"
@@ -106,6 +113,11 @@ class Config(BaseSettings):
 
     context_size: int = 64
     summary_limit: int = 10
+
+    llm_summarization_tokens_trigger: int = 24000
+    llm_summarization_messages_trigger: int = 60
+
+    llm_summarization_tokens_keep: int = 8000
 
     llm_context_window_tokens: int = 128000
     llm_summary_trigger_ratio: float = 0.8

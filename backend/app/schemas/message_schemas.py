@@ -31,11 +31,9 @@ class ChatMessageResponse(BaseModel):
 class SendMessageResponse(BaseModel):
     user_message: MessageWithChatIdOut
     assistant_message: MessageWithChatIdOut
-    context_compressed: bool = False
 
 
 @dataclass(slots=False)
 class ConversationResult:
     user_message: MessageModel
     assistant_message: MessageModel
-    context_compressed: bool

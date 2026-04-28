@@ -1,4 +1,5 @@
 from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict, computed_field
 
 from app.core.constants import is_sber_employee_place_of_work

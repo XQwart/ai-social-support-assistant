@@ -37,10 +37,14 @@ class VectorRepository:
 
         total_chunks = len(embedded_chunks)
         points: list[models.PointStruct] = []
+        chunk_id_to_point_id: dict[int, str] = {}
 
         for chunk in embedded_chunks:
             if not chunk.vector:
                 continue
+
+            point_id = str(uuid4())
+            chunk_id_to_point_id[chunk.id] = point_id
 
             payload = {
                 "text_id": chunk.id,
