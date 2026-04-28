@@ -84,6 +84,7 @@ class Config(BaseSettings):
     embedding_provider: AIProvider = AIProvider.GIGACHAT
 
     agent_max_tool_calls: int = 4
+    agent_max_rag_per_turn: int = 2
     agent_recursion_limit: int = 10
 
     polza_ai_api_key: str = ""

@@ -172,7 +172,7 @@ class AgentService:
 
         middleware = [
             ToolBudgetMiddleware(self._config.agent_max_tool_calls),
-            ToolGuardMiddleware(),
+            ToolGuardMiddleware(self._config.agent_max_rag_per_turn),
             build_dunamic_prompt(self._prompt_service.get),
             MemoryToolStateMiddleware(),
             SummarizationMiddleware(

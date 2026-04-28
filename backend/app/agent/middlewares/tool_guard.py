@@ -1,21 +1,3 @@
-"""Middleware that enforces tool-use contracts the LLM often breaks.
-
-It short-circuits calls BEFORE they reach the real tool, so bad patterns
-never cost an extra round-trip to the knowledge base / database:
-
-- empty ``save_user_facts()`` — the model calls the tool with no args
-  hoping something will be saved. We reject with a recovery instruction.
-- duplicate ``search_knowledge_base`` within the same user turn —
-  paraphrased queries, padezh changes, or toggling ``region_name`` do
-  not count as new searches. We return the previous tool output so the
-  model can simply answer from it.
-- ``save_user_facts`` that only repeats data already in the profile —
-  no point writing the same string back to the DB.
-
-This middleware does NOT replace ``ToolBudgetMiddleware``; it complements
-it by stopping specific misuse patterns that the simple counter misses.
-"""
-
 from __future__ import annotations
 
 import logging
@@ -23,7 +5,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from langchain.agents.middleware import AgentMiddleware, ToolCallRequest
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langchain_core.messages import HumanMessage, ToolMessage
 from langgraph.types import Command
 
 
@@ -35,7 +17,12 @@ MEMORY_TOOL = "save_user_facts"
 
 
 class ToolGuardMiddleware(AgentMiddleware):
-    """Reject malformed / redundant tool calls before they execute."""
+    _max_searches_per_turn: int
+
+    def __init__(self, max_searches_per_turn: int) -> None:
+        super().__init__()
+
+        self._max_searches_per_turn = max_searches_per_turn
 
     async def awrap_tool_call(
         self,
@@ -59,14 +46,12 @@ class ToolGuardMiddleware(AgentMiddleware):
                 )
 
         if name == SEARCH_TOOL:
-            prior = self._previous_search_in_turn(request)
-            if prior is not None:
-                logger.info(
-                    "Блокирую повторный %s (guard) | args=%s", SEARCH_TOOL, args
-                )
+            search_count = self._count_searches_in_turn(request)
+            if search_count > self._max_searches_per_turn:
+                logger.info("Блокирую %s (guard) | args=%s", SEARCH_TOOL, args)
                 return ToolMessage(
                     content=(
-                        "Повторный вызов запрещён. Ты уже получил результат "
+                        "Вызов запрещён. Ты уже получил результат "
                         "search_knowledge_base в этом ответе — используй его. "
                         "Отвечай пользователю на основе уже найденных данных; "
                         "если их недостаточно, задай один уточняющий вопрос."
@@ -77,9 +62,6 @@ class ToolGuardMiddleware(AgentMiddleware):
 
         return await handler(request)
 
-    # ------------------------------------------------------------------
-    # save_user_facts guards
-    # ------------------------------------------------------------------
     @staticmethod
     def _guard_memory_call(
         args: dict[str, Any], request: ToolCallRequest
@@ -108,25 +90,13 @@ class ToolGuardMiddleware(AgentMiddleware):
 
         return None
 
-    # ------------------------------------------------------------------
-    # search_knowledge_base duplicate detection
-    # ------------------------------------------------------------------
     @staticmethod
-    def _previous_search_in_turn(request: ToolCallRequest) -> ToolMessage | None:
-        """Return the previous successful search ToolMessage in this turn.
-
-        A "turn" is everything after the last HumanMessage. If we find a
-        ``search_knowledge_base`` ToolMessage there, a new search is a
-        duplicate regardless of parameter tweaks.
-        """
+    def _count_searches_in_turn(request: ToolCallRequest) -> int:
         messages = request.state.get("messages") or []
+        count = 0
         for msg in reversed(messages):
             if isinstance(msg, HumanMessage):
-                return None
+                break
             if isinstance(msg, ToolMessage) and msg.name == SEARCH_TOOL:
-                return msg
-            # AIMessages with tool_calls are fine; we look for ToolMessage
-            # responses as the signal of a completed search.
-            if isinstance(msg, AIMessage):
-                continue
-        return None
+                count += 1
+        return count
