@@ -27,6 +27,21 @@ services:
         condition: service_started
       migrations:
         condition: service_completed_successfully
+
+  chunk-api:
+    image: backend-worker:latest
+    env_file:
+      - .env
+    working_dir: /code
+    command: uvicorn worker.main:app --host 0.0.0.0 --port 8002
+    volumes:
+      - ./backend:/code
+    depends_on:
+      redis:
+        condition: service_started
+      migrations:
+        condition: service_completed_successfully
+    restart: unless-stopped
   celery:
     init: true 
     mem_limit: 2g

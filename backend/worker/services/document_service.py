@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from worker.repositories.vector_repository import VectorRepository
 from worker.repositories.chunk_repository import ChunkRepository
 from worker.schemas.document import (
@@ -38,6 +40,7 @@ class DocumentService:
         place_of_work: str | None = None,
     ) -> int:
         await self._vector_rep.delete_chunks_by_source_id(source_id)
+
         return await self._vector_rep.upsert_chunks(
             embedded_chunks,
             regions,
@@ -52,8 +55,88 @@ class DocumentService:
         place_of_work: str | None = None,
     ) -> int:
         await self._vector_rep.delete_questions_by_source_id(source_id)
+
         return await self._vector_rep.upsert_questions(
             embedded_questions,
             regions,
             place_of_work,
         )
+
+    async def create_chunks(
+        self,
+        chunks: Sequence[DocumentChunkCreate],
+    ) -> list[StoredDocumentChunk]:
+        return await self._chunk_rep.create_many(chunks)
+
+    async def get_chunks_by_ids(
+        self,
+        chunk_ids: Sequence[int],
+    ) -> list[StoredDocumentChunk]:
+        return await self._chunk_rep.get_by_ids(chunk_ids)
+
+    async def get_next_chunk_index(
+        self,
+        source_id: int,
+    ) -> int:
+        return await self._chunk_rep.get_next_chunk_index(source_id)
+
+    async def update_chunk_text(
+        self,
+        *,
+        chunk_id: int,
+        text: str,
+    ) -> StoredDocumentChunk:
+        return await self._chunk_rep.update_text(
+            chunk_id=chunk_id,
+            text=text,
+        )
+
+    async def delete_chunk_by_id(
+        self,
+        chunk_id: int,
+    ) -> int:
+        return await self._chunk_rep.delete_by_id(chunk_id)
+
+    async def upsert_chunk_vectors(
+        self,
+        embedded_chunks: list[EmbeddedDocumentChunk],
+        regions: list[str],
+        place_of_work: str | None = None,
+    ) -> int:
+        if not embedded_chunks:
+            return 0
+
+        return await self._vector_rep.upsert_chunks(
+            embedded_chunks,
+            regions,
+            place_of_work,
+        )
+
+    async def upsert_question_vectors(
+        self,
+        embedded_questions: list[EmbeddedChunkQuestion],
+        regions: list[str],
+        place_of_work: str | None = None,
+    ) -> int:
+        if not embedded_questions:
+            return 0
+
+        return await self._vector_rep.upsert_questions(
+            embedded_questions,
+            regions,
+            place_of_work,
+        )
+
+    async def delete_index_data_by_chunk_id(
+        self,
+        chunk_id: int,
+    ) -> None:
+        await self._vector_rep.delete_questions_by_chunk_id(chunk_id)
+        await self._vector_rep.delete_chunk_by_chunk_id(chunk_id)
+
+    async def delete_index_data_by_source_id(
+        self,
+        source_id: int,
+    ) -> None:
+        await self._vector_rep.delete_questions_by_source_id(source_id)
+        await self._vector_rep.delete_chunks_by_source_id(source_id)

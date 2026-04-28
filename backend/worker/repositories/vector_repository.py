@@ -104,15 +104,53 @@ class VectorRepository:
         return len(points)
 
     async def delete_chunks_by_source_id(self, source_id: int) -> None:
-        await self._delete_by_source_id(
+        await self._delete_by_filter(
             collection_name=self._chunks_collection_name,
-            source_id=source_id,
+            key="source_id",
+            value=source_id,
         )
 
     async def delete_questions_by_source_id(self, source_id: int) -> None:
-        await self._delete_by_source_id(
+        await self._delete_by_filter(
             collection_name=self._questions_collection_name,
-            source_id=source_id,
+            key="source_id",
+            value=source_id,
+        )
+
+    async def delete_chunk_by_chunk_id(self, chunk_id: int) -> None:
+        await self._delete_by_filter(
+            collection_name=self._chunks_collection_name,
+            key="text_id",
+            value=chunk_id,
+        )
+
+    async def delete_questions_by_chunk_id(self, chunk_id: int) -> None:
+        await self._delete_by_filter(
+            collection_name=self._questions_collection_name,
+            key="chunk_id",
+            value=chunk_id,
+        )
+
+    async def _delete_by_filter(
+        self,
+        *,
+        collection_name: str,
+        key: str,
+        value: int | str,
+    ) -> None:
+        await self._client.delete(
+            collection_name=collection_name,
+            points_selector=models.FilterSelector(
+                filter=models.Filter(
+                    must=[
+                        models.FieldCondition(
+                            key=key,
+                            match=models.MatchValue(value=value),
+                        )
+                    ]
+                )
+            ),
+            wait=True,
         )
 
     async def _upsert_points(
@@ -129,22 +167,3 @@ class VectorRepository:
                 collection_name=collection_name,
                 points=batch,
             )
-
-    async def _delete_by_source_id(
-        self,
-        collection_name: str,
-        source_id: int,
-    ) -> None:
-        await self._client.delete(
-            collection_name=collection_name,
-            points_selector=models.FilterSelector(
-                filter=models.Filter(
-                    must=[
-                        models.FieldCondition(
-                            key="source_id",
-                            match=models.MatchValue(value=source_id),
-                        )
-                    ]
-                )
-            ),
-        )

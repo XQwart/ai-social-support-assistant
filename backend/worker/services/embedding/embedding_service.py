@@ -20,7 +20,7 @@ class EmbeddingService:
         self,
         provider: BaseEmbeddingProvider,
         model: str,
-        batch_size: int = 512,
+        batch_size: int = 256,
     ) -> None:
         self._provider = provider
         self._model = model

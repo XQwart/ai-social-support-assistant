@@ -59,3 +59,9 @@ class EmbeddedChunkQuestion(BaseModel):
     chunk_index: int
     text: str
     vector: list[float]
+
+
+class PreparedChunkIndex(BaseModel):
+    embedded_chunks: list[EmbeddedDocumentChunk]
+    generated_questions: list[GeneratedChunkQuestion]
+    embedded_questions: list[EmbeddedChunkQuestion]
