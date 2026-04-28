@@ -530,7 +530,9 @@ export default function AuthModal({
             <div
               className={`mt-4 rounded-2xl border px-3 py-2 transition-colors ${
                 consentError
-                  ? "border-rose-300 bg-rose-50/70"
+                  ? isDark
+                    ? "border-rose-400/50 bg-rose-500/10"
+                    : "border-rose-300 bg-rose-50/70"
                   : isDark
                     ? "border-white/10 bg-white/[0.04]"
                     : "border-slate-200/80 bg-white/60"
@@ -615,13 +617,25 @@ export default function AuthModal({
         )}
 
         {consentError && !isFinalizing && (
-          <div className="mt-2 rounded-xl border border-rose-200/60 bg-rose-50/60 px-3 py-2 text-[12px] text-rose-600">
+          <div
+            className={`mt-2 rounded-xl border px-3 py-2 text-[12px] ${
+              isDark
+                ? "border-rose-400/40 bg-rose-500/10 text-rose-200"
+                : "border-rose-200/60 bg-rose-50/60 text-rose-600"
+            }`}
+          >
             Чтобы продолжить, поставьте галочку согласия на обработку персональных данных.
           </div>
         )}
 
         {displayError && (
-          <div className="mt-4 rounded-xl border border-rose-200/60 bg-rose-50/60 px-3 py-2 text-[12px] text-rose-600">
+          <div
+            className={`mt-4 rounded-xl border px-3 py-2 text-[12px] ${
+              isDark
+                ? "border-rose-400/40 bg-rose-500/10 text-rose-200"
+                : "border-rose-200/60 bg-rose-50/60 text-rose-600"
+            }`}
+          >
             {displayError}
           </div>
         )}

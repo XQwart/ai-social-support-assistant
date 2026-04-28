@@ -1,21 +1,44 @@
-import logging
+from __future__ import annotations
+
+from celery import chord, signature
 
 from worker.celery_app import app
-from worker.dependencies.build import WorkerDependencies
 from worker.core.constants import SOURCES_JSON
-from worker.utils.read_json import read_json_file
-
-logger = logging.getLogger(__name__)
+from worker.dependencies.runtime import AsyncRuntime
+from worker.utils.read_json import read_json_file, build_source_jobs
 
 
 @app.task(bind=True, name="worker.tasks.get_source_link_task.get_source_links")
 def get_source_links(self) -> dict:
-    deps = WorkerDependencies.get()
+    runtime = AsyncRuntime.get()
+    deps = runtime.deps
+
     sources = read_json_file(SOURCES_JSON)
+    jobs = build_source_jobs(sources)
 
-    with deps.session_scope() as session:
-        service = deps.build_region_source_import_service(session=session)
+    if not jobs:
+        return {
+            "status": "noop",
+            "scheduled_count": 0,
+            "message": "No sources found",
+        }
 
-        result = service.import_from_data(sources=sources)
+    deps.runtime_state_service.set_sources_status("running")
 
-        return result
+    chord(
+        (
+            signature(
+                "worker.tasks.import_one_source_task.import_one_source",
+                args=[job],
+            )
+            for job in jobs
+        ),
+        signature(
+            "worker.tasks.finalize_source_import_task.finalize_source_import",
+        ),
+    ).apply_async()
+
+    return {
+        "status": "scheduled",
+        "scheduled_count": len(jobs),
+    }

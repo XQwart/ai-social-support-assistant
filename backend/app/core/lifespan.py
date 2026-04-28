@@ -3,12 +3,15 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.services.prompt_service import PromptService
+
+from .checkpointer import create_checkpointer
 from .config import get_config
 from .database import create_engine, create_session_maker
 from .redis import create_redis
 from .logger import setup_logging
 from .http import create_sber_http_client
-from .ai import create_ai_clients
+from .llm import create_llm_clients, create_embedding_client
 from .qdrant import create_qdrant_client, ensure_collection
 
 
@@ -25,34 +28,41 @@ async def lifespan(app: FastAPI):
     session_maker = create_session_maker(engine)
     redis = create_redis(config)
     http_client = create_sber_http_client(config)
-    chat_ai_client, compress_ai_client, embedding_ai_client = create_ai_clients(config)
-    qdrant = create_qdrant_client(config)
+
+    chat_llm_client, compress_llm_client = create_llm_clients(config)
+    embedding_client, vector_size = create_embedding_client(config)
+
+    checkpointer = await create_checkpointer(config)
+    qdrant = create_qdrant_client(url=config.qdrant_url)
     await ensure_collection(
         qdrant,
         collection_name=config.qdrant_collection,
-        vector_size=embedding_ai_client.vector_size,
+        vector_size=vector_size,
         distance=config.rag_distance,
     )
 
+    prompt_service = PromptService(session_maker=session_maker, redis=redis)
+    await prompt_service.start()
+
     app.state.db_engine = engine
     app.state.session_maker = session_maker
+    app.state.checkpointer = checkpointer
     app.state.redis = redis
     app.state.sber_client = http_client
 
-    app.state.chat_ai_client = chat_ai_client
-    app.state.compress_ai_client = compress_ai_client
-    app.state.embedding_ai_client = embedding_ai_client
+    app.state.chat_llm_client = chat_llm_client
+    app.state.compress_llm_client = compress_llm_client
+    app.state.embedding_client = embedding_client
     app.state.qdrant = qdrant
+    app.state.prompt_service = prompt_service
 
     logger.info("Application started successfully")
 
     try:
         yield
     finally:
-        await chat_ai_client.aclose()
-        await compress_ai_client.aclose()
-        await embedding_ai_client.aclose()
-
+        await prompt_service.stop()
+        await checkpointer.conn.close()
         await http_client.aclose()
         await qdrant.close()
         await redis.aclose()

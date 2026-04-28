@@ -70,6 +70,8 @@ class AuthService:
             first_name=user_info.given_name,
             second_name=user_info.family_name,
             place_of_work=user_info.place_of_work,
+            region_reg=user_info.region_reg,
+            region_current=user_info.region_current,
         )
 
         login_code = secrets.token_urlsafe(32)
@@ -93,12 +95,16 @@ class AuthService:
                 "first_name": "Ivan",
                 "second_name": "Ivanov",
                 "place_of_work": "ПАО Сбербанк",
+                "region_reg": "Московская область",
+                "region_current": None,
             },
             "unemployed": {
                 "bank_id": "jdfbhIUErfbdfhdIWewdsdfPPwedsfd",
                 "first_name": "Petr",
                 "second_name": "Petrov",
                 "place_of_work": None,
+                "region_reg": None,
+                "region_current": None,
             },
         }
 

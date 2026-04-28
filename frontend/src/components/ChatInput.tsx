@@ -90,11 +90,12 @@ export default function ChatInput({
         "w-full",
         mode === "hero"
           ? "mx-auto max-w-[760px]"
-          : "mx-auto max-w-4xl px-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-3 md:px-4 md:pb-4"
+          : "px-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-3 md:px-5 md:pb-4"
       )}
     >
       <div
         className={cn(
+          mode === "dock" && "mx-auto w-full max-w-4xl",
           "relative flex min-h-[44px] items-center gap-2 overflow-hidden rounded-[22px] border px-3 py-1.5 shadow-[0_10px_35px_rgba(15,23,42,0.05)] backdrop-blur-2xl transition-all sm:min-h-[58px] sm:gap-3 sm:rounded-[28px] sm:px-4 sm:py-2.5",
           isDark
             ? mode === "hero"

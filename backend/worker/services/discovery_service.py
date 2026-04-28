@@ -22,13 +22,12 @@ class LinkDiscoveryService:
         self._link_extractor = link_extractor
         self._source_registration_service = source_registration_service
 
-    def discover_and_store_links(
+    async def discover_and_store_links(
         self,
         root_source: Source,
         max_depth: int,
         max_pages: int,
     ) -> dict:
-
         if root_source.document_type != "html":
             return {
                 "source_id": root_source.id,
@@ -66,7 +65,7 @@ class LinkDiscoveryService:
 
             visited.add(current_url)
 
-            html = self._fetcher.get_html_fast(current_url)
+            html = await self._fetcher.get_html_fast(current_url)
             if not html:
                 continue
 
@@ -88,8 +87,9 @@ class LinkDiscoveryService:
             total_unique_found += len(unique_links)
 
             created_sources = (
-                self._source_registration_service.register_discovered_sources(
-                    links=unique_links, place_of_work=root_source.place_of_work
+                await self._source_registration_service.register_discovered_sources(
+                    links=unique_links,
+                    place_of_work=root_source.place_of_work,
                 )
             )
             total_created += len(created_sources)
@@ -134,7 +134,9 @@ class LinkDiscoveryService:
         unique_links_map: dict[str, DiscoveredLink] = {}
 
         for link in links:
-            if link.url not in unique_links_map:
-                unique_links_map[link.url] = link
+            unique_links_map.setdefault(link.url, link)
 
-        return list(unique_links_map.values())
+        return sorted(
+            unique_links_map.values(),
+            key=lambda link: link.url,
+        )

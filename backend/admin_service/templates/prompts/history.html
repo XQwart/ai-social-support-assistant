@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}История {{ prompt.key }} — Промпты{% endblock %}
+
+{% block content %}
+<section class="card">
+    <p><a href="{{ base_path }}/prompts/{{ prompt.key }}">← К редактору</a></p>
+    <h1>История <code>{{ prompt.key }}</code></h1>
+    <p>Текущая версия: v{{ prompt.version }}</p>
+
+    {% if not diffs %}
+    <p>Изменений ещё не было.</p>
+    {% endif %}
+
+    {% for entry in diffs %}
+    <article class="history-entry">
+        <header>
+            <strong>v{{ entry.version }}</strong>
+            <span class="muted">
+                {{ entry.changed_at.strftime("%Y-%m-%d %H:%M") }}
+                {% if entry.changed_by %} · admin #{{ entry.changed_by }}{% endif %}
+            </span>
+        </header>
+        <pre class="diff">{{ entry.diff }}</pre>
+    </article>
+    {% endfor %}
+</section>
+{% endblock %}

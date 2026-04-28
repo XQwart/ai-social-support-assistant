@@ -48,5 +48,5 @@ class ChatModel(Base):
     reserve_input_tokens: Mapped[int] = mapped_column(nullable=False, default=0)
 
     document_chunks: Mapped[list["DocumentChunk"]] = relationship(
-        "DocumentChunk", secondary=chats_chunks, back_populates="chats"
+        "DocumentChunk", secondary=chats_chunks
     )

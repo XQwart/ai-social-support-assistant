@@ -42,5 +42,4 @@ async def send_message(
     return SendMessageResponse(
         user_message=MessageWithChatIdOut.model_validate(result.user_message),
         assistant_message=MessageWithChatIdOut.model_validate(result.assistant_message),
-        context_compressed=result.context_compressed,
     )

@@ -49,8 +49,7 @@ MarkupSafe==3.0.3
 mdurl==0.1.2
 numpy==2.4.4
 openai==2.29.0
-pdfminer==20191125
-pdfminer.six==20260107
+pdfplumber==0.11.9 
 playwright==1.58.0
 portalocker==3.2.0
 prompt_toolkit==3.0.52

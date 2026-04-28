@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Чанки — {{ app_name }}{% endblock %}
+
+{% block content %}
+<section class="card">
+    <h1>База знаний (чанки)</h1>
+
+    <form method="get" action="{{ base_path }}/chunks" class="filters">
+        <label>
+            Источник
+            <select name="source_id">
+                <option value="">— все —</option>
+                {% for source in sources %}
+                <option value="{{ source.id }}" {% if selected_source_id == source.id %}selected{% endif %}>
+                    {{ source.name or source.url }}
+                </option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>
+            Поиск
+            <input type="search" name="search" value="{{ search }}" placeholder="Текст или название">
+        </label>
+        <button type="submit" class="btn btn-secondary">Применить</button>
+        <a class="btn btn-primary" href="{{ base_path }}/chunks/new{% if selected_source_id %}?source_id={{ selected_source_id }}{% endif %}">+ Новый чанк</a>
+    </form>
+
+    <p class="muted">Найдено: {{ total }}</p>
+
+    <table class="data-table">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Источник</th>
+            <th>Индекс</th>
+            <th>Текст (первые 120 символов)</th>
+            <th>Qdrant point</th>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for chunk in chunks %}
+        <tr>
+            <td>#{{ chunk.id }}</td>
+            <td>{{ chunk.source_name or chunk.source_url }}</td>
+            <td>{{ chunk.chunk_index }}</td>
+            <td>{{ chunk.text[:120] }}{% if chunk.text|length > 120 %}…{% endif %}</td>
+            <td>
+                {% if chunk.qdrant_point_id %}
+                <code>{{ chunk.qdrant_point_id }}</code>
+                {% else %}
+                <span class="muted">не загружен</span>
+                {% endif %}
+            </td>
+            <td><a href="{{ base_path }}/chunks/{{ chunk.id }}">Открыть</a></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    {% if total_pages > 1 %}
+    <nav class="pagination">
+        {% if page > 1 %}
+        <a href="?page={{ page - 1 }}{% if selected_source_id %}&source_id={{ selected_source_id }}{% endif %}{% if search %}&search={{ search }}{% endif %}">← Назад</a>
+        {% endif %}
+        <span>Страница {{ page }} из {{ total_pages }}</span>
+        {% if page < total_pages %}
+        <a href="?page={{ page + 1 }}{% if selected_source_id %}&source_id={{ selected_source_id }}{% endif %}{% if search %}&search={{ search }}{% endif %}">Вперёд →</a>
+        {% endif %}
+    </nav>
+    {% endif %}
+</section>
+{% endblock %}

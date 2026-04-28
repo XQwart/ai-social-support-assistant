@@ -23,7 +23,7 @@ class DocumentParsingService:
         self._text_extractor = text_extractor
         self._pdf_extractor = pdf_extractor
 
-    def parse_source(
+    async def parse_source(
         self,
         source_id: int,
         url: str,
@@ -35,9 +35,9 @@ class DocumentParsingService:
             return None
 
         if document_type == "pdf":
-            text = self._parse_pdf(url)
+            text = await self._parse_pdf(url)
         else:
-            text = self._parse_html(url)
+            text = await self._parse_html(url)
 
         if not text:
             return None
@@ -49,12 +49,12 @@ class DocumentParsingService:
             text=text,
         )
 
-    def close(self) -> None:
-        self._fetcher.close()
+    async def aclose(self) -> None:
+        await self._fetcher.aclose()
 
-    def _parse_pdf(self, url: str) -> str | None:
+    async def _parse_pdf(self, url: str) -> str | None:
         if self._is_web_url(url):
-            pdf_bytes = self._fetcher.get_bytes(url)
+            pdf_bytes = await self._fetcher.get_bytes(url)
             if not pdf_bytes:
                 return None
 
@@ -73,8 +73,8 @@ class DocumentParsingService:
 
         return self._pdf_extractor.extract_text(pdf_bytes, str(file_path))
 
-    def _parse_html(self, url: str) -> str | None:
-        html = self._fetcher.get_html(url)
+    async def _parse_html(self, url: str) -> str | None:
+        html = await self._fetcher.get_html(url)
         if not html:
             return None
 

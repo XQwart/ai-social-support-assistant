@@ -1,6 +1,258 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode, type TouchEvent } from "react";
 import type { Chat } from "@/types";
 import { cn } from "@/utils/cn";
+
+export type ChatSortMode = "updated" | "created";
+
+interface SortOption {
+  value: ChatSortMode;
+  label: string;
+  description: string;
+  icon: ReactNode;
+}
+
+const SORT_OPTIONS: SortOption[] = [
+  {
+    value: "updated",
+    label: "Сначала недавние",
+    description: "по последнему сообщению",
+    icon: (
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3 2" />
+      </svg>
+    ),
+  },
+  {
+    value: "created",
+    label: "Сначала новые",
+    description: "по дате создания",
+    icon: (
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <rect x="3" y="5" width="18" height="16" rx="2.5" />
+        <path d="M3 10h18" />
+        <path d="M8 3v4" />
+        <path d="M16 3v4" />
+        <path d="M12 14v4" />
+        <path d="M10 16h4" />
+      </svg>
+    ),
+  },
+];
+
+interface SortMenuProps {
+  sortMode: ChatSortMode;
+  onSortModeChange: (mode: ChatSortMode) => void;
+  isDark: boolean;
+}
+
+function SortMenu({ sortMode, onSortModeChange, isDark }: SortMenuProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    function handlePointer(event: MouseEvent | TouchEvent) {
+      const target = event.target as Node | null;
+      if (target && menuRef.current && !menuRef.current.contains(target)) {
+        setIsOpen(false);
+      }
+    }
+
+    function handleKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setIsOpen(false);
+    }
+
+    document.addEventListener("mousedown", handlePointer);
+    document.addEventListener("touchstart", handlePointer);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handlePointer);
+      document.removeEventListener("touchstart", handlePointer);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [isOpen]);
+
+  const current = SORT_OPTIONS.find((o) => o.value === sortMode) ?? SORT_OPTIONS[0];
+
+  return (
+    <div ref={menuRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        aria-label="Сортировка чатов"
+        className={cn(
+          "flex w-full cursor-pointer items-center gap-2 rounded-2xl border px-3 py-2 text-left transition-all",
+          isDark
+            ? "border-white/10 bg-white/[0.04] hover:border-white/15 hover:bg-white/[0.07]"
+            : "border-white/70 bg-white/50 hover:border-white/90 hover:bg-white/70"
+        )}
+      >
+        <span
+          className={cn(
+            "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
+            isDark ? "bg-emerald-400/12 text-emerald-300" : "bg-emerald-500/12 text-emerald-600"
+          )}
+        >
+          {current.icon}
+        </span>
+
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span
+            className={cn(
+              "truncate text-[10px] font-semibold uppercase tracking-[0.14em]",
+              isDark ? "text-slate-500" : "text-slate-400"
+            )}
+          >
+            Порядок чатов
+          </span>
+          <span
+            className={cn(
+              "truncate text-[13px] font-semibold",
+              isDark ? "text-slate-100" : "text-slate-700"
+            )}
+          >
+            {current.label}
+          </span>
+        </span>
+
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={cn(
+            "shrink-0 transition-transform duration-200",
+            isDark ? "text-slate-500" : "text-slate-400",
+            isOpen && "rotate-180"
+          )}
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <div
+          role="listbox"
+          aria-label="Варианты сортировки"
+          className={cn(
+            "absolute left-0 right-0 top-[calc(100%+6px)] z-30 overflow-hidden rounded-2xl border backdrop-blur-2xl",
+            isDark
+              ? "border-white/12 bg-[rgba(14,32,28,0.97)] shadow-[0_18px_42px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.05)]"
+              : "border-white/85 bg-white/97 shadow-[0_18px_42px_rgba(15,23,42,0.18),inset_0_1px_0_rgba(255,255,255,0.85)]"
+          )}
+        >
+          {SORT_OPTIONS.map((option, index) => {
+            const isSelected = option.value === sortMode;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                role="option"
+                aria-selected={isSelected}
+                onClick={() => {
+                  onSortModeChange(option.value);
+                  setIsOpen(false);
+                }}
+                className={cn(
+                  "flex w-full cursor-pointer items-center gap-3 px-3 py-2.5 text-left transition-colors",
+                  index > 0 && (isDark ? "border-t border-white/6" : "border-t border-slate-200/70"),
+                  isSelected
+                    ? isDark
+                      ? "bg-emerald-400/10"
+                      : "bg-emerald-500/8"
+                    : isDark
+                      ? "hover:bg-white/5"
+                      : "hover:bg-emerald-500/6"
+                )}
+              >
+                <span
+                  className={cn(
+                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
+                    isSelected
+                      ? isDark
+                        ? "bg-emerald-400/20 text-emerald-200"
+                        : "bg-emerald-500/16 text-emerald-700"
+                      : isDark
+                        ? "bg-white/5 text-slate-400"
+                        : "bg-slate-100 text-slate-500"
+                  )}
+                >
+                  {option.icon}
+                </span>
+
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span
+                    className={cn(
+                      "truncate text-[13px] font-semibold",
+                      isSelected
+                        ? isDark ? "text-emerald-200" : "text-emerald-700"
+                        : isDark ? "text-slate-100" : "text-slate-700"
+                    )}
+                  >
+                    {option.label}
+                  </span>
+                  <span
+                    className={cn(
+                      "truncate text-[11px]",
+                      isDark ? "text-slate-500" : "text-slate-400"
+                    )}
+                  >
+                    {option.description}
+                  </span>
+                </span>
+
+                {isSelected && (
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={cn(
+                      "shrink-0",
+                      isDark ? "text-emerald-300" : "text-emerald-600"
+                    )}
+                  >
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface SidebarProps {
   isOpen: boolean;
@@ -19,6 +271,8 @@ interface SidebarProps {
   hasMoreChats: boolean;
   onLoadMoreChats: () => void;
   theme: "light" | "dark";
+  sortMode: ChatSortMode;
+  onSortModeChange: (mode: ChatSortMode) => void;
 }
 
 function getDateLabel(timestamp: number): string {
@@ -63,18 +317,19 @@ interface ChatItemProps {
   isActive: boolean;
   isDark: boolean;
   showDate: boolean;
+  timestampForDisplay: number;
   onSelect: () => void;
   onRename: (newTitle: string) => Promise<boolean>;
   onDelete: () => void;
 }
 
-function ChatItem({ chat, isActive, isDark, showDate, onSelect, onRename, onDelete }: ChatItemProps) {
+function ChatItem({ chat, isActive, isDark, showDate, timestampForDisplay, onSelect, onRename, onDelete }: ChatItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [draftTitle, setDraftTitle] = useState("");
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const committingRef = useRef(false);
-  const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const itemClassName = cn(
     "relative w-full cursor-pointer overflow-hidden rounded-2xl px-3 py-3 text-left transition-all duration-200",
@@ -86,23 +341,6 @@ function ChatItem({ chat, isActive, isDark, showDate, onSelect, onRename, onDele
       : isDark
         ? "border border-transparent bg-transparent hover:border-white/10 hover:bg-white/8 hover:shadow-[0_10px_24px_rgba(0,0,0,0.12)]"
         : "border border-transparent bg-transparent hover:border-white/75 hover:bg-white/68 hover:shadow-[0_10px_24px_rgba(15,23,42,0.05),inset_0_1px_0_rgba(255,255,255,0.58)]"
-  );
-
-  const actionButtonBaseClassName =
-    "flex h-9 w-9 cursor-pointer items-center justify-center rounded-[14px] border backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0";
-
-  const renameActionButtonClassName = cn(
-    actionButtonBaseClassName,
-    isDark
-      ? "border-white/10 bg-white/8 text-slate-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-emerald-400/28 hover:bg-emerald-400/12 hover:text-emerald-100"
-      : "border-white/78 bg-white/72 text-slate-500 shadow-[0_8px_20px_rgba(15,23,42,0.08),inset_0_1px_0_rgba(255,255,255,0.68)]"
-  );
-
-  const deleteActionButtonClassName = cn(
-    actionButtonBaseClassName,
-    isDark
-      ? "border-white/10 bg-white/8 text-slate-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-rose-400/28 hover:bg-rose-400/12 hover:text-rose-100"
-      : "border-white/78 bg-white/72 text-slate-500 shadow-[0_8px_20px_rgba(15,23,42,0.08),inset_0_1px_0_rgba(255,255,255,0.68)]"
   );
 
   function startEdit() {
@@ -158,12 +396,12 @@ function ChatItem({ chat, isActive, isDark, showDate, onSelect, onRename, onDele
   }
 
   useEffect(() => {
-    if (!isMobileMenuOpen) return;
+    if (!isMenuOpen) return;
 
     function handlePointer(event: MouseEvent | TouchEvent) {
       const target = event.target as Node | null;
-      if (target && mobileMenuRef.current && !mobileMenuRef.current.contains(target)) {
-        setIsMobileMenuOpen(false);
+      if (target && menuRef.current && !menuRef.current.contains(target)) {
+        setIsMenuOpen(false);
       }
     }
 
@@ -173,13 +411,7 @@ function ChatItem({ chat, isActive, isDark, showDate, onSelect, onRename, onDele
       document.removeEventListener("mousedown", handlePointer);
       document.removeEventListener("touchstart", handlePointer);
     };
-  }, [isMobileMenuOpen]);
-
-  useEffect(() => {
-    if (!isActive && isMobileMenuOpen) {
-      setIsMobileMenuOpen(false);
-    }
-  }, [isActive, isMobileMenuOpen]);
+  }, [isMenuOpen]);
 
   return (
     <div className="group relative">
@@ -221,8 +453,7 @@ function ChatItem({ chat, isActive, isDark, showDate, onSelect, onRename, onDele
         ) : (
           <div
             className={cn(
-              "truncate text-[13px] font-medium",
-              isActive ? "pr-11 sm:pr-24" : "pr-2 sm:pr-24",
+              "truncate pr-11 text-[13px] font-medium",
               isActive
                 ? isDark ? "text-slate-50" : "text-slate-900"
                 : isDark ? "text-slate-200" : "text-slate-700"
@@ -233,87 +464,37 @@ function ChatItem({ chat, isActive, isDark, showDate, onSelect, onRename, onDele
         )}
 
         <div className={isDark ? "mt-1 text-[11px] text-slate-500" : "mt-1 text-[11px] text-slate-400"}>
-          {formatChatTimestamp(chat.updatedAt, showDate)}
+          {formatChatTimestamp(timestampForDisplay, showDate)}
         </div>
       </button>
 
       {!isEditing && (
         <div
+          ref={menuRef}
           className={cn(
-            "absolute right-2 top-1/2 hidden -translate-y-1/2 items-center gap-1.5 transition-all duration-200 sm:flex",
-            isActive
-              ? "translate-x-0 opacity-100"
-              : "pointer-events-none translate-x-1 opacity-0 group-hover:pointer-events-auto group-hover:translate-x-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-x-0 group-focus-within:opacity-100 [@media(hover:none)]:!pointer-events-none [@media(hover:none)]:!opacity-0"
+            "absolute right-2 top-1/2 z-20 -translate-y-1/2 transition-opacity duration-200",
+            isActive || isMenuOpen
+              ? "opacity-100"
+              : "opacity-0 group-hover:opacity-100"
           )}
         >
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              startEdit();
+              setIsMenuOpen((prev) => !prev);
             }}
-            className={renameActionButtonClassName}
-            aria-label="Переименовать чат"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            onClick={(e) => {
+            onTouchStart={(e: TouchEvent<HTMLButtonElement>) => {
               e.stopPropagation();
-              onDelete();
-            }}
-            className={deleteActionButtonClassName}
-            aria-label="Удалить чат"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M3 6h18" />
-              <path d="M8 6V4h8v2" />
-              <path d="M6 6l1 14h10l1-14" />
-              <path d="M10 11v5" />
-              <path d="M14 11v5" />
-            </svg>
-          </button>
-        </div>
-      )}
-
-      {!isEditing && isActive && (
-        <div ref={mobileMenuRef} className="absolute right-2 top-1/2 z-20 -translate-y-1/2 sm:hidden">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsMobileMenuOpen((prev) => !prev);
             }}
             className={cn(
               "flex h-9 w-9 cursor-pointer items-center justify-center rounded-[14px] border backdrop-blur-xl transition-all duration-200 active:scale-95",
               isDark
-                ? "border-white/12 bg-white/10 text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
-                : "border-white/80 bg-white/82 text-slate-600 shadow-[0_8px_20px_rgba(15,23,42,0.10),inset_0_1px_0_rgba(255,255,255,0.78)]"
+                ? "border-white/12 bg-white/10 text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] hover:border-white/18 hover:bg-white/14"
+                : "border-white/80 bg-white/82 text-slate-600 shadow-[0_8px_20px_rgba(15,23,42,0.10),inset_0_1px_0_rgba(255,255,255,0.78)] hover:bg-white/92"
             )}
             aria-haspopup="menu"
-            aria-expanded={isMobileMenuOpen}
+            aria-expanded={isMenuOpen}
             aria-label="Действия с чатом"
           >
             <svg
@@ -329,7 +510,7 @@ function ChatItem({ chat, isActive, isDark, showDate, onSelect, onRename, onDele
             </svg>
           </button>
 
-          {isMobileMenuOpen && (
+          {isMenuOpen && (
             <div
               role="menu"
               className={cn(
@@ -344,7 +525,7 @@ function ChatItem({ chat, isActive, isDark, showDate, onSelect, onRename, onDele
                 role="menuitem"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setIsMobileMenuOpen(false);
+                  setIsMenuOpen(false);
                   startEdit();
                 }}
                 className={cn(
@@ -359,7 +540,7 @@ function ChatItem({ chat, isActive, isDark, showDate, onSelect, onRename, onDele
                   height="15"
                   viewBox="0 0 24 24"
                   fill="none"
-                  stroke="#ffffff"
+                  stroke="currentColor"
                   strokeWidth="2.2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -378,7 +559,7 @@ function ChatItem({ chat, isActive, isDark, showDate, onSelect, onRename, onDele
                 role="menuitem"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setIsMobileMenuOpen(false);
+                  setIsMenuOpen(false);
                   onDelete();
                 }}
                 className={cn(
@@ -432,10 +613,15 @@ export default function Sidebar({
   hasMoreChats,
   onLoadMoreChats,
   theme,
+  sortMode,
+  onSortModeChange,
 }: SidebarProps) {
   const [search, setSearch] = useState("");
   const panelRef = useRef<HTMLDivElement>(null);
   const isDark = theme === "dark";
+
+  const getSortTimestamp = (chat: Chat): number =>
+    sortMode === "created" ? chat.createdAt : chat.updatedAt;
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
@@ -465,17 +651,22 @@ export default function Sidebar({
 
   const filteredChats = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return chats;
-    return chats.filter((chat) => chat.title.toLowerCase().includes(query));
-  }, [chats, search]);
+    const base = query
+      ? chats.filter((chat) => chat.title.toLowerCase().includes(query))
+      : chats;
+    const pickTimestamp = (chat: Chat) =>
+      sortMode === "created" ? chat.createdAt : chat.updatedAt;
+    return [...base].sort((a, b) => pickTimestamp(b) - pickTimestamp(a));
+  }, [chats, search, sortMode]);
 
   const groupedChats = useMemo(() => {
     return filteredChats.reduce<Record<string, Chat[]>>((acc, chat) => {
-      const label = getDateLabel(chat.updatedAt);
+      const timestamp = sortMode === "created" ? chat.createdAt : chat.updatedAt;
+      const label = getDateLabel(timestamp);
       (acc[label] ??= []).push(chat);
       return acc;
     }, {});
-  }, [filteredChats]);
+  }, [filteredChats, sortMode]);
 
   const userInitial = userFullName.trim().charAt(0).toUpperCase() || "П";
 
@@ -613,6 +804,14 @@ export default function Sidebar({
               </button>
             </div>
 
+            <div className="relative z-20 px-4 pb-3">
+              <SortMenu
+                sortMode={sortMode}
+                onSortModeChange={onSortModeChange}
+                isDark={isDark}
+              />
+            </div>
+
             <div className="relative z-10 custom-scrollbar flex-1 overflow-y-auto px-3 pb-4">
               {isLoadingChats && chats.length === 0 && (
                 <div className={isDark ? "px-2 pt-10 text-center text-sm text-slate-500" : "px-2 pt-10 text-center text-sm text-slate-400"}>
@@ -633,6 +832,7 @@ export default function Sidebar({
                         isActive={chat.id === activeChatId}
                         isDark={isDark}
                         showDate={groupLabel !== "Сегодня"}
+                        timestampForDisplay={getSortTimestamp(chat)}
                         onSelect={() => { onSelectChat(chat.id); onClose(); }}
                         onRename={(newTitle) => onRenameChat(chat.id, newTitle)}
                         onDelete={() => onDeleteChat(chat.id)}
