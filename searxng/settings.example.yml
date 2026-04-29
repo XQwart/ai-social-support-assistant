@@ -1,0 +1,56 @@
+use_default_settings: true
+
+general:
+    instance_name: "SOC Assistant Search"
+    donation_url: false
+    contact_url: false
+    enable_metrics: false
+
+server:
+    secret_key: "!env SEARXNG_SECRET"
+    limiter: false
+    image_proxy: false
+    method: "GET"
+
+ui:
+    static_use_hash: true
+    default_locale: "ru"
+
+search:
+    safe_search: 0
+    autocomplete: ""
+    default_lang: "ru"
+    formats:
+        - html
+        - json
+
+valkey:
+    url: redis://redis:6379/5
+
+engines:
+    - name: yandex
+      disabled: false
+      timeout: 4.0
+
+    - name: google
+      disabled: false
+      timeout: 4.0
+
+    - name: brave
+      disabled: false
+      timeout: 4.0
+
+    - name: duckduckgo
+      disabled: false
+      timeout: 4.0
+
+    - name: wikidata
+      disabled: true
+    - name: ahmia
+      disabled: true
+    - name: torch
+      disabled: true
+    - name: bing images
+      disabled: true
+    - name: youtube
+      disabled: true

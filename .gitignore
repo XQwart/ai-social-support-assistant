@@ -15,3 +15,4 @@ data
 dev
 backend/celerybeat-schedule.db
 nginx/admin.htpasswd
+settings.yml
