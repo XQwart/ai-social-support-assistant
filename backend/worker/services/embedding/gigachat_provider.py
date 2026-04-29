@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from gigachat import GigaChat
+
 from worker.services.embedding.base_provider import BaseEmbeddingProvider
 
 
@@ -16,13 +17,12 @@ class GigaChatEmbeddingProvider(BaseEmbeddingProvider):
     def vector_size(self) -> int:
         return self._vector_size
 
-    def embed_texts(self, texts: Sequence[str]) -> list[list[float]]:
+    async def embed_texts(self, texts: Sequence[str]) -> list[list[float]]:
         if not texts:
             return []
 
-        response = self._client.embeddings(list(texts), model=self._model)
-
+        response = await self._client.aembeddings(list(texts), model=self._model)
         return [item.embedding for item in response.data]
 
-    def close(self):
-        self._client.close()
+    async def aclose(self) -> None:
+        await self._client.aclose()

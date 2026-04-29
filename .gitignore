@@ -11,6 +11,7 @@ frontend/dist/
 ssl/*
 volumes/*
 data
+*tests/
 dev
 backend/celerybeat-schedule.db
 nginx/admin.htpasswd

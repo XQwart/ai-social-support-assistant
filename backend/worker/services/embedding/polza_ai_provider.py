@@ -2,14 +2,15 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from openai import OpenAI
+from openai import AsyncOpenAI
+
 from worker.services.embedding.base_provider import BaseEmbeddingProvider
 
 
 class PolzaAIEmbeddingProvider(BaseEmbeddingProvider):
     def __init__(
         self,
-        client: OpenAI,
+        client: AsyncOpenAI,
         model: str,
         vector_size: int,
     ) -> None:
@@ -21,16 +22,19 @@ class PolzaAIEmbeddingProvider(BaseEmbeddingProvider):
     def vector_size(self) -> int:
         return self._vector_size
 
-    def embed_texts(self, texts: Sequence[str]) -> list[list[float]]:
+    async def embed_texts(
+        self,
+        texts: Sequence[str],
+    ) -> list[list[float]]:
         if not texts:
             return []
 
-        response = self._client.embeddings.create(
+        response = await self._client.embeddings.create(
             model=self._model,
             input=list(texts),
         )
 
         return [item.embedding for item in response.data]
 
-    def close(self):
-        self._client.close()
+    async def aclose(self) -> None:
+        await self._client.close()

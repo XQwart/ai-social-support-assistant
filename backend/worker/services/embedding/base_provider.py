@@ -11,9 +11,12 @@ class BaseEmbeddingProvider(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def embed_texts(self, texts: Sequence[str]) -> list[list[float]]:
+    async def embed_texts(
+        self,
+        texts: Sequence[str],
+    ) -> list[list[float]]:
         raise NotImplementedError
 
     @abstractmethod
-    def close(self):
+    async def aclose(self) -> None:
         raise NotImplementedError
