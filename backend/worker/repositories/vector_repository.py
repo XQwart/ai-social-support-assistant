@@ -1,60 +1,74 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from uuid import uuid4
 
 from qdrant_client import AsyncQdrantClient, models
 
-from worker.schemas.document import EmbeddedDocumentChunk, EmbeddedChunkQuestion
+from worker.schemas.document import EmbeddedChunkForIndex
+from worker.schemas.document_type import AccessScope, GeoScope
 
 
 class VectorRepository:
     _client: AsyncQdrantClient
     _chunks_collection_name: str
-    _questions_collection_name: str
     _upsert_batch_size: int
 
     def __init__(
         self,
         client: AsyncQdrantClient,
         chunks_collection_name: str,
-        questions_collection_name: str,
         upsert_batch_size: int = 512,
     ) -> None:
         self._client = client
         self._chunks_collection_name = chunks_collection_name
-        self._questions_collection_name = questions_collection_name
         self._upsert_batch_size = upsert_batch_size
 
     async def upsert_chunks(
         self,
-        embedded_chunks: Sequence[EmbeddedDocumentChunk],
+        embedded_chunks: Sequence[EmbeddedChunkForIndex],
         regions: list[str],
+        access_scope: AccessScope,
+        geo_scope: GeoScope,
         place_of_work: str | None = None,
     ) -> int:
         if not embedded_chunks:
             return 0
 
-        total_chunks = len(embedded_chunks)
         points: list[models.PointStruct] = []
 
         for chunk in embedded_chunks:
             if not chunk.vector:
                 continue
 
+            vector: dict[str, models.Vector] = {
+                "chunk": chunk.vector,
+            }
+
+            question_vectors = [
+                question.vector for question in chunk.questions if question.vector
+            ]
+
+            if question_vectors:
+                vector["questions"] = question_vectors
+
             payload = {
-                "text_id": chunk.id,
+                "chunk_id": chunk.id,
                 "source_id": chunk.source_id,
+                "source_url": chunk.source_url,
+                "source_name": chunk.source_name,
                 "region_codes": regions,
                 "place_of_work": place_of_work,
                 "chunk_index": chunk.chunk_index,
-                "total_chunks": total_chunks,
+                "text": chunk.text,
+                "geo_scope": geo_scope,
+                "access_scope": access_scope,
+                "has_questions": bool(question_vectors),
             }
 
             points.append(
                 models.PointStruct(
-                    id=str(uuid4()),
-                    vector=chunk.vector,
+                    id=chunk.id,
+                    vector=vector,
                     payload=payload,
                 )
             )
@@ -63,44 +77,7 @@ class VectorRepository:
             collection_name=self._chunks_collection_name,
             points=points,
         )
-        return len(points)
 
-    async def upsert_questions(
-        self,
-        embedded_questions: Sequence[EmbeddedChunkQuestion],
-        regions: list[str],
-        place_of_work: str | None = None,
-    ) -> int:
-        if not embedded_questions:
-            return 0
-
-        points: list[models.PointStruct] = []
-
-        for question in embedded_questions:
-            if not question.vector:
-                continue
-
-            payload = {
-                "chunk_id": question.chunk_id,
-                "source_id": question.source_id,
-                "region_codes": regions,
-                "place_of_work": place_of_work,
-                "chunk_index": question.chunk_index,
-                "question_text": question.text,
-            }
-
-            points.append(
-                models.PointStruct(
-                    id=str(uuid4()),
-                    vector=question.vector,
-                    payload=payload,
-                )
-            )
-
-        await self._upsert_points(
-            collection_name=self._questions_collection_name,
-            points=points,
-        )
         return len(points)
 
     async def delete_chunks_by_source_id(self, source_id: int) -> None:
@@ -110,25 +87,13 @@ class VectorRepository:
             value=source_id,
         )
 
-    async def delete_questions_by_source_id(self, source_id: int) -> None:
-        await self._delete_by_filter(
-            collection_name=self._questions_collection_name,
-            key="source_id",
-            value=source_id,
-        )
-
     async def delete_chunk_by_chunk_id(self, chunk_id: int) -> None:
-        await self._delete_by_filter(
+        await self._client.delete(
             collection_name=self._chunks_collection_name,
-            key="text_id",
-            value=chunk_id,
-        )
-
-    async def delete_questions_by_chunk_id(self, chunk_id: int) -> None:
-        await self._delete_by_filter(
-            collection_name=self._questions_collection_name,
-            key="chunk_id",
-            value=chunk_id,
+            points_selector=models.PointIdsList(
+                points=[chunk_id],
+            ),
+            wait=True,
         )
 
     async def _delete_by_filter(
@@ -163,7 +128,9 @@ class VectorRepository:
 
         for i in range(0, len(points), self._upsert_batch_size):
             batch = points[i : i + self._upsert_batch_size]
+
             await self._client.upsert(
                 collection_name=collection_name,
                 points=batch,
+                wait=True,
             )

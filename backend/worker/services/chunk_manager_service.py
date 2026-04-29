@@ -2,6 +2,7 @@ from __future__ import annotations
 
 
 from worker.schemas.document import ParsedDocument
+from worker.schemas.document_type import AccessScope, GeoScope
 from worker.services.chunk_service import ChunkingService
 from worker.services.chunk_index_service import ChunkIndexingService
 from worker.services.document_service import DocumentService
@@ -108,27 +109,29 @@ class ChunkManagementService:
             source_id=document.source_id,
         )
 
-        prepared_index_data = await self._chunk_indexing.prepare_index_data(
+        embedded_chunks = await self._chunk_indexing.prepare_index_data(
             stored_chunks=stored_chunks,
         )
-
         del stored_chunks
 
-        questions_count = len(prepared_index_data.generated_questions)
+        questions_count = sum(len(chunk.questions) for chunk in embedded_chunks)
 
-        chunk_vectors_count = await self._documents.upsert_chunk_vectors(
-            embedded_chunks=prepared_index_data.embedded_chunks,
-            regions=regions,
+        access_scope = self._resolve_access_scope(
             place_of_work=place_of_work,
         )
 
-        question_vectors_count = await self._documents.upsert_question_vectors(
-            embedded_questions=prepared_index_data.embedded_questions,
-            regions=regions,
-            place_of_work=place_of_work,
+        geo_scope = self._resolve_geo_scope(
+            region_codes=regions,
         )
 
-        del prepared_index_data
+        indexed_count = await self._documents.upsert_chunk_vectors(
+            chunks=embedded_chunks,
+            regions=regions,
+            place_of_work=place_of_work,
+            access_scope=access_scope,
+            geo_scope=geo_scope,
+        )
+        del embedded_chunks
 
         return {
             "source_id": document.source_id,
@@ -136,9 +139,8 @@ class ChunkManagementService:
             "status": "success",
             "replace_existing": replace_existing,
             "chunks_count": chunks_count,
-            "chunk_vectors_count": chunk_vectors_count or 0,
+            "chunk_vectors_count": indexed_count or 0,
             "questions_count": questions_count,
-            "question_vectors_count": question_vectors_count or 0,
             "regions": regions,
             "is_global": not regions,
         }
@@ -189,23 +191,29 @@ class ChunkManagementService:
             source_id=updated_chunk.source_id,
         )
 
-        prepared_index_data = await self._chunk_indexing.prepare_index_data(
+        embedded_chunks = await self._chunk_indexing.prepare_index_data(
             stored_chunks=[updated_chunk],
         )
 
-        chunk_vectors_count = await self._documents.upsert_chunk_vectors(
-            embedded_chunks=prepared_index_data.embedded_chunks,
-            regions=regions,
+        access_scope = self._resolve_access_scope(
             place_of_work=place_of_work,
         )
 
-        question_vectors_count = await self._documents.upsert_question_vectors(
-            embedded_questions=prepared_index_data.embedded_questions,
+        geo_scope = self._resolve_geo_scope(
+            region_codes=regions,
+        )
+
+        chunk_vectors_count = await self._documents.upsert_chunk_vectors(
+            chunks=embedded_chunks,
             regions=regions,
             place_of_work=place_of_work,
+            access_scope=access_scope,
+            geo_scope=geo_scope,
         )
-        quest_count = len(prepared_index_data.generated_questions)
-        del prepared_index_data
+
+        questions_count = sum(len(chunk.questions) for chunk in embedded_chunks)
+
+        del embedded_chunks
 
         return {
             "status": "success",
@@ -215,8 +223,7 @@ class ChunkManagementService:
             "regions": regions,
             "is_global": not regions,
             "chunk_vectors_count": chunk_vectors_count or 0,
-            "questions_count": quest_count,
-            "question_vectors_count": question_vectors_count or 0,
+            "questions_count": questions_count,
         }
 
     async def delete_chunk(
@@ -279,3 +286,23 @@ class ChunkManagementService:
         raise ValueError(
             "region_code and region_name must be both provided or both null"
         )
+
+    def _resolve_access_scope(
+        self,
+        *,
+        place_of_work: str | None,
+    ) -> AccessScope:
+        if place_of_work:
+            return AccessScope.INTERNAL
+
+        return AccessScope.PUBLIC
+
+    def _resolve_geo_scope(
+        self,
+        *,
+        region_codes: list[str],
+    ) -> GeoScope:
+        if region_codes:
+            return GeoScope.REGIONAL
+
+        return GeoScope.FEDERAL

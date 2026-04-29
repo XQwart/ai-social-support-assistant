@@ -5,7 +5,12 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from redis import Redis
-from qdrant_client.models import Distance, VectorParams
+from qdrant_client.models import (
+    Distance,
+    VectorParams,
+    MultiVectorConfig,
+    MultiVectorComparator,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from worker.core.config import Config, get_config
@@ -203,7 +208,6 @@ class WorkerDependencies:
         vector_rep = VectorRepository(
             client=self._qdrant,
             chunks_collection_name=self._config.chunks_collection_name,
-            questions_collection_name=self._config.questions_collection_name,
         )
 
         chunk_rep = ChunkRepository(
@@ -227,31 +231,67 @@ class WorkerDependencies:
             vector_size=vector_size,
         )
 
-        await self._ensure_collection(
-            collection_name=self._config.questions_collection_name,
-            vector_size=vector_size,
-        )
-
     async def _ensure_collection(
         self,
         collection_name: str,
         vector_size: int,
     ) -> None:
-        exists = await self._qdrant.collection_exists(collection_name)
+        if await self._qdrant.collection_exists(collection_name):
+            if await self._collection_schema_is_valid(collection_name, vector_size):
+                logger.info(
+                    "Qdrant collection already exists with valid schema: %s",
+                    collection_name,
+                )
+                return
 
-        if exists:
-            logger.info("Qdrant collection already exists: %s", collection_name)
-            return
+            raise RuntimeError(
+                f"Qdrant collection {collection_name!r} exists, but has invalid schema. "
+                "Expected named vectors: 'chunk' and 'questions'."
+            )
 
         await self._qdrant.create_collection(
             collection_name=collection_name,
-            vectors_config=VectorParams(
-                size=vector_size,
-                distance=Distance.COSINE,
-            ),
+            vectors_config={
+                "chunk": VectorParams(
+                    size=vector_size,
+                    distance=Distance.COSINE,
+                ),
+                "questions": VectorParams(
+                    size=vector_size,
+                    distance=Distance.COSINE,
+                    multivector_config=MultiVectorConfig(
+                        comparator=MultiVectorComparator.MAX_SIM,
+                    ),
+                ),
+            },
         )
 
         logger.info("Qdrant collection created: %s", collection_name)
+
+    async def _collection_schema_is_valid(
+        self,
+        collection_name: str,
+        vector_size: int,
+    ) -> bool:
+        collection = await self._qdrant.get_collection(collection_name)
+        vectors_config = collection.config.params.vectors
+
+        if not isinstance(vectors_config, dict):
+            return False
+
+        chunk_config = vectors_config.get("chunk")
+        questions_config = vectors_config.get("questions")
+
+        if chunk_config is None or questions_config is None:
+            return False
+
+        if chunk_config.size != vector_size:
+            return False
+
+        if questions_config.size != vector_size:
+            return False
+
+        return True
 
     async def aclose(self) -> None:
         try:

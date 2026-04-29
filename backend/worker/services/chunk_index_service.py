@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-from worker.schemas.document import StoredDocumentChunk, PreparedChunkIndex
+from worker.schemas.document import StoredDocumentChunk, EmbeddedChunkForIndex
 from worker.services.embedding.embedding_service import EmbeddingService
 from worker.services.quests_service import ChunkQuestionLLMService
 
@@ -19,29 +19,17 @@ class ChunkIndexingService:
     async def prepare_index_data(
         self,
         stored_chunks: list[StoredDocumentChunk],
-    ) -> PreparedChunkIndex:
+    ) -> list[EmbeddedChunkForIndex]:
         if not stored_chunks:
-            return PreparedChunkIndex(
-                embedded_chunks=[],
-                generated_questions=[],
-                embedded_questions=[],
-            )
+            return []
 
-        embedded_chunks = await self._embeddings.create_embeddings(stored_chunks)
-
-        generated_questions = await self._quest_service.generate_for_chunks(
+        chunks_with_questions = await self._quest_service.generate_for_chunks(
             stored_chunks
         )
 
-        if generated_questions:
-            embedded_questions = await self._embeddings.create_question_embeddings(
-                generated_questions
-            )
-        else:
-            embedded_questions = []
-
-        return PreparedChunkIndex(
-            embedded_chunks=embedded_chunks,
-            generated_questions=generated_questions,
-            embedded_questions=embedded_questions,
+        embedded_chunks = await self._embeddings.create_chunk_index_embeddings(
+            chunks_with_questions
         )
+        del chunks_with_questions
+
+        return embedded_chunks
