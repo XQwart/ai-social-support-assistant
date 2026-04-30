@@ -7,50 +7,59 @@
     <h1>База знаний (чанки)</h1>
 
     <form method="get" action="{{ base_path }}/chunks" class="filters">
-        <label>
+        <label class="filter-select-wrap">
             Источник
-            <select name="source_id">
-                <option value="">— все —</option>
-                {% for source in sources %}
-                <option value="{{ source.id }}" {% if selected_source_id == source.id %}selected{% endif %}>
-                    {{ source.name or source.url }}
-                </option>
-                {% endfor %}
-            </select>
+            <div class="csel-remote"
+                 data-csel-remote
+                 data-submit-on-change="1"
+                 data-endpoint="{{ base_path }}/chunks/sources/search"
+                 data-name="source_id"
+                 data-allow-empty="1"
+                 data-empty-label="— все —"
+                 data-placeholder="— все —"
+                 {% if selected_source %}
+                 data-selected-id="{{ selected_source.id }}"
+                 data-selected-label="{{ selected_source.name }}"
+                 {% endif %}></div>
         </label>
-        <label>
+        <label class="filter-search-wrap">
             Поиск
             <input type="search" name="search" value="{{ search }}" placeholder="Текст или название">
         </label>
-        <button type="submit" class="btn btn-secondary">Применить</button>
         <a class="btn btn-primary" href="{{ base_path }}/chunks/new{% if selected_source_id %}?source_id={{ selected_source_id }}{% endif %}">+ Новый чанк</a>
     </form>
 
     <p class="muted">Найдено: {{ total }}</p>
 
-    <table class="data-table">
+    <table class="data-table striped">
         <thead>
         <tr>
-            <th>ID</th>
-            <th>Источник</th>
-            <th>Индекс</th>
-            <th>Текст (первые 120 символов)</th>
-            <th>Qdrant point</th>
-            <th></th>
+            <th style="width:64px">ID</th>
+            <th style="width:160px">Источник</th>
+            <th style="width:64px; text-align:center">Индекс</th>
+            <th>Текст</th>
+            <th style="width:140px">Qdrant point</th>
+            <th style="width:72px"></th>
         </tr>
         </thead>
         <tbody>
         {% for chunk in chunks %}
         <tr>
-            <td>#{{ chunk.id }}</td>
-            <td>{{ chunk.source_name or chunk.source_url }}</td>
-            <td>{{ chunk.chunk_index }}</td>
-            <td>{{ chunk.text[:120] }}{% if chunk.text|length > 120 %}…{% endif %}</td>
+            <td><span class="chunk-id-badge">#{{ chunk.id }}</span></td>
+            <td class="chunk-source-cell" title="{{ chunk.source_name or chunk.source_url or '—' }}">
+                {{ chunk.source_name or chunk.source_url or "—" }}
+            </td>
+            <td class="chunk-index-cell">{{ chunk.chunk_index }}</td>
+            <td>
+                <div class="chunk-text-preview">{{ chunk.text }}</div>
+            </td>
             <td>
                 {% if chunk.qdrant_point_id %}
-                <code>{{ chunk.qdrant_point_id }}</code>
+                <span class="qdrant-status-ok">
+                    <span class="qdrant-id">{{ chunk.qdrant_point_id }}</span>
+                </span>
                 {% else %}
-                <span class="muted">не загружен</span>
+                <span class="qdrant-status-missing">не загружен</span>
                 {% endif %}
             </td>
             <td><a href="{{ base_path }}/chunks/{{ chunk.id }}">Открыть</a></td>

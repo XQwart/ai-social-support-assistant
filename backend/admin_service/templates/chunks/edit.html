@@ -6,15 +6,18 @@
 <section class="card">
     <p><a href="{{ base_path }}/chunks">← Все чанки</a></p>
     <h1>Чанк #{{ chunk.id }}</h1>
-    <p class="muted">
-        Источник: {{ chunk.source_name or chunk.source_url or "—" }}
-        · Индекс: {{ chunk.chunk_index }}
+
+    <div class="chunk-meta-bar">
+        <span><strong>Документ:</strong> {{ chunk.source_name or chunk.source_url or "— без источника —" }}</span>
+        <span><strong>Индекс:</strong> {{ chunk.chunk_index }}</span>
         {% if chunk.qdrant_point_id %}
-        · Qdrant point: <code>{{ chunk.qdrant_point_id }}</code>
+        <span class="qdrant-status-ok">
+            <strong>Qdrant:</strong>&nbsp;<span class="qdrant-id">{{ chunk.qdrant_point_id }}</span>
+        </span>
         {% else %}
-        · <span class="muted">не загружен в Qdrant</span>
+        <span class="qdrant-status-missing">не загружен в Qdrant</span>
         {% endif %}
-    </p>
+    </div>
 
     {% if request.query_params.get("saved") %}
     <div class="alert alert-success">Сохранено и переиндексировано.</div>
@@ -26,13 +29,57 @@
     <div class="alert alert-error">{{ error }}</div>
     {% endif %}
 
-    <form method="post" action="{{ base_path }}/chunks/{{ chunk.id }}">
+    <form method="post" action="{{ base_path }}/chunks/{{ chunk.id }}" class="chunk-form">
         <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+        <input type="hidden" name="place_of_work_set" value="1">
+
+        <!-- Левая колонка: Источник (ссылка) -->
         <label>
+            Источник (ссылка)
+            <input type="url" name="source_url"
+                   value="{% if draft_source_url is defined and draft_source_url %}{{ draft_source_url }}{% else %}{{ chunk.source_url or '' }}{% endif %}"
+                   placeholder="https://...">
+            <small class="muted">Если оставить пустым — URL документа.</small>
+        </label>
+
+        <!-- Правая колонка: Регион -->
+        <label>
+            Регион
+            {% set current_region = draft_region_code if draft_region_code is defined else chunk.region_code %}
+            <select name="region_code" class="select-enhanced">
+                <option value="">— наследовать у документа —</option>
+                {% for region in regions %}
+                <option value="{{ region.code }}" {% if current_region == region.code %}selected{% endif %}>
+                    {{ region.name }} ({{ region.code }})
+                </option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <!-- Левая колонка: Место работы -->
+        <label>
+            Место работы
+            {% set current_place = draft_place_of_work if draft_place_of_work is defined else chunk.place_of_work %}
+            <select name="place_of_work" class="select-enhanced">
+                <option value="" {% if not current_place %}selected{% endif %}>— None (доступно всем) —</option>
+                {% for place in places_of_work %}
+                <option value="{{ place }}" {% if current_place == place %}selected{% endif %}>{{ place }}</option>
+                {% endfor %}
+            </select>
+            <small class="muted">None — чанк виден без ограничений по работодателю.</small>
+        </label>
+
+        <!-- Правая колонка: пусто (выравнивание) -->
+        <div></div>
+
+        <!-- Полная ширина: текст чанка -->
+        <label class="col-full">
             Текст чанка
             <textarea name="text" rows="16" required>{% if draft_text is defined %}{{ draft_text }}{% else %}{{ chunk.text }}{% endif %}</textarea>
         </label>
-        <div class="form-actions">
+
+        <!-- Полная ширина: кнопки -->
+        <div class="form-actions col-full">
             <button type="submit" class="btn btn-primary">Сохранить и переиндексировать</button>
         </div>
     </form>

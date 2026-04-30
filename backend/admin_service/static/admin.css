@@ -424,3 +424,396 @@ textarea {
 .danger-zone {
     margin-top: 1rem;
 }
+
+/* ----------------------------------------------------------------------
+   Chunk form — двухколоночный grid-layout
+   ---------------------------------------------------------------------- */
+.chunk-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 2rem;
+    align-items: start;
+}
+
+.chunk-form .col-full {
+    grid-column: 1 / -1;
+}
+
+/* Скрытые hidden-input не занимают место в гриде */
+.chunk-form input[type="hidden"] {
+    display: none;
+}
+
+/* ----------------------------------------------------------------------
+   Custom Select Dropdown (.csel)
+   Стилизованный дропдаун с видимым скроллбаром
+   ---------------------------------------------------------------------- */
+
+/* Обёртка — занимает место нативного select */
+.csel {
+    position: relative;
+    display: block;
+    width: 100%;
+    margin-top: 0.3rem;
+}
+
+/* Кнопка-тригер (то, что видит пользователь как "select") */
+.csel__trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0.48rem 0.75rem 0.48rem 0.6rem;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    background: #fff;
+    font: inherit;
+    font-size: inherit;
+    color: inherit;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    gap: 0.4rem;
+}
+
+.csel__trigger:hover {
+    border-color: #a0aec0;
+}
+
+.csel__trigger.is-open {
+    border-color: var(--color-accent);
+    border-radius: 4px 4px 0 0;
+    box-shadow: 0 0 0 2px rgba(47, 111, 209, 0.2);
+}
+
+/* Текст выбранного значения */
+.csel__display {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.3;
+}
+
+/* Стрелка */
+.csel__caret {
+    flex-shrink: 0;
+    color: var(--color-muted);
+    display: flex;
+    align-items: center;
+    transition: transform 0.18s;
+}
+
+.csel__trigger.is-open .csel__caret {
+    transform: rotate(180deg);
+}
+
+/* Выпадающая панель */
+.csel__panel {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 300;
+    background: #fff;
+    border: 1px solid var(--color-accent);
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.13);
+    overflow: hidden;
+}
+
+/* Строка поиска внутри дропдауна */
+.csel__search-wrap {
+    padding: 0.4rem 0.5rem;
+    border-bottom: 1px solid var(--color-border);
+    background: #f7f9fc;
+}
+
+.csel__search {
+    display: block;
+    width: 100%;
+    padding: 0.3rem 0.5rem;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    font: inherit;
+    font-size: 0.9rem;
+    background: #fff;
+    color: inherit;
+}
+
+.csel__search:focus {
+    outline: none;
+    border-color: var(--color-accent);
+}
+
+/* Скролл-контейнер — главный элемент с видимым скроллбаром */
+.csel__scroller {
+    max-height: 210px;
+    overflow-y: scroll;
+    overscroll-behavior: contain;
+}
+
+/* Кастомный скроллбар (Webkit/Blink) */
+.csel__scroller::-webkit-scrollbar {
+    width: 8px;
+}
+
+.csel__scroller::-webkit-scrollbar-track {
+    background: #f0f3f8;
+}
+
+.csel__scroller::-webkit-scrollbar-thumb {
+    background: #b0bac8;
+    border-radius: 4px;
+    border: 2px solid #f0f3f8;
+}
+
+.csel__scroller::-webkit-scrollbar-thumb:hover {
+    background: #6b7280;
+}
+
+/* Firefox */
+.csel__scroller {
+    scrollbar-width: thin;
+    scrollbar-color: #b0bac8 #f0f3f8;
+}
+
+/* Элемент списка */
+.csel__option {
+    padding: 0.42rem 0.75rem;
+    cursor: pointer;
+    font-size: 0.94rem;
+    line-height: 1.35;
+    border-bottom: 1px solid #f4f6fa;
+    transition: background 0.08s;
+    user-select: none;
+}
+
+.csel__option:last-child {
+    border-bottom: none;
+}
+
+.csel__option:hover {
+    background: #f0f3f8;
+}
+
+.csel__option.is-selected {
+    background: var(--color-accent);
+    color: #fff;
+}
+
+.csel__option.is-selected:hover {
+    background: var(--color-accent-hover);
+}
+
+/* Подсветка поиска */
+.csel__option mark {
+    background: #fff3a3;
+    color: inherit;
+    border-radius: 2px;
+    padding: 0 1px;
+}
+
+.csel__option.is-selected mark {
+    background: rgba(255, 255, 255, 0.35);
+}
+
+/* Пустое состояние */
+.csel__empty {
+    padding: 0.6rem 0.75rem;
+    color: var(--color-muted);
+    font-size: 0.9rem;
+    font-style: italic;
+}
+
+/* ----------------------------------------------------------------------
+   Таблица чанков — оптимизированное отображение
+   ---------------------------------------------------------------------- */
+
+/* Превью текста: до 2 строк с обрезкой */
+.chunk-text-preview {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+    max-width: 380px;
+    line-height: 1.4;
+    font-size: 0.9rem;
+    color: var(--color-text);
+}
+
+/* Бейдж ID */
+.chunk-id-badge {
+    display: inline-block;
+    background: #eaeff8;
+    color: #3a5280;
+    border-radius: 4px;
+    padding: 0.1em 0.45em;
+    font-size: 0.82rem;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* Qdrant ID — маленький моно */
+.qdrant-id {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--color-muted);
+    word-break: break-all;
+    max-width: 130px;
+    display: inline-block;
+    line-height: 1.3;
+}
+
+/* Чередующиеся строки в таблице */
+.data-table.striped tbody tr:nth-child(even) {
+    background: #f8fafd;
+}
+
+/* Центрированная ячейка индекса */
+.chunk-index-cell {
+    text-align: center;
+    color: var(--color-muted);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.9rem;
+}
+
+/* Источник — truncate длинный URL */
+.chunk-source-cell {
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.88rem;
+}
+
+/* Статус Qdrant */
+.qdrant-status-ok {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.qdrant-status-ok::before {
+    content: '';
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #22c55e;
+    flex-shrink: 0;
+}
+
+.qdrant-status-missing {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: var(--color-muted);
+    font-size: 0.88rem;
+}
+
+.qdrant-status-missing::before {
+    content: '';
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #d1d5db;
+    flex-shrink: 0;
+}
+
+/* ----------------------------------------------------------------------
+   Удалённый (paginated) пикер источника
+   ---------------------------------------------------------------------- */
+.csel-remote {
+    position: relative;
+    display: block;
+    width: 100%;
+    margin-top: 0.3rem;
+}
+
+.csel__display.is-empty {
+    color: var(--color-muted);
+}
+
+.csel__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.4rem;
+    padding: 0.4rem 0.5rem;
+    border-top: 1px solid var(--color-border);
+    background: #f7f9fc;
+    font-size: 0.85rem;
+}
+
+.csel__pager {
+    background: #fff;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    padding: 0.2rem 0.55rem;
+    cursor: pointer;
+    font: inherit;
+    color: var(--color-text);
+}
+
+.csel__pager:hover:not(:disabled) {
+    background: #f0f3f8;
+    border-color: #a0aec0;
+}
+
+.csel__pager:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.csel__pageinfo {
+    color: var(--color-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ----------------------------------------------------------------------
+   Filters in chunks list
+   ---------------------------------------------------------------------- */
+.filters .filter-select-wrap {
+    min-width: 200px;
+}
+
+.filters .filter-search-wrap {
+    min-width: 240px;
+    flex: 1;
+}
+
+.filters .btn {
+    flex-shrink: 0;
+    align-self: flex-end;
+    margin-bottom: 0;
+}
+
+.filters label {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    margin-bottom: 0;
+}
+
+.chunk-meta-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.2rem;
+    align-items: center;
+    padding: 0.5rem 0.8rem;
+    background: #f7f9fc;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    margin-bottom: 1.2rem;
+    font-size: 0.9rem;
+    color: var(--color-muted);
+}
+
+.chunk-meta-bar strong {
+    color: var(--color-text);
+}

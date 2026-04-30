@@ -49,6 +49,8 @@ class _StubChunk:
     chunk_index: int
     text: str
     qdrant_point_id: UUID | None
+    region_code: str | None = None
+    place_of_work: str | None = None
 
 
 class _StubChunkRepo:
@@ -64,7 +66,32 @@ class _StubChunkRepo:
     async def get_source_region_codes(self, source_id: int) -> list[str]:
         return list(self._region_codes)
 
-    async def next_chunk_index(self, source_id: int) -> int:
+    async def list_regions(self) -> list:
+        return []
+
+    async def list_places_of_work(self) -> list[str]:
+        return []
+
+    async def list_sources(self) -> list[_StubSource]:
+        return [self._source]
+
+    async def list_sources_paginated(
+        self,
+        search: str | None = None,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> tuple[list[_StubSource], int]:
+        items = [self._source]
+        if search:
+            needle = search.lower()
+            items = [
+                s
+                for s in items
+                if needle in (s.name or "").lower() or needle in (s.url or "").lower()
+            ]
+        return items[offset : offset + limit], len(items)
+
+    async def next_chunk_index(self, source_id: int | None) -> int:
         return len(
             [c for c in self._chunks.values() if c.source_id == source_id]
         )
@@ -78,6 +105,8 @@ class _StubChunkRepo:
         chunk_index: int,
         text: str,
         qdrant_point_id: UUID,
+        region_code: str | None = None,
+        place_of_work: str | None = None,
     ) -> _StubChunk:
         chunk = _StubChunk(
             id=self._next_id,
@@ -87,6 +116,8 @@ class _StubChunkRepo:
             chunk_index=chunk_index,
             text=text,
             qdrant_point_id=qdrant_point_id,
+            region_code=region_code,
+            place_of_work=place_of_work,
         )
         self._chunks[chunk.id] = chunk
         self._next_id += 1
@@ -98,10 +129,17 @@ class _StubChunkRepo:
         chunk_id: int,
         text: str,
         qdrant_point_id: UUID,
+        region_code: str | None = None,
+        place_of_work: str | None = None,
+        source_url: str | None = None,
     ) -> None:
         chunk = self._chunks[chunk_id]
         chunk.text = text
         chunk.qdrant_point_id = qdrant_point_id
+        chunk.region_code = region_code
+        chunk.place_of_work = place_of_work
+        if source_url is not None:
+            chunk.source_url = source_url
 
     async def get_by_id(self, chunk_id: int) -> _StubChunk | None:
         return self._chunks.get(chunk_id)
@@ -372,3 +410,47 @@ async def test_create_rejects_blank_text(service, stub_source):
 
     with pytest.raises(ChunkValidationError):
         await svc.create(source_id=stub_source.id, text="   ", admin_id=1)
+
+
+@pytest.mark.asyncio
+async def test_create_without_source_keeps_form_url_only(service):
+    svc, repo, qdrant, *_ = service
+
+    chunk = await svc.create(
+        source_id=None,
+        text="orphan chunk",
+        admin_id=7,
+        source_url="https://example.org/loose",
+    )
+
+    assert chunk.source_id is None
+    assert chunk.source_url == "https://example.org/loose"
+    assert chunk.source_name is None
+    assert qdrant.upserts[0].payload["source_id"] is None
+    assert qdrant.upserts[0].payload["region_codes"] is None
+
+
+@pytest.mark.asyncio
+async def test_create_without_source_and_url(service):
+    svc, *_ = service
+
+    chunk = await svc.create(
+        source_id=None,
+        text="floating",
+        admin_id=7,
+    )
+
+    assert chunk.source_id is None
+    assert chunk.source_url is None
+
+
+@pytest.mark.asyncio
+async def test_list_sources_paginated_returns_data(service):
+    svc, *_ = service
+
+    items, total = await svc.list_sources_paginated(
+        search=None, limit=10, offset=0
+    )
+
+    assert total == 1
+    assert items[0].id == 42

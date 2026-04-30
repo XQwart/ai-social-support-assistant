@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from pydantic import BaseModel
 
 
@@ -23,6 +25,7 @@ class StoredDocumentChunk(BaseModel):
     source_name: str | None = None
     chunk_index: int
     text: str
+    qdrant_point_id: UUID | None = None
 
 
 class EmbeddedDocumentChunk(BaseModel):
@@ -33,6 +36,7 @@ class EmbeddedDocumentChunk(BaseModel):
     chunk_index: int
     text: str
     vector: list[float]
+    qdrant_point_id: UUID | None = None
 
 
 class DiscoveredLink(BaseModel):
