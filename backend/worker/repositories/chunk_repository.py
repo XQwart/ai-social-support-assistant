@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from uuid import uuid4
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,6 +32,7 @@ class ChunkRepository:
                 source_name=chunk.source_name,
                 chunk_index=chunk.chunk_index,
                 text=chunk.text,
+                qdrant_point_id=uuid4(),
             )
             self._session.add(row)
             rows.append(row)
@@ -45,6 +47,7 @@ class ChunkRepository:
                 source_name=row.source_name,
                 chunk_index=row.chunk_index,
                 text=row.text,
+                qdrant_point_id=row.qdrant_point_id,
             )
             for row in rows
         ]
@@ -84,6 +87,7 @@ class ChunkRepository:
                 source_name=row.source_name,
                 chunk_index=row.chunk_index,
                 text=row.text,
+                qdrant_point_id=row.qdrant_point_id,
             )
             for row in rows
         ]
@@ -106,6 +110,7 @@ class ChunkRepository:
                 source_name=row.source_name,
                 chunk_index=row.chunk_index,
                 text=row.text,
+                qdrant_point_id=row.qdrant_point_id,
             )
             for row in rows
         ]
