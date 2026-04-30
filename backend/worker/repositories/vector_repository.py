@@ -5,7 +5,7 @@ from uuid import uuid4
 
 from qdrant_client import AsyncQdrantClient, models
 
-from worker.schemas.document import EmbeddedDocumentChunk, EmbeddedChunkQuestion
+from worker.schemas.document import EmbeddedChunkQuestion, EmbeddedDocumentChunk
 
 
 class VectorRepository:
@@ -53,7 +53,7 @@ class VectorRepository:
 
             points.append(
                 models.PointStruct(
-                    id=str(uuid4()),
+                    id=str(chunk.qdrant_point_id or uuid4()),
                     vector=chunk.vector,
                     payload=payload,
                 )

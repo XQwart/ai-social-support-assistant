@@ -19,22 +19,21 @@ class DocumentChunk(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
-    source_id: Mapped[int] = mapped_column(
+    source_id: Mapped[int | None] = mapped_column(
         ForeignKey("source.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
     )
 
-    source_url: Mapped[str] = mapped_column(String(2048), nullable=False)
+    source_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     source_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
 
     text: Mapped[str] = mapped_column(Text, nullable=False)
 
-    # Stable Qdrant point ID. NULL for legacy rows created before the
-    # admin panel landed; populated on every worker upsert and on every
-    # admin-side create/update so we can target the exact vector without
-    # scanning payload.text_id.
+    region_code: Mapped[str | None] = mapped_column(String(4), nullable=True)
+    place_of_work: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
     qdrant_point_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
         nullable=True,
