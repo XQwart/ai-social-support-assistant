@@ -16,3 +16,7 @@ def create_sber_http_client(config: Config) -> httpx.AsyncClient:
     )
 
     return httpx.AsyncClient(verify=ssl_ctx)
+
+
+def create_http_client() -> httpx.AsyncClient:
+    return httpx.AsyncClient()

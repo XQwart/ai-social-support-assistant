@@ -1,4 +1,10 @@
-use_default_settings: true
+use_default_settings:
+  engines:
+    keep_only:
+      - google
+      - brave
+      - duckduckgo
+      - yandex
 
 general:
     instance_name: "SOC Assistant Search"
@@ -29,28 +35,14 @@ valkey:
 
 engines:
     - name: yandex
-      disabled: false
       timeout: 4.0
 
     - name: google
-      disabled: false
       timeout: 4.0
 
     - name: brave
-      disabled: false
       timeout: 4.0
 
     - name: duckduckgo
-      disabled: false
       timeout: 4.0
 
-    - name: wikidata
-      disabled: true
-    - name: ahmia
-      disabled: true
-    - name: torch
-      disabled: true
-    - name: bing images
-      disabled: true
-    - name: youtube
-      disabled: true

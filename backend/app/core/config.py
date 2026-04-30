@@ -52,6 +52,10 @@ class Config(BaseSettings):
 
     qdrant_collection: str = "chunk_collection"
 
+    searxng_url: str = "http://searxng:8080"
+    web_search_timeout: float = 8.0
+    web_search_max_results: int = 8
+
     rag_distance: Distance = Distance.COSINE
     rag_top_k: int = 6
     rag_min_per_category: int = 2

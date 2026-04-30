@@ -19,7 +19,7 @@ from app.dependencies.repositories import (
     ChunkRepoDep,
     RegionRepoDep,
 )
-from app.dependencies.http import HTTPSberClientDep
+from app.dependencies.http import HTTPSberClientDep, HTTPWebSearchClientDep
 from app.dependencies.jwt import AccessTokenDep, RefreshTokenDep
 from app.dependencies.prompt import PromptServiceDep
 from app.services import (
@@ -32,6 +32,7 @@ from app.services import (
     UserService,
     RAGService,
     RegionService,
+    WebSearchService
 )
 
 
@@ -125,6 +126,10 @@ def get_rag_service(
     return RAGService(client, document_repo, chunk_repo)
 
 
+def get_web_search_service(client: HTTPWebSearchClientDep, config: ConfigDep) -> WebSearchService:
+    return WebSearchService(client, config)
+
+
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 ChatServiceDep = Annotated[ChatService, Depends(get_chat_service)]
 MessageServiceDep = Annotated[MessageService, Depends(get_message_service)]
@@ -136,3 +141,4 @@ UserServiceDep = Annotated[UserService, Depends(get_user_service)]
 RAGServiceDep = Annotated[RAGService, Depends(get_rag_service)]
 RegionServiceDep = Annotated[RegionService, Depends(get_region_service)]
 AgentServiceDep = Annotated[AgentService, Depends(get_agent_service)]
+WebSearchServiceDep = Annotated[WebSearchService, Depends(get_web_search_service)]
