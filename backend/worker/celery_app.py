@@ -27,7 +27,6 @@ app = Celery(
         "worker.tasks.get_source_link_task",
         "worker.tasks.import_one_source_task",
         "worker.tasks.finalize_source_import_task",
-        "worker.tasks.chunk_management_task",
     ],
 )
 
@@ -48,18 +47,6 @@ app.conf.update(
         "sep": ":",
     },
     task_routes={
-        "worker.tasks.chunk_management.add_text_to_source": {
-            "queue": "default",
-            "priority": 0,
-        },
-        "worker.tasks.chunk_management.update_chunk": {
-            "queue": "default",
-            "priority": 0,
-        },
-        "worker.tasks.chunk_management.delete_chunk": {
-            "queue": "default",
-            "priority": 0,
-        },
         "worker.tasks.update_knowledge_task.update_knowledge": {
             "queue": "default",
             "priority": 5,

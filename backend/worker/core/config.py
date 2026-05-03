@@ -63,6 +63,7 @@ class Config(BaseSettings):
     gigachat_scope: str = "GIGACHAT_API_B2B"
 
     llm_timeout: float = 15.0
+    processing_service_url: str = "http://chunk-api:8002"
 
     def _get_redis_url(self, database_num: int) -> str:
         return f"redis://{self.redis_host}:{self.redis_port}/{database_num}"

@@ -29,6 +29,7 @@ class DocumentParsingService:
         url: str,
         name: str | None,
         document_type: str,
+        place_of_work: str | None = None,
     ) -> ParsedDocument | None:
         if not url:
             logger.warning("Source %d: пустой URL", source_id)
@@ -47,6 +48,7 @@ class DocumentParsingService:
             source_url=url,
             source_name=name,
             text=text,
+            place_of_work=place_of_work,
         )
 
     async def aclose(self) -> None:

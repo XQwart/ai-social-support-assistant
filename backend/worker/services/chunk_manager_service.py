@@ -60,7 +60,6 @@ class ChunkManagementService:
 
         return await self.ingest_document(
             document=document,
-            place_of_work=place_of_work,
             replace_existing=False,
         )
 
@@ -68,7 +67,6 @@ class ChunkManagementService:
         self,
         *,
         document: ParsedDocument,
-        place_of_work: str | None,
         replace_existing: bool,
     ) -> dict:
         chunks = self._chunking.split_document(document=document)
@@ -117,7 +115,7 @@ class ChunkManagementService:
         questions_count = sum(len(chunk.questions) for chunk in embedded_chunks)
 
         access_scope = self._resolve_access_scope(
-            place_of_work=place_of_work,
+            place_of_work=document.place_of_work,
         )
 
         geo_scope = self._resolve_geo_scope(
@@ -127,7 +125,7 @@ class ChunkManagementService:
         indexed_count = await self._documents.upsert_chunk_vectors(
             chunks=embedded_chunks,
             regions=regions,
-            place_of_work=place_of_work,
+            place_of_work=document.place_of_work,
             access_scope=access_scope,
             geo_scope=geo_scope,
         )

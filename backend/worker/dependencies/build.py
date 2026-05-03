@@ -4,33 +4,16 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from redis import Redis
-from qdrant_client.models import (
-    Distance,
-    VectorParams,
-    MultiVectorConfig,
-    MultiVectorComparator,
-)
+import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from worker.core.config import Config, get_config
-from worker.db.qdrant import create_qdrant
 from worker.db.session import create_session
 from worker.repositories import (
-    ChunkRepository,
-    RegionRepository,
     SourceCrawlRepository,
     SourceRegistrationRepository,
-    VectorRepository,
+    RegionRepository,
 )
-from worker.services.chunk_index_service import ChunkIndexingService
-from worker.services.chunk_manager_service import ChunkManagementService
-from worker.services.chunk_service import ChunkingService
-from worker.services.discovery_service import LinkDiscoveryService
-from worker.services.document_service import DocumentService
-from worker.services.embedding.build import build_embedding_provider
-from worker.services.embedding.embedding_service import EmbeddingService
-from worker.services.llm.build import build_llm_client
 from worker.services.parsing import (
     DocumentParsingService,
     HtmlLinkExtractor,
@@ -38,10 +21,8 @@ from worker.services.parsing import (
     PdfTextExtractor,
     WebPageFetcher,
 )
-from worker.services.processing_service import SourceProcessingService
-from worker.services.quests_service import ChunkQuestionLLMService
+from worker.services.discovery_service import LinkDiscoveryService
 from worker.services.region_import_service import RegionSourceImportService
-from worker.services.runtime_state_service import RuntimeStateService
 from worker.services.source import (
     RegionService,
     SourceCrawlService,
@@ -56,31 +37,12 @@ class WorkerDependencies:
         self._config = config
 
     @classmethod
-    async def create(
-        cls,
-        config: Config | None = None,
-    ) -> "WorkerDependencies":
+    async def create(cls, config: Config | None = None) -> "WorkerDependencies":
         instance = cls(config or get_config())
         await instance._ainit()
         return instance
 
     async def _ainit(self) -> None:
-        self._provider = build_embedding_provider(config=self._config)
-        self._qdrant = create_qdrant(url=self._config.qdrant_url)
-        self._llm_client = build_llm_client(config=self._config)
-
-        self._quest_service = ChunkQuestionLLMService(
-            llm_client=self._llm_client,
-        )
-
-        self._redis = Redis.from_url(
-            self._config.redis_celery_url,
-            decode_responses=True,
-        )
-        self._runtime_state_service = RuntimeStateService(
-            redis_client=self._redis,
-        )
-
         self._sessionmaker = create_session(self._config.database_url)
 
         self._fetcher = WebPageFetcher(
@@ -96,98 +58,64 @@ class WorkerDependencies:
             pdf_extractor=self._pdf_extractor,
         )
 
-        self._chunking_service = ChunkingService(
-            embedding_model=self._config.polza_ai_embedding_model,
+        self._http_client = httpx.AsyncClient(
+            timeout=300.0,
         )
-
-        self._embedding_service = EmbeddingService(
-            provider=self._provider,
-            model=self._config.polza_ai_embedding_model,
-        )
-
-        await self.ensure_collections(self._provider.vector_size)
 
         logger.info("WorkerDependencies initialized")
 
     @asynccontextmanager
     async def session_scope(self) -> AsyncIterator[AsyncSession]:
         session = self._sessionmaker()
-
         try:
             yield session
             await session.commit()
-
         except Exception:
             await session.rollback()
             raise
-
         finally:
             session.expunge_all()
             await session.close()
 
     @property
-    def runtime_state_service(self) -> RuntimeStateService:
-        return self._runtime_state_service
+    def parsing_service(self) -> DocumentParsingService:
+        return self._parsing_service
 
-    def build_processing_service(
+    @property
+    def http_client(self) -> httpx.AsyncClient:
+        return self._http_client
+
+    @property
+    def processing_url(self) -> str:
+        return self._config.processing_service_url
+
+    def build_source_crawl_service(
         self,
         session: AsyncSession,
-    ) -> SourceProcessingService:
-        source_rep = SourceCrawlRepository(session=session)
+    ) -> SourceCrawlService:
+        repo = SourceCrawlRepository(session=session)
+        return SourceCrawlService(source_repository=repo)
 
-        source_service = SourceCrawlService(
-            source_repository=source_rep,
-        )
-
-        chunk_management_service = self.build_chunk_management_service(
-            session=session,
-        )
-
-        return SourceProcessingService(
-            parsing_service=self._parsing_service,
-            source_service=source_service,
-            chunk_management_service=chunk_management_service,
-        )
-
-    def build_chunk_management_service(
+    def build_source_registration_service(
         self,
         session: AsyncSession,
-    ) -> ChunkManagementService:
-        document_service = self._build_document_service(session=session)
+    ) -> SourceRegistrationService:
+        repo = SourceRegistrationRepository(session=session)
+        return SourceRegistrationService(source_repository=repo)
 
-        chunk_indexing_service = self._build_chunk_indexing_service()
-
-        region_rep = RegionRepository(session=session)
-        region_service = RegionService(
-            region_repository=region_rep,
-        )
-
-        source_repository = SourceRegistrationRepository(session=session)
-        source_service = SourceRegistrationService(
-            source_repository=source_repository,
-        )
-
-        return ChunkManagementService(
-            document_service=document_service,
-            chunking_service=self._chunking_service,
-            region_service=region_service,
-            source_service=source_service,
-            chunk_indexing_service=chunk_indexing_service,
-        )
+    def build_region_service(
+        self,
+        session: AsyncSession,
+    ) -> RegionService:
+        repo = RegionRepository(session=session)
+        return RegionService(region_repository=repo)
 
     def build_region_source_import_service(
         self,
         session: AsyncSession,
     ) -> RegionSourceImportService:
-        region_rep = RegionRepository(session=session)
-        region_service = RegionService(
-            region_repository=region_rep,
-        )
-
-        source_repository = SourceRegistrationRepository(session=session)
-        source_service = SourceRegistrationService(
-            source_repository=source_repository,
-        )
+        region_service = self.build_region_service(session)
+        source_service = self.build_source_registration_service(session)
 
         link_service = LinkDiscoveryService(
             fetcher=self._fetcher,
@@ -201,98 +129,6 @@ class WorkerDependencies:
             link_discovery_service=link_service,
         )
 
-    def _build_document_service(
-        self,
-        session: AsyncSession,
-    ) -> DocumentService:
-        vector_rep = VectorRepository(
-            client=self._qdrant,
-            chunks_collection_name=self._config.chunks_collection_name,
-        )
-
-        chunk_rep = ChunkRepository(
-            session=session,
-        )
-
-        return DocumentService(
-            vector_rep=vector_rep,
-            chunk_rep=chunk_rep,
-        )
-
-    def _build_chunk_indexing_service(self) -> ChunkIndexingService:
-        return ChunkIndexingService(
-            embedding_service=self._embedding_service,
-            quest_service=self._quest_service,
-        )
-
-    async def ensure_collections(self, vector_size: int) -> None:
-        await self._ensure_collection(
-            collection_name=self._config.chunks_collection_name,
-            vector_size=vector_size,
-        )
-
-    async def _ensure_collection(
-        self,
-        collection_name: str,
-        vector_size: int,
-    ) -> None:
-        if await self._qdrant.collection_exists(collection_name):
-            if await self._collection_schema_is_valid(collection_name, vector_size):
-                logger.info(
-                    "Qdrant collection already exists with valid schema: %s",
-                    collection_name,
-                )
-                return
-
-            raise RuntimeError(
-                f"Qdrant collection {collection_name!r} exists, but has invalid schema. "
-                "Expected named vectors: 'chunk' and 'questions'."
-            )
-
-        await self._qdrant.create_collection(
-            collection_name=collection_name,
-            vectors_config={
-                "chunk": VectorParams(
-                    size=vector_size,
-                    distance=Distance.COSINE,
-                ),
-                "questions": VectorParams(
-                    size=vector_size,
-                    distance=Distance.COSINE,
-                    multivector_config=MultiVectorConfig(
-                        comparator=MultiVectorComparator.MAX_SIM,
-                    ),
-                ),
-            },
-        )
-
-        logger.info("Qdrant collection created: %s", collection_name)
-
-    async def _collection_schema_is_valid(
-        self,
-        collection_name: str,
-        vector_size: int,
-    ) -> bool:
-        collection = await self._qdrant.get_collection(collection_name)
-        vectors_config = collection.config.params.vectors
-
-        if not isinstance(vectors_config, dict):
-            return False
-
-        chunk_config = vectors_config.get("chunk")
-        questions_config = vectors_config.get("questions")
-
-        if chunk_config is None or questions_config is None:
-            return False
-
-        if chunk_config.size != vector_size:
-            return False
-
-        if questions_config.size != vector_size:
-            return False
-
-        return True
-
     async def aclose(self) -> None:
         try:
             await self._parsing_service.aclose()
@@ -300,24 +136,9 @@ class WorkerDependencies:
             logger.exception("Failed to close parsing service")
 
         try:
-            await self._qdrant.close()
+            await self._http_client.aclose()
         except Exception:
-            logger.exception("Failed to close qdrant client")
-
-        try:
-            await self._provider.aclose()
-        except Exception:
-            logger.exception("Failed to close embedding provider")
-
-        try:
-            await self._llm_client.aclose()
-        except Exception:
-            logger.exception("Failed to close llm client")
-
-        try:
-            self._redis.close()
-        except Exception:
-            logger.exception("Failed to close redis client")
+            logger.exception("Failed to close http client")
 
         try:
             engine = self._sessionmaker.kw.get("bind")

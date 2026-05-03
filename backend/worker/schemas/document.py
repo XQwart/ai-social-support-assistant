@@ -4,8 +4,9 @@ from pydantic import BaseModel, Field
 class ParsedDocument(BaseModel):
     source_id: int
     source_url: str
-    source_name: str | None = None
     text: str
+    source_name: str | None = None
+    place_of_work: str | None = None
 
 
 class DocumentChunkCreate(ParsedDocument):

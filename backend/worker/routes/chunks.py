@@ -1,10 +1,10 @@
+# app/routers/chunks.py
 from __future__ import annotations
 
 from fastapi import APIRouter, status
 
-from worker.celery_app import app
+from worker.dependencies.services import ChunkManagementServiceDep
 from worker.schemas.request import AddTextToSourceRequest, UpdateChunkRequest
-
 
 router = APIRouter(
     prefix="/api/v1",
@@ -12,56 +12,37 @@ router = APIRouter(
 )
 
 
-@router.post("/sources/text", status_code=status.HTTP_202_ACCEPTED)
-async def add_text(payload: AddTextToSourceRequest) -> dict:
-    task = app.send_task(
-        "worker.tasks.chunk_management.add_text_to_source",
-        args=[payload.model_dump()],
-        queue="default",
-        priority=0,
+@router.post("/chunks/text", status_code=status.HTTP_201_CREATED)
+async def add_text(
+    payload: AddTextToSourceRequest,
+    chunk_manager: ChunkManagementServiceDep,
+):
+    return await chunk_manager.add_text_to_source(
+        source_url=payload.source_url,
+        source_name=payload.source_name,
+        region_code=payload.region_code,
+        region_name=payload.region_name,
+        place_of_work=payload.place_of_work,
+        text=payload.text,
     )
 
-    return {
-        "status": "accepted",
-        "task_id": task.id,
-    }
 
-
-@router.patch("/chunks/{chunk_id}", status_code=status.HTTP_202_ACCEPTED)
-async def patch_chunk(chunk_id: int, payload: UpdateChunkRequest) -> dict:
-    task = app.send_task(
-        "worker.tasks.chunk_management.update_chunk",
-        args=[
-            {
-                "chunk_id": chunk_id,
-                "text": payload.text,
-                "place_of_work": payload.place_of_work,
-            }
-        ],
-        queue="default",
-        priority=0,
+@router.patch("/chunks/{chunk_id}")
+async def patch_chunk(
+    chunk_id: int,
+    payload: UpdateChunkRequest,
+    chunk_manager: ChunkManagementServiceDep,
+):
+    return await chunk_manager.update_chunk(
+        chunk_id=chunk_id,
+        text=payload.text,
+        place_of_work=payload.place_of_work,
     )
 
-    return {
-        "status": "accepted",
-        "task_id": task.id,
-    }
 
-
-@router.delete("/chunks/{chunk_id}", status_code=status.HTTP_202_ACCEPTED)
-async def remove_chunk(chunk_id: int) -> dict:
-    task = app.send_task(
-        "worker.tasks.chunk_management.delete_chunk",
-        args=[
-            {
-                "chunk_id": chunk_id,
-            }
-        ],
-        queue="default",
-        priority=0,
-    )
-
-    return {
-        "status": "accepted",
-        "task_id": task.id,
-    }
+@router.delete("/chunks/{chunk_id}")
+async def remove_chunk(
+    chunk_id: int,
+    chunk_manager: ChunkManagementServiceDep,
+):
+    return await chunk_manager.delete_chunk(chunk_id=chunk_id)

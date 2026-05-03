@@ -13,17 +13,14 @@ from worker.services.embedding.base_provider import BaseEmbeddingProvider
 
 class EmbeddingService:
     _provider: BaseEmbeddingProvider
-    _model: str
     _batch_size: int
 
     def __init__(
         self,
         provider: BaseEmbeddingProvider,
-        model: str,
         batch_size: int = 256,
     ) -> None:
         self._provider = provider
-        self._model = model
         self._batch_size = batch_size
 
     def _iter_batches(self, items: list) -> Iterator[list]:
