@@ -22,6 +22,8 @@ def make_retrive_tool(
     region_service: RegionService,
     config: Config,
 ) -> BaseTool:
+    citation_char_limit = config.rag_citation_char_limit
+    chunk_text_char_limit = config.rag_chunk_text_char_limit
 
     @tool
     async def search_knowledge_base(query: str, region_name: str | None) -> str:
@@ -92,96 +94,70 @@ def make_retrive_tool(
                 "на gosuslugi.ru или sfr.gov.ru."
             )
 
-        return _format_chunks(
-            public_chunks,
-            internal_chunks,
-            region_name,
-            config.rag_citation_char_limit,
-            config.rag_chunk_text_char_limit,
+        return _format_chunks(public_chunks, internal_chunks, region_name)
+
+    def _format_chunks(
+        public: list[RetrievedChunk],
+        internal: list[RetrievedChunk],
+        region_name: str | None,
+    ) -> str:
+        """Render chunks as ready-to-copy Markdown blocks.
+
+        Each chunk becomes a block of the form::
+
+            ### [Название источника](URL) — Регион
+            > короткая цитата
+            Полный текст: ...
+
+        The model is instructed (in the tool docstring and system prompt) to
+        copy the ``###`` header and the ``>`` quote verbatim into its answer.
+        """
+
+        parts: list[str] = []
+
+        if public:
+            parts.append("## Публичные источники\n")
+            parts.extend(
+                _render_chunk(c, region_name, idx)
+                for idx, c in enumerate(public, start=1)
+            )
+
+        if internal:
+            parts.append(
+                "\n## Внутренние источники ПАО Сбербанк\n"
+                "ВАЖНО: в ответе пользователю НЕ указывай URL, "
+                "ссылайся как «согласно внутренним документам ПАО Сбербанк»."
+            )
+            parts.extend(
+                _render_internal_chunk(c, idx)
+                for idx, c in enumerate(internal, start=1)
+            )
+
+        return "\n\n".join(parts)
+
+    def _render_chunk(chunk: RetrievedChunk, region_name: str | None, idx: int) -> str:
+        title = (chunk.source_name or f"Источник {idx}").strip()
+        url = (chunk.source_url or "").strip()
+        region_label = (region_name or "РФ").strip() or "РФ"
+        text = chunk.text or ""
+        citation = text_utils.shorten_inline(text, citation_char_limit)
+        full_text = text_utils.shorten_inline(text, chunk_text_char_limit)
+
+        if url:
+            header = f"### [{title}]({url}) — {region_label}"
+        else:
+            header = f"### {title} — {region_label}\n(URL отсутствует — ссылку НЕ придумывай)"
+
+        return f"{header}\n> {citation}\n\nПолный текст:\n{full_text}"
+
+    def _render_internal_chunk(chunk: RetrievedChunk, idx: int) -> str:
+        text = chunk.text or ""
+        citation = text_utils.shorten_inline(text, citation_char_limit)
+        full_text = text_utils.shorten_inline(text, chunk_text_char_limit)
+        return (
+            f"### Внутренний документ {idx} (URL не публикуется)\n"
+            f"> {citation}\n\n"
+            f"Полный текст:\n{full_text}"
         )
 
     return search_knowledge_base
-
-
-def _format_chunks(
-    public: list[RetrievedChunk],
-    internal: list[RetrievedChunk],
-    region_name: str | None,
-    citation_char_limit: int,
-    chunk_text_char_limit: int,
-) -> str:
-    """Render chunks as ready-to-copy Markdown blocks.
-
-    Each chunk becomes a block of the form::
-
-        ### [Название источника](URL) — Регион
-        > короткая цитата
-        Полный текст: ...
-
-    The model is instructed (in the tool docstring and system prompt) to
-    copy the ``###`` header and the ``>`` quote verbatim into its answer.
-    """
-
-    parts: list[str] = []
-
-    if public:
-        parts.append("## Публичные источники\n")
-        parts.extend(
-            _render_chunk(
-                c, region_name, idx, citation_char_limit, chunk_text_char_limit
-            )
-            for idx, c in enumerate(public, start=1)
-        )
-
-    if internal:
-        parts.append(
-            "\n## Внутренние источники ПАО Сбербанк\n"
-            "ВАЖНО: в ответе пользователю НЕ указывай URL, "
-            "ссылайся как «согласно внутренним документам ПАО Сбербанк»."
-        )
-        parts.extend(
-            _render_internal_chunk(c, idx, citation_char_limit, chunk_text_char_limit)
-            for idx, c in enumerate(internal, start=1)
-        )
-
-    return "\n\n".join(parts)
-
-
-def _render_chunk(
-    chunk: RetrievedChunk,
-    region_name: str | None,
-    idx: int,
-    citation_char_limit: int,
-    chunk_text_char_limit: int,
-) -> str:
-    title = (chunk.source_name or f"Источник {idx}").strip()
-    url = (chunk.source_url or "").strip()
-    region_label = (region_name or "РФ").strip() or "РФ"
-    text = chunk.text or ""
-    citation = text_utils.shorten_inline(text, citation_char_limit)
-    full_text = text_utils.shorten_inline(text, chunk_text_char_limit)
-
-    if url:
-        header = f"### [{title}]({url}) — {region_label}"
-    else:
-        header = (
-            f"### {title} — {region_label}\n(URL отсутствует — ссылку НЕ придумывай)"
-        )
-
-    return f"{header}\n> {citation}\n\nПолный текст:\n{full_text}"
-
-
-def _render_internal_chunk(
-    chunk: RetrievedChunk,
-    idx: int,
-    citation_char_limit: int,
-    chunk_text_char_limit: int,
-) -> str:
-    text = chunk.text or ""
-    citation = text_utils.shorten_inline(text, citation_char_limit)
-    full_text = text_utils.shorten_inline(text, chunk_text_char_limit)
-    return (
-        f"### Внутренний документ {idx} (URL не публикуется)\n"
-        f"> {citation}\n\n"
-        f"Полный текст:\n{full_text}"
-    )
