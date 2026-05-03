@@ -6,8 +6,10 @@ from urllib.parse import unquote
 from langchain_core.tools import tool, BaseTool
 
 from app.exceptions.base_exceptions import ExternalServiceError
+from app.utils import text_utils
 
 if TYPE_CHECKING:
+    from app.core.config import Config
     from app.services import WebSearchService
     from app.schemas.web_search_schemas import WebSearchPage
 
@@ -15,7 +17,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def make_search_web_tool(web_search_service: WebSearchService) -> BaseTool:
+def make_search_web_tool(
+    web_search_service: WebSearchService, config: Config
+) -> BaseTool:
 
     @tool
     async def search_web(query: str) -> str:
@@ -78,22 +82,28 @@ def make_search_web_tool(web_search_service: WebSearchService) -> BaseTool:
         if not response.results:
             return "Веб-поиск ничего не нашёл по этому запросу."
 
-        return _formate_results(response.results)
+        return _formate_results(response.results, config.web_search_citation_char_limit)
 
     return search_web
 
 
-def _formate_results(pages: list[WebSearchPage]) -> str:
+def _formate_results(pages: list[WebSearchPage], citation_limit: int) -> str:
     parts = ["## Результаты поиска в интернете"]
-    parts.extend([_render_page(page, i) for i, page in enumerate(pages) if page.url])
+    parts.extend(
+        [
+            _render_page(page, i, citation_limit)
+            for i, page in enumerate(pages)
+            if page.url
+        ]
+    )
 
     return "\n\n".join(parts)
 
 
-def _render_page(page: WebSearchPage, idx: int) -> str:
+def _render_page(page: WebSearchPage, idx: int, citation_limit: int) -> str:
     title = (page.title or f"Источник {idx}").strip()
     url = unquote(page.url)
 
-    return (
-        f"### [{title}]({url}) - Веб\n" f"Краткое содержание: {page.content[:200]}..."
-    )
+    header = f"### [{title}]({url}) - Веб"
+    citation = text_utils.shorten_inline(page.content, citation_limit)
+    return f"{header}\n>: {citation}"

@@ -4,26 +4,23 @@ from typing import TYPE_CHECKING
 
 from langchain.tools import BaseTool, tool
 
+from app.utils import text_utils
+
 if TYPE_CHECKING:
     from app.models import UserModel
     from app.services import RegionService, RAGService
     from app.schemas.rag_schemas import RetrievedChunk
+    from app.core.config import Config
 
 
 logger = logging.getLogger(__name__)
 
 
-# Soft limit on the citation length we pre-format for the model.
-# A full chunk text can be thousands of chars; the model only needs a
-# short quote to cite, not the whole paragraph.
-_CITATION_CHAR_LIMIT = 220
-
-# Upper bound on the full chunk text we include for context.
-_CHUNK_TEXT_CHAR_LIMIT = 1400
-
-
 def make_retrive_tool(
-    user: UserModel, rag_service: RAGService, region_service: RegionService
+    user: UserModel,
+    rag_service: RAGService,
+    region_service: RegionService,
+    config: Config,
 ) -> BaseTool:
 
     @tool
@@ -95,7 +92,13 @@ def make_retrive_tool(
                 "на gosuslugi.ru или sfr.gov.ru."
             )
 
-        return _format_chunks(public_chunks, internal_chunks, region_name)
+        return _format_chunks(
+            public_chunks,
+            internal_chunks,
+            region_name,
+            config.rag_citation_char_limit,
+            config.rag_chunk_text_char_limit,
+        )
 
     return search_knowledge_base
 
@@ -104,6 +107,8 @@ def _format_chunks(
     public: list[RetrievedChunk],
     internal: list[RetrievedChunk],
     region_name: str | None,
+    citation_char_limit: int,
+    chunk_text_char_limit: int,
 ) -> str:
     """Render chunks as ready-to-copy Markdown blocks.
 
@@ -122,7 +127,9 @@ def _format_chunks(
     if public:
         parts.append("## Публичные источники\n")
         parts.extend(
-            _render_chunk(c, region_name, idx)
+            _render_chunk(
+                c, region_name, idx, citation_char_limit, chunk_text_char_limit
+            )
             for idx, c in enumerate(public, start=1)
         )
 
@@ -133,7 +140,7 @@ def _format_chunks(
             "ссылайся как «согласно внутренним документам ПАО Сбербанк»."
         )
         parts.extend(
-            _render_internal_chunk(c, idx)
+            _render_internal_chunk(c, idx, citation_char_limit, chunk_text_char_limit)
             for idx, c in enumerate(internal, start=1)
         )
 
@@ -141,38 +148,40 @@ def _format_chunks(
 
 
 def _render_chunk(
-    chunk: RetrievedChunk, region_name: str | None, idx: int
+    chunk: RetrievedChunk,
+    region_name: str | None,
+    idx: int,
+    citation_char_limit: int,
+    chunk_text_char_limit: int,
 ) -> str:
     title = (chunk.source_name or f"Источник {idx}").strip()
     url = (chunk.source_url or "").strip()
     region_label = (region_name or "РФ").strip() or "РФ"
-    citation = _shorten(chunk.text, _CITATION_CHAR_LIMIT)
-    full_text = _shorten(chunk.text, _CHUNK_TEXT_CHAR_LIMIT)
+    text = chunk.text or ""
+    citation = text_utils.shorten_inline(text, citation_char_limit)
+    full_text = text_utils.shorten_inline(text, chunk_text_char_limit)
 
     if url:
         header = f"### [{title}]({url}) — {region_label}"
     else:
-        header = f"### {title} — {region_label}\n(URL отсутствует — ссылку НЕ придумывай)"
+        header = (
+            f"### {title} — {region_label}\n(URL отсутствует — ссылку НЕ придумывай)"
+        )
 
     return f"{header}\n> {citation}\n\nПолный текст:\n{full_text}"
 
 
-def _render_internal_chunk(chunk: RetrievedChunk, idx: int) -> str:
-    citation = _shorten(chunk.text, _CITATION_CHAR_LIMIT)
-    full_text = _shorten(chunk.text, _CHUNK_TEXT_CHAR_LIMIT)
+def _render_internal_chunk(
+    chunk: RetrievedChunk,
+    idx: int,
+    citation_char_limit: int,
+    chunk_text_char_limit: int,
+) -> str:
+    text = chunk.text or ""
+    citation = text_utils.shorten_inline(text, citation_char_limit)
+    full_text = text_utils.shorten_inline(text, chunk_text_char_limit)
     return (
         f"### Внутренний документ {idx} (URL не публикуется)\n"
         f"> {citation}\n\n"
         f"Полный текст:\n{full_text}"
     )
-
-
-def _shorten(text: str, limit: int) -> str:
-    text = (text or "").strip().replace("\r\n", "\n")
-    if len(text) <= limit:
-        return text
-    # Cut on a word boundary when possible so the quote reads cleanly.
-    cut = text.rfind(" ", 0, limit)
-    if cut < limit // 2:
-        cut = limit
-    return text[:cut].rstrip(" ,.;:—-") + "…"

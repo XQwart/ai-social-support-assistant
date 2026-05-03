@@ -13,6 +13,7 @@ from app.exceptions.fetch_exceptions import (
     UrlSafetyError,
 )
 from app.schemas.page_fetch_schemas import FetchResult, FetchErrorKind
+from app.utils import text_utils
 
 if TYPE_CHECKING:
     from app.core.config import Config
@@ -133,7 +134,9 @@ class PageFetchService:
         meta = trafilatura.extract_metadata(tree, default_url=url)
 
         return FetchResult(
-            url=url, title=meta.title.strip() if meta.title else "", content=content
+            url=url,
+            title=meta.title.strip() if meta.title else "",
+            content=self._truncate_text(content),
         )
 
     def _parse_pdf(self, body: bytes, url: str) -> FetchResult:
@@ -144,7 +147,9 @@ class PageFetchService:
             )
 
         return FetchResult(
-            url=url, title=self._get_pdf_name_from_url(url), content=text
+            url=url,
+            title=self._get_pdf_name_from_url(url),
+            content=self._truncate_text(text),
         )
 
     def _get_pdf_name_from_url(self, url: str) -> str:
@@ -152,3 +157,8 @@ class PageFetchService:
         name = path.rsplit("/", 1)[-1]
 
         return name.removesuffix(".pdf") or "PDF документ"
+
+    def _truncate_text(self, text: str) -> str:
+        if len(text) > self._config.fetch_max_output:
+            return text_utils.shorten_block(text, self._config.fetch_max_output)
+        return text

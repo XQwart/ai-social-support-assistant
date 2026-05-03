@@ -55,11 +55,14 @@ class Config(BaseSettings):
     searxng_url: str = "http://searxng:8080"
     web_search_timeout: float = 8.0
     web_search_max_results: int = 8
+    web_search_citation_char_limit: int = 220
 
     rag_distance: Distance = Distance.COSINE
     rag_top_k: int = 6
     rag_min_per_category: int = 2
     rag_score_threshold: float = 0.65
+    rag_citation_char_limit: int = 220
+    rag_chunk_text_char_limit: int = 1400
 
     sber_token_url: str = ""
     sber_authorize_url: str = "https://id-ift.sber.ru/CSAFront/oidc/authorize.do"
@@ -77,6 +80,7 @@ class Config(BaseSettings):
 
     http_user_agent: str = "soc-assistant/1.0"
     fetch_body_bytes_limit: int = 4 * 1024 * 1024
+    fetch_max_output: int = 6000
 
     frontend_auth_redirect_url: str = ""
 
