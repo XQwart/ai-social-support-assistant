@@ -22,7 +22,13 @@ if TYPE_CHECKING:
 
     from app.core.config import Config
     from app.models import UserModel
-    from app.services import RegionService, RAGService, UserService
+    from app.services import (
+        RegionService,
+        RAGService,
+        UserService,
+        WebSearchService,
+        PageFetchService,
+    )
     from app.services.prompt_service import PromptService
 
 
@@ -35,6 +41,8 @@ class AgentService:
     _region_service: RegionService
     _rag_service: RAGService
     _user_service: UserService
+    _web_search_service: WebSearchService
+    _page_fetch_service: PageFetchService
     _checkpointer: BaseCheckpointSaver
     _config: Config
     _prompt_service: PromptService
@@ -46,6 +54,8 @@ class AgentService:
         region_service: RegionService,
         rag_service: RAGService,
         user_service: UserService,
+        web_search_service: WebSearchService,
+        page_fetch_service: PageFetchService,
         checkpointer: BaseCheckpointSaver,
         config: Config,
         prompt_service: PromptService,
@@ -55,6 +65,8 @@ class AgentService:
         self._region_service = region_service
         self._rag_service = rag_service
         self._user_service = user_service
+        self._web_search_service = web_search_service
+        self._page_fetch_service = page_fetch_service
         self._checkpointer = checkpointer
         self._config = config
         self._prompt_service = prompt_service
@@ -167,7 +179,13 @@ class AgentService:
 
     def _create_graph(self, user: UserModel):
         tools = create_user_tools(
-            user, self._user_service, self._rag_service, self._region_service
+            user,
+            self._user_service,
+            self._rag_service,
+            self._region_service,
+            self._web_search_service,
+            self._page_fetch_service,
+            self._config,
         )
 
         middleware = [

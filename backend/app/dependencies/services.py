@@ -108,6 +108,8 @@ def get_agent_service(
     rag_service: "RAGServiceDep",
     user_service: "UserServiceDep",
     checkpointer: CheckpointerDep,
+    web_search_service: "WebSearchServiceDep",
+    page_fetch_service: "PageFetchServiceDep",
     config: ConfigDep,
     prompt_service: PromptServiceDep,
 ) -> AgentService:
@@ -117,6 +119,8 @@ def get_agent_service(
         region_service,
         rag_service,
         user_service,
+        web_search_service,
+        page_fetch_service,
         checkpointer,
         config,
         prompt_service,

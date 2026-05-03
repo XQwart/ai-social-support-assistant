@@ -10,7 +10,6 @@ class FetchErrorKind(str, Enum):
     UNSUPPORTED_TYPE = auto()
     EMPTY_CONTENT = auto()
     NETWORK = auto()
-    PARSE_ERROR = auto()
 
 
 @dataclass(slots=True)

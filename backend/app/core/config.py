@@ -97,6 +97,7 @@ class Config(BaseSettings):
     agent_max_tool_calls: int = 4
     agent_max_rag_per_turn: int = 2
     agent_recursion_limit: int = 10
+    agent_page_fetch_max_urls_tool: int = 3
 
     polza_ai_api_key: str = ""
     polza_ai_base_url: str = "https://polza.ai/api/v1"
