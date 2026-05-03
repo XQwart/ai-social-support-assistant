@@ -3,7 +3,10 @@ from typing import Annotated
 from fastapi import Depends
 
 from app.utils.jwt_utils import JWTTokenUtil
+from shared.utils.pdf_extractor import PdfTextExtractor
 from app.dependencies.config import ConfigDep
+
+_pdf_extractor = PdfTextExtractor()
 
 
 def get_access_token_util(config: ConfigDep) -> JWTTokenUtil:
@@ -20,5 +23,11 @@ def get_refresh_token_util(config: ConfigDep) -> JWTTokenUtil:
     )
 
 
+def get_pdf_extractor() -> PdfTextExtractor:
+    return _pdf_extractor
+
+
 AccessTokenDep = Annotated[JWTTokenUtil, Depends(get_access_token_util)]
 RefreshTokenDep = Annotated[JWTTokenUtil, Depends(get_refresh_token_util)]
+
+PDFExtractorDep = Annotated[PdfTextExtractor, Depends(get_pdf_extractor)]

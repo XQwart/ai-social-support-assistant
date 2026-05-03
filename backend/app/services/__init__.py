@@ -9,3 +9,4 @@ from .rag_service import RAGService
 from .region_service import RegionService
 from .prompt_service import PromptService
 from .web_search_service import WebSearchService
+from .page_fetch_service import PageFetchService

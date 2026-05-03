@@ -5,7 +5,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from worker.schemas.document import ParsedDocument
-from worker.services.parsing.pdf_extractor import PdfTextExtractor
+from shared.utils.pdf_extractor import PdfTextExtractor
 from worker.services.parsing.text_extractor import HtmlTextExtractor
 from worker.services.parsing.web_fetcher import WebPageFetcher
 

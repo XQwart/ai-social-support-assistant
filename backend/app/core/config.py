@@ -75,6 +75,9 @@ class Config(BaseSettings):
     sber_client_cert_path: str = str(CERT_DIR / "sber_client_cert.crt")
     sber_client_key_path: str = str(CERT_DIR / "private.key")
 
+    http_user_agent: str = "soc-assistant/1.0"
+    fetch_body_bytes_limit: int = 4 * 1024 * 1024
+
     frontend_auth_redirect_url: str = ""
 
     jwt_access_secret: str

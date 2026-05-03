@@ -25,10 +25,7 @@ class WebSearchService:
         res = await self._client.get(
             url=f"{self._config.searxng_url}/search",
             params={"q": query, "format": "json", "language": "ru"},
-            headers={
-                "Accept": "application/json",
-                "User-Agent": "soc-assistant/1.0",
-            },
+            headers={"Accept": "application/json"},
         )
 
         if res.status_code != 200:
@@ -38,6 +35,5 @@ class WebSearchService:
                 res.text,
             )
             raise ExternalServiceError("Web search returned malformed response")
-            
 
         return WebSearchResult(**res.json())

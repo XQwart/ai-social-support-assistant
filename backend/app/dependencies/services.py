@@ -19,8 +19,12 @@ from app.dependencies.repositories import (
     ChunkRepoDep,
     RegionRepoDep,
 )
-from app.dependencies.http import HTTPSberClientDep, HTTPWebSearchClientDep
-from app.dependencies.jwt import AccessTokenDep, RefreshTokenDep
+from app.dependencies.http import (
+    HTTPSberClientDep,
+    HTTPWebSearchClientDep,
+    HTTPFetchClientDep,
+)
+from app.dependencies.utils import AccessTokenDep, RefreshTokenDep, PDFExtractorDep
 from app.dependencies.prompt import PromptServiceDep
 from app.services import (
     AgentService,
@@ -32,7 +36,8 @@ from app.services import (
     UserService,
     RAGService,
     RegionService,
-    WebSearchService
+    WebSearchService,
+    PageFetchService,
 )
 
 
@@ -126,8 +131,16 @@ def get_rag_service(
     return RAGService(client, document_repo, chunk_repo)
 
 
-def get_web_search_service(client: HTTPWebSearchClientDep, config: ConfigDep) -> WebSearchService:
+def get_web_search_service(
+    client: HTTPWebSearchClientDep, config: ConfigDep
+) -> WebSearchService:
     return WebSearchService(client, config)
+
+
+def get_fetch_page_service(
+    client: HTTPFetchClientDep, pdf_extractor: PDFExtractorDep, config: ConfigDep
+) -> PageFetchService:
+    return PageFetchService(client, pdf_extractor, config)
 
 
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
@@ -142,3 +155,4 @@ RAGServiceDep = Annotated[RAGService, Depends(get_rag_service)]
 RegionServiceDep = Annotated[RegionService, Depends(get_region_service)]
 AgentServiceDep = Annotated[AgentService, Depends(get_agent_service)]
 WebSearchServiceDep = Annotated[WebSearchService, Depends(get_web_search_service)]
+PageFetchServiceDep = Annotated[PageFetchService, Depends(get_fetch_page_service)]

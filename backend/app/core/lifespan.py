@@ -10,10 +10,9 @@ from .config import get_config
 from .database import create_engine, create_session_maker
 from .redis import create_redis
 from .logger import setup_logging
-from .http import create_sber_http_client, create_http_client
+from .http import create_sber_http_client, create_fetch_client, create_http_client
 from .llm import create_llm_clients, create_embedding_client
 from .qdrant import create_qdrant_client, ensure_collection
-
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +27,8 @@ async def lifespan(app: FastAPI):
     session_maker = create_session_maker(engine)
     redis = create_redis(config)
     sber_client = create_sber_http_client(config)
-    web_search_client = create_http_client()
+    web_search_client = create_http_client(config)
+    fetch_client = create_fetch_client(config)
 
     chat_llm_client, compress_llm_client = create_llm_clients(config)
     embedding_client, vector_size = create_embedding_client(config)
@@ -51,6 +51,7 @@ async def lifespan(app: FastAPI):
     app.state.redis = redis
     app.state.sber_client = sber_client
     app.state.web_search_client = web_search_client
+    app.state.fetch_client = fetch_client
 
     app.state.chat_llm_client = chat_llm_client
     app.state.compress_llm_client = compress_llm_client
@@ -67,6 +68,7 @@ async def lifespan(app: FastAPI):
         await checkpointer.conn.close()
         await sber_client.aclose()
         await web_search_client.aclose()
+        await fetch_client.aclose()
         await qdrant.close()
         await redis.aclose()
         await engine.dispose()
