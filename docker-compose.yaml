@@ -1,123 +1,139 @@
 services:
-  nginx:
-    build:
-      context: .
-      dockerfile: nginx/Dockerfile
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/ssl:/etc/nginx/ssl:ro
-      - ./nginx/admin.htpasswd:/etc/nginx/admin.htpasswd:ro
-    depends_on:
-      backend:
-        condition: service_started
-      admin:
-        condition: service_started
+    nginx:
+        build:
+            context: .
+            dockerfile: nginx/Dockerfile
+        ports:
+            - "80:80"
+            - "443:443"
+        volumes:
+            - ./nginx/ssl:/etc/nginx/ssl:ro
+            - ./nginx/admin.htpasswd:/etc/nginx/admin.htpasswd:ro
+        depends_on:
+            backend:
+                condition: service_started
+            admin:
+                condition: service_started
 
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    image: backend:latest
-    env_file:
-      - .env
-    depends_on:
-      redis:
-        condition: service_started
-      migrations:
-        condition: service_completed_successfully
-  celery:
-    init: true 
-    mem_limit: 2g
-    memswap_limit: 2g
-    profiles:
-      - celery
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.worker
-    image: backend-worker:latest
-    env_file:
-      - .env
-    working_dir: /code
-    command: >
-      celery -A worker.celery_app worker
-      -l info
-      -c 2
-      -Ofair
-      --prefetch-multiplier=1
-      --max-tasks-per-child=20
-      --max-memory-per-child=700000
-    volumes:
-      - ./backend:/code
-    depends_on:
-      redis:
-        condition: service_started
-      migrations:
-        condition: service_completed_successfully
-    restart: unless-stopped
-    shm_size: "1gb"
-  celery-beat:
-    profiles:
-      - celery
-    image: backend-worker:latest
+    backend:
+        build:
+            context: ./backend
+            dockerfile: Dockerfile
+        image: backend:latest
+        env_file:
+            - .env
+        depends_on:
+            redis:
+                condition: service_started
+            migrations:
+                condition: service_completed_successfully
+            searxng:
+                condition: service_started
+            
+    celery:
+        init: true
+        mem_limit: 2g
+        memswap_limit: 2g
+        profiles:
+            - celery
+        build:
+            context: ./backend
+            dockerfile: Dockerfile.worker
+        image: backend-worker:latest
+        env_file:
+            - .env
+        working_dir: /code
+        command: >
+            celery -A worker.celery_app worker -l info -c 2 -Ofair
+            --prefetch-multiplier=1 --max-tasks-per-child=20
+            --max-memory-per-child=700000
+        volumes:
+            - ./backend:/code
+        depends_on:
+            redis:
+                condition: service_started
+            migrations:
+                condition: service_completed_successfully
+        restart: unless-stopped
+        shm_size: "1gb"
+    celery-beat:
+        profiles:
+            - celery
+        image: backend-worker:latest
 
-  admin:
-    image: backend:latest
-    env_file:
-      - .env
-    working_dir: /code
-    command: uvicorn admin_service.main:admin_app --host 0.0.0.0 --port 8001
-    depends_on:
-      backend:
-        condition: service_started
-      redis:
-        condition: service_started
-      qdrant:
-        condition: service_started
-      migrations:
-        condition: service_completed_successfully
-    restart: unless-stopped
+    admin:
+        image: backend:latest
+        env_file:
+            - .env
+        working_dir: /code
+        command: uvicorn admin_service.main:admin_app --host 0.0.0.0 --port 8001
+        depends_on:
+            backend:
+                condition: service_started
+            redis:
+                condition: service_started
+            qdrant:
+                condition: service_started
+            migrations:
+                condition: service_completed_successfully
+        restart: unless-stopped
 
-  migrations:
-    image: backend:latest
-    env_file:
-      - .env
-    command: alembic upgrade head
-    volumes:
-      - ./backend:/code
-    depends_on:
-      db:
-        condition: service_healthy
+    searxng:
+        image: searxng/searxng:latest
+        env_file:
+            - .env
+        volumes:
+            - ./searxng:/etc/searxng:rw
+            - ./volumes/searxng:/var/cache/searxng:rw
+        depends_on:
+            redis:
+                condition: service_started
+        cap_drop:
+            - ALL
+        cap_add:
+            - CHOWN
+            - SETGID
+            - SETUID
+        restart: unless-stopped
 
-  db:
-    image: postgres:18-alpine3.23
-    env_file:
-      - .env
-    volumes:
-      - ./volumes/postgresql:/var/lib/postgresql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+    migrations:
+        image: backend:latest
+        env_file:
+            - .env
+        command: alembic upgrade head
+        volumes:
+            - ./backend:/code
+        depends_on:
+            db:
+                condition: service_healthy
 
-  redis:
-    image: redis:8-alpine
-    env_file:
-      - .env
-    ports:
-      - "${REDIS_PORT}:6379"
-    volumes:
-      - redis_data:/data
+    db:
+        image: postgres:18-alpine3.23
+        env_file:
+            - .env
+        volumes:
+            - ./volumes/postgresql:/var/lib/postgresql
+        healthcheck:
+            test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+            interval: 5s
+            timeout: 5s
+            retries: 5
 
-  qdrant:
-    image: qdrant/qdrant:v1.17.1
-    env_file:
-      - .env
-    volumes:
-      - ./volumes/qdrant:/qdrant/storage
+    redis:
+        image: redis:8-alpine
+        env_file:
+            - .env
+        ports:
+            - "${REDIS_PORT}:6379"
+        volumes:
+            - redis_data:/data
 
+    qdrant:
+        image: qdrant/qdrant:v1.17.1
+        env_file:
+            - .env
+        volumes:
+            - ./volumes/qdrant:/qdrant/storage
 
 volumes:
-  redis_data:
+    redis_data:

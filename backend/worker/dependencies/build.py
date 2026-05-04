@@ -28,9 +28,9 @@ from worker.services.parsing import (
     DocumentParsingService,
     HtmlLinkExtractor,
     HtmlTextExtractor,
-    PdfTextExtractor,
     WebPageFetcher,
 )
+from shared.utils.pdf_extractor import PdfTextExtractor
 from worker.services.processing_service import SourceProcessingService
 from worker.services.quests_service import ChunkQuestionLLMService
 from worker.services.region_import_service import RegionSourceImportService

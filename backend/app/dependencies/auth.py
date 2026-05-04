@@ -5,7 +5,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.exceptions.base_exceptions import NotAuthenticatedError
 from app.schemas.auth_schemas import TokenDataOut
-from .jwt import AccessTokenDep
+from .utils import AccessTokenDep
 
 
 _security = HTTPBearer()

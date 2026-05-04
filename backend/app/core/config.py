@@ -52,10 +52,17 @@ class Config(BaseSettings):
 
     qdrant_collection: str = "chunk_collection"
 
+    searxng_url: str = "http://searxng:8080"
+    web_search_timeout: float = 8.0
+    web_search_max_results: int = 8
+    web_search_citation_char_limit: int = 220
+
     rag_distance: Distance = Distance.COSINE
     rag_top_k: int = 6
     rag_min_per_category: int = 2
     rag_score_threshold: float = 0.65
+    rag_citation_char_limit: int = 220
+    rag_chunk_text_char_limit: int = 1400
 
     sber_token_url: str = ""
     sber_authorize_url: str = "https://id-ift.sber.ru/CSAFront/oidc/authorize.do"
@@ -70,6 +77,10 @@ class Config(BaseSettings):
     sber_ca_cert_path: str = str(CERT_DIR / "sber_ift_ca.pem")
     sber_client_cert_path: str = str(CERT_DIR / "sber_client_cert.crt")
     sber_client_key_path: str = str(CERT_DIR / "private.key")
+
+    http_user_agent: str = "soc-assistant/1.0"
+    fetch_body_bytes_limit: int = 4 * 1024 * 1024
+    fetch_max_output: int = 6000
 
     frontend_auth_redirect_url: str = ""
 
@@ -86,6 +97,7 @@ class Config(BaseSettings):
     agent_max_tool_calls: int = 4
     agent_max_rag_per_turn: int = 2
     agent_recursion_limit: int = 10
+    agent_page_fetch_max_urls_tool: int = 3
 
     polza_ai_api_key: str = ""
     polza_ai_base_url: str = "https://polza.ai/api/v1"
