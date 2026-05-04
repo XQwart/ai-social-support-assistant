@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from collections.abc import Iterator
 
 from worker.schemas.document import (
-    StoredDocumentChunk,
-    EmbeddedDocumentChunk,
-    GeneratedChunkQuestion,
+    ChunkWithQuestions,
+    EmbeddedChunkForIndex,
     EmbeddedChunkQuestion,
 )
 from worker.services.embedding.base_provider import BaseEmbeddingProvider
@@ -13,78 +13,19 @@ from worker.services.embedding.base_provider import BaseEmbeddingProvider
 
 class EmbeddingService:
     _provider: BaseEmbeddingProvider
-    _model: str
     _batch_size: int
 
     def __init__(
         self,
         provider: BaseEmbeddingProvider,
-        model: str,
-        batch_size: int = 512,
+        batch_size: int = 256,
     ) -> None:
         self._provider = provider
-        self._model = model
         self._batch_size = batch_size
 
     def _iter_batches(self, items: list) -> Iterator[list]:
         for i in range(0, len(items), self._batch_size):
             yield items[i : i + self._batch_size]
-
-    async def create_embeddings(
-        self,
-        chunks: list[StoredDocumentChunk],
-    ) -> list[EmbeddedDocumentChunk]:
-        if not chunks:
-            return []
-
-        embedded_chunks: list[EmbeddedDocumentChunk] = []
-
-        for batch in self._iter_batches(chunks):
-            texts = [chunk.text for chunk in batch]
-            vectors = await self._provider.embed_texts(texts=texts)
-
-            if len(vectors) != len(batch):
-                raise ValueError(
-                    f"Expected {len(batch)} embeddings, got {len(vectors)}"
-                )
-
-            embedded_chunks.extend(
-                EmbeddedDocumentChunk(
-                    **chunk.model_dump(),
-                    vector=vector,
-                )
-                for chunk, vector in zip(batch, vectors, strict=True)
-            )
-
-        return embedded_chunks
-
-    async def create_question_embeddings(
-        self,
-        questions: list[GeneratedChunkQuestion],
-    ) -> list[EmbeddedChunkQuestion]:
-        if not questions:
-            return []
-
-        embedded_questions: list[EmbeddedChunkQuestion] = []
-
-        for batch in self._iter_batches(questions):
-            texts = [question.text for question in batch]
-            vectors = await self._provider.embed_texts(texts=texts)
-
-            if len(vectors) != len(batch):
-                raise ValueError(
-                    f"Expected {len(batch)} embeddings, got {len(vectors)}"
-                )
-
-            embedded_questions.extend(
-                EmbeddedChunkQuestion(
-                    **question.model_dump(),
-                    vector=vector,
-                )
-                for question, vector in zip(batch, vectors, strict=True)
-            )
-
-        return embedded_questions
 
     async def embed_texts(
         self,
@@ -106,6 +47,55 @@ class EmbeddingService:
             vectors.extend(batch_vectors)
 
         return vectors
+
+    async def create_chunk_index_embeddings(
+        self,
+        chunks: list[ChunkWithQuestions],
+    ) -> list[EmbeddedChunkForIndex]:
+        if not chunks:
+            return []
+
+        chunk_vectors = await self.embed_texts([chunk.text for chunk in chunks])
+
+        flat_questions: list[tuple[int, str]] = []
+
+        for chunk_index, chunk in enumerate(chunks):
+            for question_text in chunk.questions:
+                flat_questions.append((chunk_index, question_text))
+
+        question_vectors = await self.embed_texts(
+            [question_text for _, question_text in flat_questions]
+        )
+
+        questions_by_chunk_index: dict[int, list[EmbeddedChunkQuestion]] = defaultdict(
+            list
+        )
+
+        for (chunk_index, question_text), vector in zip(
+            flat_questions,
+            question_vectors,
+            strict=True,
+        ):
+            questions_by_chunk_index[chunk_index].append(
+                EmbeddedChunkQuestion(
+                    vector=vector,
+                )
+            )
+
+        embedded_chunks: list[EmbeddedChunkForIndex] = []
+
+        for index, (chunk, chunk_vector) in enumerate(
+            zip(chunks, chunk_vectors, strict=True)
+        ):
+            embedded_chunks.append(
+                EmbeddedChunkForIndex(
+                    **chunk.model_dump(exclude={"questions"}),
+                    vector=chunk_vector,
+                    questions=questions_by_chunk_index.get(index, []),
+                )
+            )
+
+        return embedded_chunks
 
     async def aclose(self) -> None:
         await self._provider.aclose()

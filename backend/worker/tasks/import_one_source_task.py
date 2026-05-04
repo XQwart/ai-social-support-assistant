@@ -3,8 +3,8 @@ from __future__ import annotations
 from sqlalchemy.exc import DBAPIError
 
 from worker.celery_app import app
-from worker.dependencies.build import WorkerDependencies
 from worker.dependencies.runtime import AsyncRuntime
+from worker.dependencies.build import WorkerDependencies
 
 
 DEADLOCK_SQLSTATE = "40P01"
@@ -58,10 +58,6 @@ def import_one_source(self, job: dict) -> dict:
     except DBAPIError as exc:
         if _is_deadlock_error(exc):
             countdown = min(60, 2**self.request.retries)
-
-            raise self.retry(
-                exc=exc,
-                countdown=countdown,
-            )
+            raise self.retry(exc=exc, countdown=countdown)
 
         raise

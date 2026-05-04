@@ -14,11 +14,9 @@ async def _run_finalize_source_import(
             service = deps.build_region_source_import_service(session=session)
             result = service.aggregate_results(results)
 
-        deps.runtime_state_service.set_sources_status("ready")
         return result
 
     except Exception:
-        deps.runtime_state_service.set_sources_status("failed")
         raise
 
 

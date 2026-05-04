@@ -10,6 +10,11 @@ class BaseEmbeddingProvider(ABC):
     def vector_size(self) -> int:
         raise NotImplementedError
 
+    @property
+    @abstractmethod
+    def model(self) -> str:
+        raise NotImplementedError
+
     @abstractmethod
     async def embed_texts(
         self,

@@ -45,8 +45,7 @@ class Config(BaseSettings):
 
     qdrant_host: str = "qdrant"
     qdrant_port: str = "6333"
-    chunks_collection_name: str = "chunk_collection"
-    questions_collection_name: str = "question_collection"
+    chunks_collection_name: str = "chunks_collection"
 
     embedding_provider: str = "gigachat"
     polza_ai_api_key: str = ""
@@ -63,7 +62,8 @@ class Config(BaseSettings):
     gigachat_vector_size: int = 2560
     gigachat_scope: str = "GIGACHAT_API_B2B"
 
-    llm_timeout: float = 60.0
+    llm_timeout: float = 15.0
+    processing_service_url: str = "http://chunk-api:8002"
 
     def _get_redis_url(self, database_num: int) -> str:
         return f"redis://{self.redis_host}:{self.redis_port}/{database_num}"

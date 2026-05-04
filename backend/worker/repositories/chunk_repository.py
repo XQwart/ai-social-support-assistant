@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from uuid import uuid4
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.models import DocumentChunk
@@ -114,3 +114,62 @@ class ChunkRepository:
             )
             for row in rows
         ]
+
+    async def get_next_chunk_index(
+        self,
+        source_id: int,
+    ) -> int:
+        stmt = select(func.max(DocumentChunk.chunk_index)).where(
+            DocumentChunk.source_id == source_id
+        )
+
+        result = await self._session.execute(stmt)
+        max_index = result.scalar_one_or_none()
+
+        if max_index is None:
+            return 0
+
+        return int(max_index) + 1
+
+    async def update_text(
+        self,
+        *,
+        chunk_id: int,
+        text: str,
+    ) -> StoredDocumentChunk:
+        stmt = (
+            update(DocumentChunk)
+            .where(DocumentChunk.id == chunk_id)
+            .values(text=text)
+            .returning(DocumentChunk)
+        )
+
+        result = await self._session.execute(stmt)
+        row = result.scalar_one_or_none()
+
+        if row is None:
+            raise RuntimeError(f"Chunk not found: {chunk_id}")
+
+        return StoredDocumentChunk(
+            id=row.id,
+            source_id=row.source_id,
+            source_url=row.source_url,
+            source_name=row.source_name,
+            chunk_index=row.chunk_index,
+            text=row.text,
+        )
+
+    async def delete_by_id(
+        self,
+        chunk_id: int,
+    ) -> int:
+        stmt = (
+            delete(DocumentChunk)
+            .where(DocumentChunk.id == chunk_id)
+            .returning(DocumentChunk.id)
+        )
+
+        result = await self._session.execute(stmt)
+        deleted_ids = result.scalars().all()
+
+        return len(deleted_ids)

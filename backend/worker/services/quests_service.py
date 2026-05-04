@@ -4,9 +4,9 @@ import asyncio
 import json
 import logging
 import re
-
+from worker.core.prompts import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE
 from worker.client.base_clients import LLMClient
-from worker.schemas.document import StoredDocumentChunk, GeneratedChunkQuestion
+from worker.schemas.document import StoredDocumentChunk, ChunkWithQuestions
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ class ChunkQuestionLLMService:
     async def generate_for_chunk(
         self,
         chunk: StoredDocumentChunk,
-    ) -> list[GeneratedChunkQuestion]:
+    ) -> ChunkWithQuestions:
         messages = self._build_messages(chunk.text)
 
         raw_text = await self._llm_client.get_completion_text(
@@ -41,25 +41,19 @@ class ChunkQuestionLLMService:
         questions_text = self._parse_questions(raw_text)
 
         if not questions_text:
-            return []
+            return ChunkWithQuestions(
+                **chunk.model_dump(),
+                questions=[],
+            )
 
         logger.info(questions_text)
-        return [
-            GeneratedChunkQuestion(
-                chunk_id=chunk.id,
-                source_id=chunk.source_id,
-                source_url=chunk.source_url,
-                source_name=chunk.source_name,
-                chunk_index=chunk.chunk_index,
-                text=question_text,
-            )
-            for question_text in questions_text
-        ]
+
+        return ChunkWithQuestions(**chunk.model_dump(), questions=questions_text)
 
     async def generate_for_chunks(
         self,
         chunks: list[StoredDocumentChunk],
-    ) -> list[GeneratedChunkQuestion]:
+    ) -> list[ChunkWithQuestions]:
         if not chunks:
             return []
 
@@ -67,7 +61,7 @@ class ChunkQuestionLLMService:
 
         async def _wrapped(
             chunk: StoredDocumentChunk,
-        ) -> list[GeneratedChunkQuestion]:
+        ) -> ChunkWithQuestions:
             async with semaphore:
                 try:
                     return await self.generate_for_chunk(chunk)
@@ -76,57 +70,25 @@ class ChunkQuestionLLMService:
                         "Ошибка генерации вопросов для chunk_id=%s",
                         chunk.id,
                     )
-                    return []
+                    return ChunkWithQuestions(
+                        **chunk.model_dump(),
+                        questions=[],
+                    )
 
         results = await asyncio.gather(*(_wrapped(chunk) for chunk in chunks))
-        return [question for batch in results for question in batch]
+        return results
 
     def _build_messages(self, chunk_text: str) -> list[dict[str, str]]:
-
         return [
             {
                 "role": "system",
-                "content": (
-                    "Ты генерируешь поисковые запросы для retrieval-системы. "
-                    "Верни только JSON-массив строк без пояснений и без markdown."
-                ),
+                "content": SYSTEM_PROMPT,
             },
             {
                 "role": "user",
-                "content": (
-                    f"Сгенерируй до {self._questions_per_chunk} разных поисковых запросов по тексту.\n"
-                    "Каждый запрос должен помогать найти этот фрагмент при семантическом поиске.\n\n"
-                    "ТРЕБОВАНИЯ К ЗАПРОСАМ:\n"
-                    "- Каждый запрос должен содержать конкретный предмет из текста — "
-                    "название выплаты, льготы, категорию получателей или ведомство. "
-                    "Запрос без конкретного предмета бесполезен.\n"
-                    "- Запросы должны быть разными по смыслу и форме — "
-                    "часть в виде вопросов, часть в виде ключевых слов или утверждений.\n"
-                    "- Покрывай разные интенты если они есть в тексте: "
-                    "кто имеет право, какие условия, какие документы нужны, как оформить, "
-                    "какой размер выплаты, какие сроки, кто принимает решение, облагается ли налогом.\n"
-                    "- Если в тексте упоминается конкретный регион или субъект РФ — "
-                    "включай его в запросы где это уместно.\n"
-                    "- Не повторяй один и тот же смысл разными словами.\n"
-                    "- Если в тексте только один полезный смысл — верни один запрос.\n"
-                    "- Если самостоятельных поисковых запросов нет — верни [].\n\n"
-                    "ПРИМЕРЫ ХОРОШИХ ЗАПРОСОВ:\n"
-                    "Вопросы:\n"
-                    "- Кто имеет право на единовременную выплату при рождении ребёнка?\n"
-                    "- Какие документы нужны для оформления субсидии на ЖКХ?\n"
-                    "- Как оформить ежемесячное пособие неработающему пенсионеру в Московской области?\n"
-                    "- Облагается ли НДФЛ компенсация расходов на лечение сотрудника?\n"
-                    "Ключевые слова и утверждения:\n"
-                    "- единовременное пособие при рождении ребёнка условия получения\n"
-                    "- перечень документов для субсидии на оплату жилья\n"
-                    "- ежемесячная выплата пенсионерам Краснодарский край размер\n"
-                    "- налогообложение компенсации медицинских расходов работникам\n\n"
-                    "ПРИМЕРЫ ПЛОХИХ ЗАПРОСОВ (не генерируй такие):\n"
-                    "- Какие выплаты предусмотрены? (нет конкретного предмета)\n"
-                    "- Какие документы нужны? (нет конкретного предмета)\n"
-                    "- компенсация документы выплаты (слишком общие слова)\n\n"
-                    "Ответ верни только в виде JSON-массива строк.\n\n"
-                    f"Текст:\n{chunk_text}"
+                "content": USER_PROMPT_TEMPLATE.format(
+                    questions_per_chunk=self._questions_per_chunk,
+                    chunk_text=chunk_text,
                 ),
             },
         ]

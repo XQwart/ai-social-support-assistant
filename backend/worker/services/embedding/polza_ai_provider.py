@@ -22,6 +22,10 @@ class PolzaAIEmbeddingProvider(BaseEmbeddingProvider):
     def vector_size(self) -> int:
         return self._vector_size
 
+    @property
+    def model(self) -> str:
+        return self._model
+
     async def embed_texts(
         self,
         texts: Sequence[str],

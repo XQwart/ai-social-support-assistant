@@ -15,68 +15,85 @@ services:
             admin:
                 condition: service_started
 
+
     backend:
-        build:
-            context: ./backend
-            dockerfile: Dockerfile
-        image: backend:latest
-        env_file:
-            - .env
-        depends_on:
-            redis:
-                condition: service_started
-            migrations:
-                condition: service_completed_successfully
-            searxng:
-                condition: service_started
-            
+      build:
+        context: ./backend
+        dockerfile: Dockerfile
+      image: backend:latest
+      env_file:
+        - .env
+      depends_on:
+        redis:
+          condition: service_started
+        migrations:
+          condition: service_completed_successfully
+
+    chunk-api:
+      image: backend-worker:latest
+      env_file:
+        - .env
+      working_dir: /code
+      command: uvicorn worker.main:app --host 0.0.0.0 --port 8002
+      volumes:
+        - ./backend:/code
+      depends_on:
+        redis:
+          condition: service_started
+        migrations:
+          condition: service_completed_successfully
+      restart: unless-stopped
     celery:
-        init: true
-        mem_limit: 2g
-        memswap_limit: 2g
-        profiles:
-            - celery
-        build:
-            context: ./backend
-            dockerfile: Dockerfile.worker
-        image: backend-worker:latest
-        env_file:
-            - .env
-        working_dir: /code
-        command: >
-            celery -A worker.celery_app worker -l info -c 2 -Ofair
-            --prefetch-multiplier=1 --max-tasks-per-child=20
-            --max-memory-per-child=700000
-        volumes:
-            - ./backend:/code
-        depends_on:
-            redis:
-                condition: service_started
-            migrations:
-                condition: service_completed_successfully
-        restart: unless-stopped
-        shm_size: "1gb"
+      init: true 
+      mem_limit: 2g
+      memswap_limit: 2g
+      profiles:
+        - celery
+      build:
+        context: ./backend
+        dockerfile: Dockerfile.worker
+      image: backend-worker:latest
+      env_file:
+        - .env
+      working_dir: /code
+      command: >
+        celery -A worker.celery_app worker
+        -l info
+        -c 2
+        -Ofair
+        --prefetch-multiplier=1
+        --max-tasks-per-child=20
+        --max-memory-per-child=700000
+      volumes:
+        - ./backend:/code
+      depends_on:
+        redis:
+          condition: service_started
+        migrations:
+          condition: service_completed_successfully
+      restart: unless-stopped
+      shm_size: "1gb"
     celery-beat:
-        profiles:
-            - celery
-        image: backend-worker:latest
+      profiles:
+        - celery
+      image: backend-worker:latest
 
     admin:
-        image: backend:latest
-        env_file:
-            - .env
-        working_dir: /code
-        command: uvicorn admin_service.main:admin_app --host 0.0.0.0 --port 8001
-        depends_on:
-            backend:
-                condition: service_started
-            redis:
-                condition: service_started
-            qdrant:
-                condition: service_started
-            migrations:
-                condition: service_completed_successfully
-        restart: unless-stopped
+      image: backend:latest
+      env_file:
+        - .env
+      working_dir: /code
+      command: uvicorn admin_service.main:admin_app --host 0.0.0.0 --port 8001
+      depends_on:
+        backend:
+          condition: service_started
+        redis:
+          condition: service_started
+        qdrant:
+          condition: service_started
+        migrations:
+          condition: service_completed_successfully
+        restart: unless stopped
 
     searxng:
         image: searxng/searxng:latest

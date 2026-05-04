@@ -1,42 +1,33 @@
-from uuid import UUID
-
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ParsedDocument(BaseModel):
     source_id: int
     source_url: str
-    source_name: str | None = None
     text: str
-
-
-class DocumentChunkCreate(BaseModel):
-    source_id: int
-    source_url: str
     source_name: str | None = None
+    place_of_work: str | None = None
+
+
+class DocumentChunkCreate(ParsedDocument):
     chunk_index: int
-    text: str
 
 
-class StoredDocumentChunk(BaseModel):
+class StoredDocumentChunk(DocumentChunkCreate):
     id: int
-    source_id: int
-    source_url: str
-    source_name: str | None = None
-    chunk_index: int
-    text: str
-    qdrant_point_id: UUID | None = None
 
 
-class EmbeddedDocumentChunk(BaseModel):
-    id: int
-    source_id: int
-    source_url: str
-    source_name: str | None = None
-    chunk_index: int
-    text: str
+class ChunkWithQuestions(StoredDocumentChunk):
+    questions: list[str] = Field(default_factory=list)
+
+
+class EmbeddedChunkQuestion(BaseModel):
     vector: list[float]
-    qdrant_point_id: UUID | None = None
+
+
+class EmbeddedChunkForIndex(ChunkWithQuestions):
+    vector: list[float]
+    questions: list[EmbeddedChunkQuestion] = Field(default_factory=list)
 
 
 class DiscoveredLink(BaseModel):
@@ -44,22 +35,3 @@ class DiscoveredLink(BaseModel):
     url: str
     depth: int
     document_type: str  # html, pdf, doc, docx, xls, xlsx, odt, ods, rtf
-
-
-class GeneratedChunkQuestion(BaseModel):
-    chunk_id: int
-    source_id: int
-    source_url: str
-    source_name: str | None = None
-    chunk_index: int
-    text: str
-
-
-class EmbeddedChunkQuestion(BaseModel):
-    chunk_id: int
-    source_id: int
-    source_url: str
-    source_name: str | None = None
-    chunk_index: int
-    text: str
-    vector: list[float]
