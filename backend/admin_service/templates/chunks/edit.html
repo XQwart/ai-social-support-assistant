@@ -33,30 +33,18 @@
         <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
         <input type="hidden" name="place_of_work_set" value="1">
 
-        <!-- Левая колонка: Источник (ссылка) -->
         <label>
             Источник (ссылка)
-            <input type="url" name="source_url"
-                   value="{% if draft_source_url is defined and draft_source_url %}{{ draft_source_url }}{% else %}{{ chunk.source_url or '' }}{% endif %}"
-                   placeholder="https://...">
-            <small class="muted">Если оставить пустым — URL документа.</small>
+            <input type="url" value="{{ chunk.source_url or '' }}" disabled>
+            <small class="muted">URL наследуется от документа и не редактируется через API.</small>
         </label>
 
-        <!-- Правая колонка: Регион -->
         <label>
             Регион
-            {% set current_region = draft_region_code if draft_region_code is defined else chunk.region_code %}
-            <select name="region_code" class="select-enhanced">
-                <option value="">— наследовать у документа —</option>
-                {% for region in regions %}
-                <option value="{{ region.code }}" {% if current_region == region.code %}selected{% endif %}>
-                    {{ region.name }} ({{ region.code }})
-                </option>
-                {% endfor %}
-            </select>
+            <input type="text" value="{{ chunk.region_code or '— наследуется у документа —' }}" disabled>
+            <small class="muted">Регион наследуется от документа и не редактируется через API.</small>
         </label>
 
-        <!-- Левая колонка: Место работы -->
         <label>
             Место работы
             {% set current_place = draft_place_of_work if draft_place_of_work is defined else chunk.place_of_work %}
@@ -69,16 +57,14 @@
             <small class="muted">None — чанк виден без ограничений по работодателю.</small>
         </label>
 
-        <!-- Правая колонка: пусто (выравнивание) -->
         <div></div>
 
-        <!-- Полная ширина: текст чанка -->
         <label class="col-full">
             Текст чанка
-            <textarea name="text" rows="16" required>{% if draft_text is defined %}{{ draft_text }}{% else %}{{ chunk.text }}{% endif %}</textarea>
+            <textarea name="text" rows="16" required minlength="50">{% if draft_text is defined %}{{ draft_text }}{% else %}{{ chunk.text }}{% endif %}</textarea>
+            <small class="muted">Минимум 50 символов.</small>
         </label>
 
-        <!-- Полная ширина: кнопки -->
         <div class="form-actions col-full">
             <button type="submit" class="btn btn-primary">Сохранить и переиндексировать</button>
         </div>

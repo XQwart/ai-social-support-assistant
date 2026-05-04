@@ -195,7 +195,7 @@ async def create_chunk(
     is_place_set = place_of_work_set == "1"
 
     try:
-        chunk = await service.create(
+        result = await service.create(
             source_id=parsed_source_id,
             text=text,
             admin_id=admin.id,
@@ -225,8 +225,12 @@ async def create_chunk(
             },
             status_code=400,
         )
+    target_source_id = result.get("source_id") or parsed_source_id
+    list_url = "/chunks?created=1"
+    if target_source_id:
+        list_url = f"/chunks?source_id={target_source_id}&created=1"
     return RedirectResponse(
-        url=config.url_for(f"/chunks/{chunk.id}"),
+        url=config.url_for(list_url),
         status_code=status.HTTP_303_SEE_OTHER,
     )
 
@@ -271,13 +275,9 @@ async def update_chunk(
     config: AdminConfigDep,
     chunk_id: Annotated[int, Path(...)],
     text: Annotated[str, Form(...)],
-    region_code: Annotated[str | None, Form()] = None,
     place_of_work: Annotated[str | None, Form()] = None,
     place_of_work_set: Annotated[str | None, Form()] = None,
-    source_url: Annotated[str | None, Form()] = None,
 ) -> Response:
-    region_value = _normalize_form_str(region_code)
-    source_url_value = _normalize_form_str(source_url)
     place_value = (place_of_work or "").strip()
     is_place_set = place_of_work_set == "1"
 
@@ -286,10 +286,8 @@ async def update_chunk(
             chunk_id=chunk_id,
             text=text,
             admin_id=admin.id,
-            region_code=region_value,
             place_of_work=place_value,
             place_of_work_set=is_place_set,
-            source_url=source_url_value,
         )
     except KeyError:
         return templates.TemplateResponse(
@@ -315,9 +313,7 @@ async def update_chunk(
                 "chunk": chunk,
                 "error": str(exc),
                 "draft_text": text,
-                "draft_region_code": region_value,
                 "draft_place_of_work": place_value if is_place_set else None,
-                "draft_source_url": source_url_value,
                 **ctx,
             },
             status_code=400,

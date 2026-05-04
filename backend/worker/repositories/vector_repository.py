@@ -10,17 +10,17 @@ from worker.schemas.document_type import AccessScope, GeoScope
 
 class VectorRepository:
     _client: AsyncQdrantClient
-    _chunks_collection_name: str
+    _collection_name: str
     _upsert_batch_size: int
 
     def __init__(
         self,
         client: AsyncQdrantClient,
-        chunks_collection_name: str,
+        collection_name: str,
         upsert_batch_size: int = 512,
     ) -> None:
         self._client = client
-        self._chunks_collection_name = chunks_collection_name
+        self._collection_name = collection_name
         self._upsert_batch_size = upsert_batch_size
 
     async def upsert_chunks(
@@ -74,7 +74,7 @@ class VectorRepository:
             )
 
         await self._upsert_points(
-            collection_name=self._chunks_collection_name,
+            collection_name=self._collection_name,
             points=points,
         )
 
@@ -82,14 +82,14 @@ class VectorRepository:
 
     async def delete_chunks_by_source_id(self, source_id: int) -> None:
         await self._delete_by_filter(
-            collection_name=self._chunks_collection_name,
+            collection_name=self._collection_name,
             key="source_id",
             value=source_id,
         )
 
     async def delete_chunk_by_chunk_id(self, chunk_id: int) -> None:
         await self._client.delete(
-            collection_name=self._chunks_collection_name,
+            collection_name=self._collection_name,
             points_selector=models.PointIdsList(
                 points=[chunk_id],
             ),

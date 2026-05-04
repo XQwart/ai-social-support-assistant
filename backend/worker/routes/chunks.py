@@ -12,7 +12,7 @@ router = APIRouter(
 )
 
 
-@router.post("//text", status_code=status.HTTP_201_CREATED)
+@router.post("/text", status_code=status.HTTP_201_CREATED)
 async def add_text(
     payload: AddTextToSourceRequest,
     chunk_manager: ChunkManagementServiceDep,

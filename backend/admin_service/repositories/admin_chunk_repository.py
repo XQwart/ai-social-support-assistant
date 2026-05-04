@@ -1,8 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
-from uuid import UUID
 
-from sqlalchemy import and_, delete, or_, select, update, func
+from sqlalchemy import and_, or_, select, func
 
 from shared.models import DocumentChunk, Region, SourceRegion
 from worker.models.source import Source
@@ -12,8 +11,6 @@ if TYPE_CHECKING:
 
 
 class AdminChunkRepository:
-    """Write-side repository for RAG chunks, used by the admin panel."""
-
     _session: "AsyncSession"
 
     def __init__(self, session: "AsyncSession") -> None:
@@ -126,69 +123,3 @@ class AdminChunkRepository:
             select(DocumentChunk).where(DocumentChunk.id == chunk_id)
         )
         return result.scalar_one_or_none()
-
-    async def next_chunk_index(self, source_id: int | None) -> int:
-        condition = (
-            DocumentChunk.source_id == source_id
-            if source_id is not None
-            else DocumentChunk.source_id.is_(None)
-        )
-        result = await self._session.execute(
-            select(func.max(DocumentChunk.chunk_index)).where(condition)
-        )
-        current = result.scalar_one_or_none()
-        return int(current) + 1 if current is not None else 0
-
-    async def create(
-        self,
-        source_id: int | None,
-        source_url: str | None,
-        source_name: str | None,
-        chunk_index: int,
-        text: str,
-        qdrant_point_id: UUID,
-        region_code: str | None = None,
-        place_of_work: str | None = None,
-    ) -> DocumentChunk:
-        chunk = DocumentChunk(
-            source_id=source_id,
-            source_url=source_url,
-            source_name=source_name,
-            chunk_index=chunk_index,
-            text=text,
-            qdrant_point_id=qdrant_point_id,
-            region_code=region_code,
-            place_of_work=place_of_work,
-        )
-        self._session.add(chunk)
-        await self._session.flush()
-        await self._session.refresh(chunk)
-        return chunk
-
-    async def update_text_and_point_id(
-        self,
-        chunk_id: int,
-        text: str,
-        qdrant_point_id: UUID,
-        region_code: str | None = None,
-        place_of_work: str | None = None,
-        source_url: str | None = None,
-    ) -> None:
-        values: dict = {
-            "text": text,
-            "qdrant_point_id": qdrant_point_id,
-            "region_code": region_code,
-            "place_of_work": place_of_work,
-        }
-        if source_url is not None:
-            values["source_url"] = source_url
-        await self._session.execute(
-            update(DocumentChunk)
-            .where(DocumentChunk.id == chunk_id)
-            .values(**values)
-        )
-
-    async def delete(self, chunk_id: int) -> None:
-        await self._session.execute(
-            delete(DocumentChunk).where(DocumentChunk.id == chunk_id)
-        )

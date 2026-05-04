@@ -3,9 +3,8 @@ from typing import Annotated
 
 from fastapi import Depends
 
-from admin_service.dependencies.config import AdminConfigDep, BackendConfigDep
-from admin_service.dependencies.embedding import EmbeddingClientDep
-from admin_service.dependencies.qdrant import QdrantClientDep
+from admin_service.dependencies.config import AdminConfigDep
+from admin_service.dependencies.http import ChunkApiClientDep
 from admin_service.dependencies.redis import RedisDep
 from admin_service.dependencies.repositories import (
     AdminAuditRepoDep,
@@ -20,6 +19,7 @@ from admin_service.services import (
     ChunkAdminService,
     PromptAdminService,
 )
+from admin_service.services.chunk_api_client import ChunkApiClient
 
 
 def get_admin_audit_service(repo: AdminAuditRepoDep) -> AdminAuditService:
@@ -50,20 +50,22 @@ def get_prompt_admin_service(
     return PromptAdminService(repo=repo, redis=redis, audit=audit)
 
 
+def get_chunk_api_client(
+    client: ChunkApiClientDep,
+    config: AdminConfigDep,
+) -> ChunkApiClient:
+    return ChunkApiClient(client=client, base_url=config.chunk_api_url)
+
+
+ChunkApiClientServiceDep = Annotated[ChunkApiClient, Depends(get_chunk_api_client)]
+
+
 def get_chunk_admin_service(
     repo: AdminChunkRepoDep,
-    qdrant: QdrantClientDep,
-    embedding: EmbeddingClientDep,
+    api: ChunkApiClientServiceDep,
     audit: "AdminAuditServiceDep",
-    config: BackendConfigDep,
 ) -> ChunkAdminService:
-    return ChunkAdminService(
-        repo=repo,
-        qdrant=qdrant,
-        embedding=embedding,
-        audit=audit,
-        collection=config.qdrant_collection,
-    )
+    return ChunkAdminService(repo=repo, api=api, audit=audit)
 
 
 AdminAuditServiceDep = Annotated[

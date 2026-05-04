@@ -14,7 +14,7 @@ def get_vector_repository(
 ) -> VectorRepository:
     return VectorRepository(
         client=request.app.state.qdrant,
-        chunks_collection_name=request.app.state.config.chunks_collection_name,
+        collection_name=request.app.state.config.qdrant_collection,
     )
 
 

@@ -28,6 +28,7 @@ class ChunkRepository:
         prefetches = [
             models.Prefetch(
                 query=embedding,
+                using="chunk",
                 filter=models.Filter(
                     must=[
                         models.IsNullCondition(
@@ -47,6 +48,7 @@ class ChunkRepository:
             prefetches.append(
                 models.Prefetch(
                     query=embedding,
+                    using="chunk",
                     filter=models.Filter(
                         must=[
                             models.FieldCondition(
@@ -64,6 +66,7 @@ class ChunkRepository:
             prefetches.append(
                 models.Prefetch(
                     query=embedding,
+                    using="chunk",
                     filter=models.Filter(
                         must=[
                             models.FieldCondition(
@@ -85,7 +88,7 @@ class ChunkRepository:
         )
 
         return [
-            (point.payload["text_id"], point.payload.get("place_of_work"))
+            (point.payload["chunk_id"], point.payload.get("place_of_work"))
             for point in response.points
-            if point.payload
+            if point.payload and point.payload.get("chunk_id") is not None
         ]

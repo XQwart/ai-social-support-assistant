@@ -31,7 +31,7 @@ async def lifespan(app: FastAPI):
     qdrant = create_qdrant_client(url=config.qdrant_url)
     await ensure_collections(
         client=qdrant,
-        collection_name=config.chunks_collection_name,
+        collection_name=config.qdrant_collection,
         vector_size=embedding_provider.vector_size,
     )
 

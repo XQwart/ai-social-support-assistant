@@ -1,14 +1,10 @@
 from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
-from qdrant_client import models as qmodels
+from admin_service.services.chunk_api_client import ChunkApiClient, ChunkApiError
 
 if TYPE_CHECKING:
-    from langchain_core.embeddings.embeddings import Embeddings
-    from qdrant_client import AsyncQdrantClient
-
     from shared.models import DocumentChunk
     from worker.models.source import Source
 
@@ -31,24 +27,18 @@ class ChunkPersistenceError(Exception):
 
 class ChunkAdminService:
     _repo: "AdminChunkRepository"
-    _qdrant: "AsyncQdrantClient"
-    _embedding: "Embeddings"
+    _api: ChunkApiClient
     _audit: "AdminAuditService"
-    _collection: str
 
     def __init__(
         self,
         repo: "AdminChunkRepository",
-        qdrant: "AsyncQdrantClient",
-        embedding: "Embeddings",
+        api: ChunkApiClient,
         audit: "AdminAuditService",
-        collection: str,
     ) -> None:
         self._repo = repo
-        self._qdrant = qdrant
-        self._embedding = embedding
+        self._api = api
         self._audit = audit
-        self._collection = collection
 
     async def list_paginated(
         self,
@@ -98,158 +88,88 @@ class ChunkAdminService:
         place_of_work: str | None = None,
         place_of_work_set: bool = False,
         source_url: str | None = None,
-    ) -> "DocumentChunk":
+    ) -> dict:
         text = self._normalize(text)
+
         source = await self._repo.get_source(source_id) if source_id else None
         if source_id is not None and source is None:
             raise ChunkValidationError(f"Источник #{source_id} не найден.")
 
-        source_region_codes = (
-            await self._repo.get_source_region_codes(source.id) if source else []
+        effective_url = self._resolve_source_url(
+            override=source_url, fallback=source.url if source else None
         )
-        effective_region_codes = self._resolve_region_codes(
-            override=region_code,
-            fallback=source_region_codes,
-        )
+        if not effective_url:
+            raise ChunkValidationError(
+                "Укажите ссылку на источник или выберите существующий документ."
+            )
+
         effective_place = self._resolve_place_of_work(
             override=place_of_work,
             override_set=place_of_work_set,
             fallback=source.place_of_work if source else None,
         )
-        effective_url = self._resolve_source_url(
-            override=source_url, fallback=source.url if source else None
+        effective_code, effective_region_name = await self._resolve_region(
+            override=region_code,
+            fallback_source_id=source.id if source else None,
         )
-        if source is None and not effective_url:
-            effective_url = None
 
-        chunk_index = await self._repo.next_chunk_index(
-            source.id if source else None
-        )
-        point_id = uuid4()
-        vector = await self._embed(text)
-
-        payload_source_id = source.id if source else None
-        await self._upsert_qdrant(
-            point_id=point_id,
-            vector=vector,
-            payload=self._build_payload(
-                text_id=None,
-                source_id=payload_source_id,
-                region_codes=effective_region_codes,
+        try:
+            result = await self._api.add_text(
+                source_url=effective_url,
+                source_name=source.name if source else None,
+                region_code=effective_code,
+                region_name=effective_region_name,
                 place_of_work=effective_place,
-                chunk_index=chunk_index,
-                total_chunks=chunk_index + 1,
-            ),
-        )
-
-        chunk = await self._repo.create(
-            source_id=source.id if source else None,
-            source_url=effective_url,
-            source_name=source.name if source else None,
-            chunk_index=chunk_index,
-            text=text,
-            qdrant_point_id=point_id,
-            region_code=region_code or None,
-            place_of_work=(
-                effective_place
-                if place_of_work_set
-                else (source.place_of_work if source else None)
-            ),
-        )
-
-        await self._upsert_qdrant(
-            point_id=point_id,
-            vector=vector,
-            payload=self._build_payload(
-                text_id=chunk.id,
-                source_id=payload_source_id,
-                region_codes=effective_region_codes,
-                place_of_work=effective_place,
-                chunk_index=chunk_index,
-                total_chunks=chunk_index + 1,
-            ),
-        )
+                text=text,
+            )
+        except ChunkApiError as exc:
+            raise ChunkPersistenceError(str(exc)) from exc
 
         await self._audit.record(
             action="chunk.created",
             admin_id=admin_id,
-            target_type="chunk",
-            target_id=str(chunk.id),
+            target_type="source",
+            target_id=str(result.get("source_id") or ""),
             payload_diff={
-                "source_id": payload_source_id,
-                "qdrant_point_id": str(point_id),
-                "text_length": len(text),
-                "region_code": region_code,
-                "place_of_work": chunk.place_of_work,
                 "source_url": effective_url,
+                "region_code": effective_code,
+                "place_of_work": effective_place,
+                "text_length": len(text),
+                "chunks_count": result.get("chunks_count"),
+                "status": result.get("status"),
             },
         )
-        return chunk
+        return result
 
     async def update(
         self,
         chunk_id: int,
         text: str,
         admin_id: int,
-        region_code: str | None = None,
         place_of_work: str | None = None,
         place_of_work_set: bool = False,
-        source_url: str | None = None,
     ) -> "DocumentChunk":
         text = self._normalize(text)
+
         chunk = await self._repo.get_by_id(chunk_id)
         if chunk is None:
             raise KeyError(chunk_id)
 
-        source = (
-            await self._repo.get_source(chunk.source_id)
-            if chunk.source_id is not None
-            else None
-        )
-
-        source_region_codes = (
-            await self._repo.get_source_region_codes(source.id) if source else []
-        )
-        effective_region_codes = self._resolve_region_codes(
-            override=region_code,
-            fallback=source_region_codes,
-        )
         effective_place = self._resolve_place_of_work(
             override=place_of_work,
             override_set=place_of_work_set,
-            fallback=source.place_of_work if source else None,
-        )
-        effective_url = self._resolve_source_url(
-            override=source_url,
-            fallback=chunk.source_url or (source.url if source else None),
-        )
-
-        point_id = chunk.qdrant_point_id or uuid4()
-        vector = await self._embed(text)
-
-        payload_source_id = source.id if source else None
-        await self._upsert_qdrant(
-            point_id=point_id,
-            vector=vector,
-            payload=self._build_payload(
-                text_id=chunk.id,
-                source_id=payload_source_id,
-                region_codes=effective_region_codes,
-                place_of_work=effective_place,
-                chunk_index=chunk.chunk_index,
-                total_chunks=chunk.chunk_index + 1,
-            ),
+            fallback=chunk.place_of_work,
         )
 
         previous_length = len(chunk.text)
-        await self._repo.update_text_and_point_id(
-            chunk_id=chunk.id,
-            text=text,
-            qdrant_point_id=point_id,
-            region_code=region_code or None,
-            place_of_work=effective_place if place_of_work_set else chunk.place_of_work,
-            source_url=effective_url,
-        )
+        try:
+            result = await self._api.update_chunk(
+                chunk_id=chunk.id,
+                text=text,
+                place_of_work=effective_place,
+            )
+        except ChunkApiError as exc:
+            raise ChunkPersistenceError(str(exc)) from exc
 
         await self._audit.record(
             action="chunk.updated",
@@ -259,10 +179,8 @@ class ChunkAdminService:
             payload_diff={
                 "previous_length": previous_length,
                 "new_length": len(text),
-                "qdrant_point_id": str(point_id),
-                "region_code": region_code,
                 "place_of_work": effective_place,
-                "source_url": effective_url,
+                "status": result.get("status"),
             },
         )
 
@@ -275,41 +193,49 @@ class ChunkAdminService:
         if chunk is None:
             return
 
-        if chunk.qdrant_point_id is not None:
-            try:
-                await self._qdrant.delete(
-                    collection_name=self._collection,
-                    points_selector=qmodels.PointIdsList(
-                        points=[str(chunk.qdrant_point_id)]
-                    ),
-                )
-            except Exception as exc:
-                logger.exception(
-                    "ChunkAdminService: Qdrant delete failed for chunk=%s",
-                    chunk_id,
-                )
-                raise ChunkPersistenceError(
-                    f"Не удалось удалить вектор в Qdrant: {exc}"
-                ) from exc
-
-        await self._repo.delete(chunk.id)
+        try:
+            result = await self._api.delete_chunk(chunk.id)
+        except ChunkApiError as exc:
+            raise ChunkPersistenceError(str(exc)) from exc
 
         await self._audit.record(
             action="chunk.deleted",
             admin_id=admin_id,
             target_type="chunk",
             target_id=str(chunk.id),
-            payload_diff={"qdrant_point_id": str(chunk.qdrant_point_id)},
+            payload_diff={
+                "qdrant_point_id": str(chunk.qdrant_point_id),
+                "status": result.get("status"),
+            },
         )
 
-    @staticmethod
-    def _resolve_region_codes(
-        override: str | None, fallback: list[str]
-    ) -> list[str]:
+    async def _resolve_region(
+        self,
+        override: str | None,
+        fallback_source_id: int | None,
+    ) -> tuple[str | None, str | None]:
         cleaned = (override or "").strip()
         if cleaned:
-            return [cleaned]
-        return list(fallback)
+            name = await self._region_name_for_code(cleaned)
+            return (cleaned, name) if name else (None, None)
+
+        if fallback_source_id is None:
+            return None, None
+
+        source_codes = await self._repo.get_source_region_codes(fallback_source_id)
+        if not source_codes:
+            return None, None
+
+        first = source_codes[0]
+        name = await self._region_name_for_code(first)
+        return (first, name) if name else (None, None)
+
+    async def _region_name_for_code(self, code: str) -> str | None:
+        regions = await self._repo.list_regions()
+        for region in regions:
+            if region.code == code:
+                return region.name
+        return None
 
     @staticmethod
     def _resolve_place_of_work(
@@ -332,61 +258,12 @@ class ChunkAdminService:
         text = (text or "").strip()
         if not text:
             raise ChunkValidationError("Текст чанка не может быть пустым.")
+        if len(text) < 50:
+            raise ChunkValidationError(
+                "Слишком короткий чанк: минимум 50 символов."
+            )
         if len(text) > 16_000:
             raise ChunkValidationError(
                 "Слишком длинный чанк: ограничение 16000 символов."
             )
         return text
-
-    async def _embed(self, text: str) -> list[float]:
-        try:
-            vectors = await self._embedding.aembed_documents([text])
-        except Exception as exc:
-            logger.exception("ChunkAdminService: embedding failed")
-            raise ChunkPersistenceError(
-                f"Не удалось получить эмбеддинг: {exc}"
-            ) from exc
-        if not vectors or not vectors[0]:
-            raise ChunkPersistenceError("Эмбеддинг вернул пустой вектор.")
-        return vectors[0]
-
-    async def _upsert_qdrant(
-        self,
-        point_id,
-        vector: list[float],
-        payload: dict,
-    ) -> None:
-        try:
-            await self._qdrant.upsert(
-                collection_name=self._collection,
-                points=[
-                    qmodels.PointStruct(
-                        id=str(point_id),
-                        vector=vector,
-                        payload=payload,
-                    )
-                ],
-            )
-        except Exception as exc:
-            logger.exception("ChunkAdminService: Qdrant upsert failed")
-            raise ChunkPersistenceError(
-                f"Не удалось сохранить вектор в Qdrant: {exc}"
-            ) from exc
-
-    @staticmethod
-    def _build_payload(
-        text_id: int | None,
-        source_id: int | None,
-        region_codes: list[str],
-        place_of_work: str | None,
-        chunk_index: int,
-        total_chunks: int,
-    ) -> dict:
-        return {
-            "text_id": text_id,
-            "source_id": source_id,
-            "region_codes": region_codes or None,
-            "place_of_work": place_of_work,
-            "chunk_index": chunk_index,
-            "total_chunks": total_chunks,
-        }

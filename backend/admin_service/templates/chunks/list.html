@@ -6,6 +6,10 @@
 <section class="card">
     <h1>База знаний (чанки)</h1>
 
+    {% if request.query_params.get("created") %}
+    <div class="alert alert-success">Текст отправлен в индексацию. Возможно создание нескольких чанков.</div>
+    {% endif %}
+
     <form method="get" action="{{ base_path }}/chunks" class="filters">
         <label class="filter-select-wrap">
             Источник
@@ -26,6 +30,7 @@
             Поиск
             <input type="search" name="search" value="{{ search }}" placeholder="Текст или название">
         </label>
+        <button type="submit" class="btn btn-secondary">Найти</button>
         <a class="btn btn-primary" href="{{ base_path }}/chunks/new{% if selected_source_id %}?source_id={{ selected_source_id }}{% endif %}">+ Новый чанк</a>
     </form>
 

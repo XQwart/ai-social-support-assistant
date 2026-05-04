@@ -45,7 +45,7 @@ class Config(BaseSettings):
 
     qdrant_host: str = "qdrant"
     qdrant_port: str = "6333"
-    chunks_collection_name: str = "chunks_collection"
+    qdrant_collection: str = "chunk_collection"
 
     embedding_provider: str = "gigachat"
     polza_ai_api_key: str = ""

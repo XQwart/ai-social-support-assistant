@@ -2,6 +2,7 @@ from __future__ import annotations
 import logging
 from contextlib import asynccontextmanager
 
+import httpx
 from fastapi import FastAPI
 
 from admin_service.core.config import get_admin_config
@@ -9,9 +10,7 @@ from admin_service.core.security import AdminSessionToken, CSRFTokenSigner
 from admin_service.services.bootstrap_service import BootstrapService
 from app.core.config import get_config
 from app.core.database import create_engine, create_session_maker
-from app.core.llm import create_embedding_client
 from app.core.logger import setup_logging
-from app.core.qdrant import create_qdrant_client
 from app.core.redis import create_redis
 
 
@@ -28,8 +27,7 @@ async def lifespan(app: FastAPI):
     engine = create_engine(backend_config)
     session_maker = create_session_maker(engine)
     redis = create_redis(backend_config)
-    qdrant = create_qdrant_client(url=backend_config.qdrant_url)
-    embedding_client, _ = create_embedding_client(backend_config)
+    chunk_api_client = httpx.AsyncClient(timeout=admin_config.chunk_api_timeout)
 
     session_token = AdminSessionToken(
         secret=admin_config.admin_jwt_secret,
@@ -40,8 +38,7 @@ async def lifespan(app: FastAPI):
     app.state.db_engine = engine
     app.state.session_maker = session_maker
     app.state.redis = redis
-    app.state.qdrant = qdrant
-    app.state.embedding_client = embedding_client
+    app.state.chunk_api_client = chunk_api_client
     app.state.session_token = session_token
     app.state.csrf_signer = csrf_signer
     app.state.admin_config = admin_config
@@ -55,6 +52,6 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
-        await qdrant.close()
+        await chunk_api_client.aclose()
         await redis.aclose()
         await engine.dispose()

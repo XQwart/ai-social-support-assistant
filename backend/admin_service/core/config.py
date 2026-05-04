@@ -5,8 +5,6 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from app.core.config import Config as BackendConfig, get_config as get_backend_config
-
 
 ADMIN_BASE_DIR = Path(__file__).resolve().parents[1]
 TEMPLATES_DIR = ADMIN_BASE_DIR / "templates"
@@ -42,6 +40,9 @@ class AdminConfig(BaseSettings):
     admin_force_https: bool = True
 
     admin_totp_issuer: str = "SOC Admin"
+
+    chunk_api_url: str = "http://chunk-api:8002"
+    chunk_api_timeout: float = 60.0
 
     # Public mount path of the admin service behind nginx. The service
     # itself listens on root paths (``/login``, ``/prompts``, ...), but
@@ -92,7 +93,3 @@ class AdminConfig(BaseSettings):
 @lru_cache
 def get_admin_config() -> AdminConfig:
     return AdminConfig()
-
-
-def get_shared_backend_config() -> BackendConfig:
-    return get_backend_config()
