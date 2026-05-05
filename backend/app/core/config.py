@@ -95,10 +95,12 @@ class Config(BaseSettings):
     llm_provider: AIProvider = AIProvider.GIGACHAT
     embedding_provider: AIProvider = AIProvider.GIGACHAT
 
-    agent_max_tool_calls: int = 4
+    agent_recursion_limit: int = 15
+    agent_max_tool_calls: int = 10
     agent_max_rag_per_turn: int = 2
-    agent_recursion_limit: int = 10
-    agent_page_fetch_max_urls_tool: int = 3
+    agent_max_web_search_per_turn: int = 1
+    agent_max_page_fetch_per_turn: int = 2
+    agent_max_page_fetch_urls: int = 3
 
     polza_ai_api_key: str = ""
     polza_ai_base_url: str = "https://polza.ai/api/v1"
