@@ -15,5 +15,5 @@ data
 dev
 backend/celerybeat-schedule.db
 nginx/admin.htpasswd
-nginx/prod.conf
+nginx/conf.d/prod.conf
 searxng/settings.yml
