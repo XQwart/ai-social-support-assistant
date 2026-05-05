@@ -190,7 +190,11 @@ class AgentService:
 
         middleware = [
             ToolBudgetMiddleware(self._config.agent_max_tool_calls),
-            ToolGuardMiddleware(self._config.agent_max_rag_per_turn),
+            ToolGuardMiddleware(
+                max_rag_searches_per_turn=self._config.agent_max_rag_per_turn,
+                max_web_search_per_turn=self._config.agent_max_web_search_per_turn,
+                max_page_fetch_per_turn=self._config.agent_max_page_fetch_per_turn,
+            ),
             build_dunamic_prompt(self._prompt_service.get),
             MemoryToolStateMiddleware(),
             SummarizationMiddleware(

@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from qdrant_client import AsyncQdrantClient, models
 
 from worker.schemas.document import EmbeddedChunkForIndex
-from worker.schemas.document_type import AccessScope, GeoScope
+from shared.schemas.document_type import AccessScope, GeoScope
 
 
 class VectorRepository:
@@ -59,7 +59,6 @@ class VectorRepository:
                 "region_codes": regions,
                 "place_of_work": place_of_work,
                 "chunk_index": chunk.chunk_index,
-                "text": chunk.text,
                 "geo_scope": geo_scope,
                 "access_scope": access_scope,
                 "has_questions": bool(question_vectors),

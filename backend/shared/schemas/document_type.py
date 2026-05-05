@@ -1,11 +1,11 @@
-from enum import StrEnum
+from enum import Enum
 
 
-class AccessScope(StrEnum):
+class AccessScope(str, Enum):
     PUBLIC = "public"
     INTERNAL = "internal"
 
 
-class GeoScope(StrEnum):
+class GeoScope(str, Enum):
     FEDERAL = "federal"
     REGIONAL = "regional"

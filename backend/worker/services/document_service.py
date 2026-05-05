@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from worker.schemas.document_type import AccessScope, GeoScope
+from shared.schemas.document_type import AccessScope, GeoScope
 from worker.repositories.vector_repository import VectorRepository
 from worker.repositories.chunk_repository import ChunkRepository
 from worker.schemas.document import (

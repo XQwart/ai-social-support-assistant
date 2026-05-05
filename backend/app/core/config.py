@@ -51,6 +51,9 @@ class Config(BaseSettings):
         return f"http://{self.qdrant_host}:{self.qdrant_port}"
 
     qdrant_collection: str = "chunk_collection"
+    qdrant_vector_chunk: str = "chunk"
+    qdrant_vector_questions: str = "questions"
+    qdrant_min_per_category: int = 2
 
     searxng_url: str = "http://searxng:8080"
     web_search_timeout: float = 8.0
@@ -58,8 +61,6 @@ class Config(BaseSettings):
     web_search_citation_char_limit: int = 220
 
     rag_distance: Distance = Distance.COSINE
-    rag_top_k: int = 6
-    rag_min_per_category: int = 2
     rag_score_threshold: float = 0.65
     rag_citation_char_limit: int = 220
     rag_chunk_text_char_limit: int = 1400
@@ -94,10 +95,12 @@ class Config(BaseSettings):
     llm_provider: AIProvider = AIProvider.GIGACHAT
     embedding_provider: AIProvider = AIProvider.GIGACHAT
 
-    agent_max_tool_calls: int = 4
+    agent_recursion_limit: int = 15
+    agent_max_tool_calls: int = 10
     agent_max_rag_per_turn: int = 2
-    agent_recursion_limit: int = 10
-    agent_page_fetch_max_urls_tool: int = 3
+    agent_max_web_search_per_turn: int = 1
+    agent_max_page_fetch_per_turn: int = 2
+    agent_max_page_fetch_urls: int = 3
 
     polza_ai_api_key: str = ""
     polza_ai_base_url: str = "https://polza.ai/api/v1"

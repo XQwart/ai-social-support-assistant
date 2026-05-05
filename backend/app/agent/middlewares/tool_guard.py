@@ -8,21 +8,50 @@ from langchain.agents.middleware import AgentMiddleware, ToolCallRequest
 from langchain_core.messages import HumanMessage, ToolMessage
 from langgraph.types import Command
 
-
 logger = logging.getLogger(__name__)
 
 
-SEARCH_TOOL = "search_knowledge_base"
-MEMORY_TOOL = "save_user_facts"
+_RAG_TOOL = "search_knowledge_base"
+_MEMORY_TOOL = "save_user_facts"
+_WEB_SEARCH_TOOL = "search_web"
+_FETCH_PAGE_TOOL = "fetch_page"
+
+_LIMIT_MESSAGES = {
+    _RAG_TOOL: (
+        "Вызов запрещён. Ты уже получил результат "
+        "search_knowledge_base в этом ответе — используй его. "
+        "Отвечай пользователю на основе уже найденных данных; "
+        "если их недостаточно, задай один уточняющий вопрос."
+    ),
+    _WEB_SEARCH_TOOL: (
+        "Вызов запрещён. Ты уже выполнил search_web в этом ответе — "
+        "используй полученные результаты. Изменение запроса не делает "
+        "вызов новым. Если данных мало — отвечай по тому, что есть, "
+        "или честно скажи, что точной информации найти не удалось."
+    ),
+    _FETCH_PAGE_TOOL: (
+        "Вызов запрещён. Ты превысилит лимит вызовов fetch_page в этом ответе — "
+        "используй уже загруженное содержимое."
+    ),
+}
 
 
 class ToolGuardMiddleware(AgentMiddleware):
     _max_searches_per_turn: int
 
-    def __init__(self, max_searches_per_turn: int) -> None:
+    def __init__(
+        self,
+        max_rag_searches_per_turn: int,
+        max_web_search_per_turn: int,
+        max_page_fetch_per_turn: int,
+    ) -> None:
         super().__init__()
 
-        self._max_searches_per_turn = max_searches_per_turn
+        self._limits_per_turn: dict[str, int] = {
+            _RAG_TOOL: max_rag_searches_per_turn,
+            _WEB_SEARCH_TOOL: max_web_search_per_turn,
+            _FETCH_PAGE_TOOL: max_page_fetch_per_turn,
+        }
 
     async def awrap_tool_call(
         self,
@@ -33,30 +62,31 @@ class ToolGuardMiddleware(AgentMiddleware):
         args = request.tool_call.get("args") or {}
         tool_call_id = request.tool_call.get("id", "")
 
-        if name == MEMORY_TOOL:
+        if name == _MEMORY_TOOL:
             blocked = self._guard_memory_call(args, request)
             if blocked is not None:
                 logger.info(
-                    "Блокирую %s (guard): %s | args=%s", MEMORY_TOOL, blocked, args
+                    "Блокирую %s (guard): %s | args=%s", _MEMORY_TOOL, blocked, args
                 )
                 return ToolMessage(
                     content=blocked,
-                    name=MEMORY_TOOL,
+                    name=_MEMORY_TOOL,
                     tool_call_id=tool_call_id,
                 )
 
-        if name == SEARCH_TOOL:
-            search_count = self._count_searches_in_turn(request)
-            if search_count > self._max_searches_per_turn:
-                logger.info("Блокирую %s (guard) | args=%s", SEARCH_TOOL, args)
+        limit = self._limits_per_turn.get(name)
+        if limit is not None:
+            used = self._count_calls_in_turn(request, name)
+            if used >= limit:
+                logger.info(
+                    "Блокирую %s (guard): лимит %s | ход исчерпан | args=%s",
+                    name,
+                    limit,
+                    args,
+                )
                 return ToolMessage(
-                    content=(
-                        "Вызов запрещён. Ты уже получил результат "
-                        "search_knowledge_base в этом ответе — используй его. "
-                        "Отвечай пользователю на основе уже найденных данных; "
-                        "если их недостаточно, задай один уточняющий вопрос."
-                    ),
-                    name=SEARCH_TOOL,
+                    content=_LIMIT_MESSAGES[name],
+                    name=name,
                     tool_call_id=tool_call_id,
                 )
 
@@ -91,12 +121,12 @@ class ToolGuardMiddleware(AgentMiddleware):
         return None
 
     @staticmethod
-    def _count_searches_in_turn(request: ToolCallRequest) -> int:
+    def _count_calls_in_turn(request: ToolCallRequest, tool: str) -> int:
         messages = request.state.get("messages") or []
         count = 0
         for msg in reversed(messages):
             if isinstance(msg, HumanMessage):
                 break
-            if isinstance(msg, ToolMessage) and msg.name == SEARCH_TOOL:
+            if isinstance(msg, ToolMessage) and msg.name == tool:
                 count += 1
         return count
