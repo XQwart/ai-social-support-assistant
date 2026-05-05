@@ -2,7 +2,7 @@ from __future__ import annotations
 
 
 from worker.schemas.document import ParsedDocument
-from worker.schemas.document_type import AccessScope, GeoScope
+from shared.schemas.document_type import AccessScope, GeoScope
 from worker.services.chunk_service import ChunkingService
 from worker.services.chunk_index_service import ChunkIndexingService
 from worker.services.document_service import DocumentService

@@ -35,7 +35,7 @@ class RAGService:
 
         place_by_id: dict[int, str | None] = {}
         for embedding in embeddings:
-            matches = await self._chunk_rep.search_similar_by_work(
+            matches = await self._chunk_rep.search_relevant_chunks(
                 embedding, region, place_of_work
             )
             for doc_id, chunk_place_of_work in matches:

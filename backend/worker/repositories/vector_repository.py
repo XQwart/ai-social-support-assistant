@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from qdrant_client import AsyncQdrantClient, models
 
 from worker.schemas.document import EmbeddedChunkForIndex
-from worker.schemas.document_type import AccessScope, GeoScope
+from shared.schemas.document_type import AccessScope, GeoScope
 
 
 class VectorRepository:
