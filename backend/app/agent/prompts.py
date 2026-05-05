@@ -1,3 +1,8 @@
+import datetime as dt
+
+CURRENT_DATE = "<date>\n Сегодняшняя дата: {date} \n</date>"
+
+
 SYSTEM_PROMPT_ROLE = (
     "<role>\n"
     "Ты помощник по мерам социальной поддержки граждан РФ.\n"
@@ -253,6 +258,7 @@ def build_system_prompt(
     )
 
     sections = [
+        CURRENT_DATE.format(date=dt.date.today().strftime("%d.%m.%Y")),
         resolve("SYSTEM_PROMPT_ROLE"),
         _user_profile_section(
             first_name,
