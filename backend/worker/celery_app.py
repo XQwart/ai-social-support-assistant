@@ -39,7 +39,6 @@ app.conf.update(
     task_acks_late=True,
     worker_prefetch_multiplier=1,
     result_expires=3600,
-    task_default_queue="default",
 )
 
 
