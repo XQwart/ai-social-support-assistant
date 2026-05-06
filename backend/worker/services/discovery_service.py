@@ -88,6 +88,7 @@ class LinkDiscoveryService:
 
             created_sources = (
                 await self._source_registration_service.register_discovered_sources(
+                    root_source_id=root_source.id,
                     links=unique_links,
                     place_of_work=root_source.place_of_work,
                 )

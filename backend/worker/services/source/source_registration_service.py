@@ -59,10 +59,15 @@ class SourceRegistrationService:
     async def register_discovered_sources(
         self,
         links: list[DiscoveredLink],
+        root_source_id: int,
         place_of_work: str | None = None,
     ) -> list[Source]:
         if not links:
             return []
+
+        root_regions = await self._source_repository.get_regions_by_source_id(
+            root_source_id
+        )
 
         created_sources: list[Source] = []
 
@@ -73,6 +78,12 @@ class SourceRegistrationService:
                 document_type=link.document_type,
                 place_of_work=place_of_work,
             )
+
+            for region in root_regions:
+                await self._source_repository.add_region_to_source(
+                    source_id=source.id,
+                    region_id=region.id,
+                )
 
             if created:
                 created_sources.append(source)
