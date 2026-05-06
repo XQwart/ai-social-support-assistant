@@ -40,38 +40,6 @@ app.conf.update(
     worker_prefetch_multiplier=1,
     result_expires=3600,
     task_default_queue="default",
-    task_default_priority=5,
-    broker_transport_options={
-        "queue_order_strategy": "priority",
-        "priority_steps": list(range(10)),
-        "sep": ":",
-    },
-    task_routes={
-        "worker.tasks.update_knowledge_task.update_knowledge": {
-            "queue": "default",
-            "priority": 5,
-        },
-        "worker.tasks.import_one_source_task.import_one_source": {
-            "queue": "default",
-            "priority": 5,
-        },
-        "worker.tasks.finalize_source_import_task.finalize_source_import": {
-            "queue": "default",
-            "priority": 5,
-        },
-        "worker.tasks.scheduler_task.dispatch_due_crawls": {
-            "queue": "default",
-            "priority": 7,
-        },
-        "worker.tasks.scheduler_task.reap_stale_locks": {
-            "queue": "default",
-            "priority": 7,
-        },
-        "worker.tasks.get_source_link_task.get_source_links": {
-            "queue": "default",
-            "priority": 8,
-        },
-    },
 )
 
 
@@ -79,26 +47,14 @@ app.conf.beat_schedule = {
     "dispatch-due-crawls-every-8-minutes": {
         "task": "worker.tasks.scheduler_task.dispatch_due_crawls",
         "schedule": crontab(minute="*/8"),
-        "options": {
-            "queue": "default",
-            "priority": 7,
-        },
     },
     "get-source-links-every-2-months": {
         "task": "worker.tasks.get_source_link_task.get_source_links",
         "schedule": crontab(minute=0, hour=4, month_of_year="*/2", day_of_month=1),
-        "options": {
-            "queue": "default",
-            "priority": 8,
-        },
     },
     "reap-stale-locks-every-50-minutes": {
         "task": "worker.tasks.scheduler_task.reap_stale_locks",
         "schedule": crontab(minute="*/50"),
-        "options": {
-            "queue": "default",
-            "priority": 7,
-        },
     },
 }
 
