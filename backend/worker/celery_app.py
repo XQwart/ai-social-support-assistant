@@ -76,9 +76,9 @@ app.conf.update(
 
 
 app.conf.beat_schedule = {
-    "dispatch-due-crawls-every-15-minutes": {
+    "dispatch-due-crawls-every-8-minutes": {
         "task": "worker.tasks.scheduler_task.dispatch_due_crawls",
-        "schedule": crontab(minute="*/15"),
+        "schedule": crontab(minute="*/8"),
         "options": {
             "queue": "default",
             "priority": 7,
