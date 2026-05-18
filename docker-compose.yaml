@@ -20,6 +20,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     image: backend:latest
+    pull_policy: never
     env_file:
       - .env
     depends_on:
@@ -30,6 +31,7 @@ services:
 
   chunk-api:
     image: backend-worker:latest
+    pull_policy: never
     env_file:
       - .env
     working_dir: /code
@@ -52,6 +54,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile.worker
     image: backend-worker:latest
+    pull_policy: never
     env_file:
       - .env
     working_dir: /code
@@ -72,9 +75,11 @@ services:
     profiles:
       - celery
     image: backend-worker:latest
+    pull_policy: never
 
   admin:
     image: backend:latest
+    pull_policy: never
     env_file:
       - .env
     working_dir: /code
@@ -110,6 +115,7 @@ services:
 
   migrations:
     image: backend:latest
+    pull_policy: never
     env_file:
       - .env
     command: alembic upgrade head

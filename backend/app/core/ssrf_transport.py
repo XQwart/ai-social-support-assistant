@@ -35,7 +35,7 @@ class SSRFGuardTransport(httpx.AsyncHTTPTransport):
             method=request.method,
             url=new_url,
             headers=new_headers,
-            content=request.stream,
+            stream=request.stream,
             extensions=extensions,
         )
 

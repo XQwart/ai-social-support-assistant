@@ -56,6 +56,7 @@ class PageFetchService:
             return FetchResult(url=url, error_kind=exc.kind)
         except Exception as exc:
             logger.exception("PageFetch: unexpected error for %s", url)
+            print(exc)
             return FetchResult(url=url, error_kind=FetchErrorKind.UNEXPECTED)
 
     async def _stream_fetch(self, url: str) -> tuple[bytes, str, str]:
