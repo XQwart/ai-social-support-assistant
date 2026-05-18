@@ -9,6 +9,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from worker.core.constants import DEFAULT_CRAWL_INTERVAL
 from shared.models.regions import Region, SourceRegion
 from worker.models.source import Source
+from worker.schemas.region import SourceRegionInfo
 
 
 class SourceRegistrationRepository:
@@ -92,12 +93,28 @@ class SourceRegistrationRepository:
         return set(result.scalars().all())
 
     async def get_region_codes_by_source_id(self, source_id: int) -> list[str]:
+        regions = await self.get_regions_by_source_id(source_id)
+        return [region.code for region in regions]
+
+    async def get_regions_by_source_id(self, source_id: int) -> list[SourceRegionInfo]:
         stmt = (
-            select(Region.code)
+            select(
+                Region.id,
+                Region.code,
+                Region.name,
+            )
             .join(SourceRegion, SourceRegion.region_id == Region.id)
             .where(SourceRegion.source_id == source_id)
-            .order_by(Region.code.asc())
+            .order_by(Region.id)
         )
 
         result = await self._session.execute(stmt)
-        return list(result.scalars().all())
+
+        return [
+            SourceRegionInfo(
+                id=region_id,
+                code=code,
+                name=name,
+            )
+            for region_id, code, name in result.all()
+        ]
