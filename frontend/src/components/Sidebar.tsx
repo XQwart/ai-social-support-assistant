@@ -414,7 +414,7 @@ function ChatItem({ chat, isActive, isDark, showDate, timestampForDisplay, onSel
   }, [isMenuOpen]);
 
   return (
-    <div className="group relative">
+    <div className={cn("group relative", isMenuOpen && "z-50")}>
       {isActive && (
         <span
           aria-hidden="true"
@@ -488,7 +488,7 @@ function ChatItem({ chat, isActive, isDark, showDate, timestampForDisplay, onSel
               e.stopPropagation();
             }}
             className={cn(
-              "flex h-9 w-9 cursor-pointer items-center justify-center rounded-[14px] border backdrop-blur-xl transition-all duration-200 active:scale-95",
+              "relative z-0 flex h-9 w-9 cursor-pointer items-center justify-center rounded-[14px] border backdrop-blur-xl transition-all duration-200 active:scale-95",
               isDark
                 ? "border-white/12 bg-white/10 text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] hover:border-white/18 hover:bg-white/14"
                 : "border-white/80 bg-white/82 text-slate-600 shadow-[0_8px_20px_rgba(15,23,42,0.10),inset_0_1px_0_rgba(255,255,255,0.78)] hover:bg-white/92"
@@ -514,7 +514,7 @@ function ChatItem({ chat, isActive, isDark, showDate, timestampForDisplay, onSel
             <div
               role="menu"
               className={cn(
-                "absolute right-0 top-[calc(100%+6px)] flex w-[160px] flex-col overflow-hidden rounded-2xl border backdrop-blur-2xl",
+                "absolute right-0 top-[calc(100%+6px)] z-10 flex w-[160px] flex-col overflow-hidden rounded-2xl border backdrop-blur-2xl",
                 isDark
                   ? "border-white/12 bg-[rgba(14,32,28,0.96)] shadow-[0_18px_42px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.05)]"
                   : "border-white/80 bg-white/96 shadow-[0_18px_42px_rgba(15,23,42,0.18),inset_0_1px_0_rgba(255,255,255,0.85)]"

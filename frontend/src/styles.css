@@ -253,20 +253,118 @@ textarea {
   color: transparent !important;
 }
 
-.typing-cursor {
+.typing-cursor,
+.markdown-content.is-streaming > *:last-child:not(ul):not(ol):not(blockquote):not(pre)::after,
+.markdown-content.is-streaming > ul:last-child > li:last-child::after,
+.markdown-content.is-streaming > ol:last-child > li:last-child::after,
+.markdown-content.is-streaming > blockquote:last-child > *:last-child::after,
+.markdown-content.is-streaming > pre:last-child > code::after,
+.markdown-content.is-streaming:empty::after {
+  content: "";
   display: inline-block;
-  width: 4px;
-  height: 1.2em;
-  margin-left: 3px;
+  width: 8px;
+  height: 1.15em;
+  margin-left: 2px;
   vertical-align: text-bottom;
   border-radius: 1px;
-  background: linear-gradient(
-    180deg,
-    rgba(16, 185, 129, 0.95) 0%,
-    rgba(5, 150, 105, 0.98) 100%
-  );
-  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.35);
+  background: #10b981;
   animation: blinkCursor 0.85s steps(1) infinite;
+}
+
+.typing-cursor {
+  height: 1.2em;
+}
+
+.agent-activity-card {
+  border-radius: 16px;
+  border: 1px solid transparent;
+  padding: 8px 14px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #475569;
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.agent-activity-running {
+  border-color: rgba(16, 185, 129, 0.32);
+  background: rgba(16, 185, 129, 0.08);
+  color: #047857;
+}
+
+.agent-activity-done {
+  border-color: rgba(148, 163, 184, 0.32);
+  background: rgba(255, 255, 255, 0.55);
+  color: #475569;
+}
+
+.agent-activity-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.agent-activity-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: currentColor;
+  opacity: 0.85;
+}
+
+.agent-activity-label {
+  color: currentColor;
+}
+
+.agent-activity-detail {
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: rgba(71, 85, 105, 0.85);
+  word-break: break-word;
+}
+
+.agent-activity-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: currentColor;
+  opacity: 0.7;
+}
+
+.agent-activity-thought {
+  margin-top: 6px;
+  white-space: pre-wrap;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: rgba(71, 85, 105, 0.85);
+}
+
+.agent-activity-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+[data-theme="dark"] .agent-activity-card {
+  background: rgba(255, 255, 255, 0.04);
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .agent-activity-running {
+  border-color: rgba(52, 211, 153, 0.35);
+  background: rgba(16, 185, 129, 0.18);
+  color: #6ee7b7;
+}
+
+[data-theme="dark"] .agent-activity-done {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .agent-activity-detail,
+[data-theme="dark"] .agent-activity-thought {
+  color: rgba(203, 213, 225, 0.7);
 }
 
 .loading-dot {
@@ -300,9 +398,59 @@ textarea {
   color: #94a3a0 !important;
 }
 
+/* Remap light-theme white surfaces in dark mode */
 [data-theme="dark"] .bg-white,
 [data-theme="dark"] [class*="bg-white/"] {
   background-color: rgba(10, 24, 20, 0.84) !important;
+}
+
+/* Chips / top bar — translucent, not flat gray from raw bg-white/64 */
+[data-theme="dark"] [class*="bg-white/64"],
+[data-theme="dark"] [class*="bg-white/58"],
+[data-theme="dark"] [class*="bg-white/45"] {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Sort trigger, menu icon, etc. */
+[data-theme="dark"] [class*="bg-white/[0.04]"],
+[data-theme="dark"] [class*=" bg-white/10"],
+[data-theme="dark"] [class*=" bg-white/8"] {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+/*
+ * Broad [class*="bg-white/"] also matches hover:bg-white/… tokens in the
+ * class attribute. For controls that only use hover:bg-white (rename, sort
+ * options), reset the false positive when not hovered.
+ */
+[data-theme="dark"] [class*="hover:bg-white"]:not([class*=" bg-white/"]):not(
+    [class^="bg-white/"]
+  ):not(:hover) {
+  background-color: transparent !important;
+}
+
+/* Sidebar menu + sort list hovers (rename, filter options, chat rows) */
+[data-theme="dark"] [class*="hover:bg-white"]:not([class*=" bg-white/"]):not(
+    [class^="bg-white/"]
+  ):hover {
+  background-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+[data-theme="dark"] [class*="hover:bg-white/[0.07]"]:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] [class*="hover:bg-white/14"]:hover,
+[data-theme="dark"] [class*="hover:bg-white/18"]:hover {
+  background-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+[data-theme="dark"] [class*="hover:bg-white/70"]:hover,
+[data-theme="dark"] [class*="hover:bg-white/75"]:hover,
+[data-theme="dark"] [class*="hover:bg-white/78"]:hover,
+[data-theme="dark"] [class*="hover:bg-white/82"]:hover,
+[data-theme="dark"] [class*="hover:bg-white/92"]:hover {
+  background-color: rgba(255, 255, 255, 0.16) !important;
 }
 
 [data-theme="dark"] .bg-slate-50,
@@ -314,6 +462,11 @@ textarea {
 [data-theme="dark"] .border-white,
 [data-theme="dark"] [class*="border-white/"] {
   border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] [class*="hover:border-white/15"]:hover,
+[data-theme="dark"] [class*="hover:border-white/18"]:hover {
+  border-color: rgba(255, 255, 255, 0.18) !important;
 }
 
 [data-theme="dark"] .border-slate-100,

@@ -1,19 +1,18 @@
 import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 
-import TypingAnimation from "@/components/TypingAnimation";
+import AgentActivityList from "@/components/AgentActivity";
 
 import type { Message } from "@/types";
 import { cn } from "@/utils/cn";
 
 interface ChatMessageProps {
   message: Message;
-  shouldAnimate: boolean;
+  isStreaming?: boolean;
 }
 
 const ROLE_LABEL = "Помощник";
 const ERROR_LABEL = "Системное сообщение";
-const TYPING_SPEED = 10;
 const TIME_LOCALE = "ru-RU";
 const COPY_RESET_TIMEOUT = 1400;
 
@@ -210,13 +209,13 @@ function MessageFooter({
 
 function MarkdownContent({
   content,
-  showCursor = false,
+  isStreaming = false,
 }: {
   content: string;
-  showCursor?: boolean;
+  isStreaming?: boolean;
 }) {
   return (
-    <div className="min-w-0">
+    <div className={cn("min-w-0 markdown-content", isStreaming && "is-streaming")}>
       <ReactMarkdown
         components={{
           p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
@@ -286,8 +285,6 @@ function MarkdownContent({
       >
         {content}
       </ReactMarkdown>
-
-      {showCursor && <span className="typing-cursor ml-1 inline-block align-baseline" aria-hidden="true" />}
     </div>
   );
 }
@@ -323,11 +320,12 @@ function SystemMessage({ message }: { message: Message }) {
 
 export default function ChatMessage({
   message,
-  shouldAnimate,
+  isStreaming = false,
 }: ChatMessageProps) {
   const isUser = message.role === "user";
   const isError = message.error === true;
   const showFeedback = !isUser && !isError;
+  const activities = message.activities ?? [];
 
   if (message.role === "system") {
     return <SystemMessage message={message} />;
@@ -368,27 +366,20 @@ export default function ChatMessage({
               </div>
             )}
 
+            {!isUser && activities.length > 0 && (
+              <AgentActivityList activities={activities} isStreaming={isStreaming} />
+            )}
+
             <div
               className={cn(
                 "break-words text-[15px] leading-7",
                 isUser ? "whitespace-pre-wrap text-white/98" : "text-slate-800"
               )}
             >
-              {isUser ? (
+              {isUser || isError ? (
                 message.content
-              ) : isError ? (
-                message.content
-              ) : shouldAnimate ? (
-                <TypingAnimation text={message.content} speed={TYPING_SPEED}>
-                  {(displayed, done) => (
-                    <MarkdownContent
-                      content={done ? message.content : displayed}
-                      showCursor={!done}
-                    />
-                  )}
-                </TypingAnimation>
               ) : (
-                <MarkdownContent content={message.content} />
+                <MarkdownContent content={message.content} isStreaming={isStreaming} />
               )}
             </div>
           </div>
@@ -397,7 +388,7 @@ export default function ChatMessage({
             timestamp={message.timestamp}
             content={message.content}
             align={isUser ? "end" : "start"}
-            showFeedback={showFeedback}
+            showFeedback={showFeedback && !isStreaming}
           />
         </div>
       </div>

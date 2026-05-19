@@ -6,8 +6,14 @@ import {
   fetchChats,
   fetchMessages,
   renameChat as renameChatApi,
-  sendMessageToChat,
+  streamMessageToChat,
 } from "@/api/chatApi";
+import { createStreaming, reduceStream } from "@/utils/streamReducer";
+import {
+  TYPEWRITER_INTERVAL_MS,
+  advanceTypewriterChat,
+  hasActiveTypewriter,
+} from "@/utils/typewriter";
 import {
   parseChatIdFromLocation,
   pushChatRoute,
@@ -242,6 +248,7 @@ function mergeIncomingChats(current: Chat[], incoming: Chat[]): Chat[] {
       isHistoryHydrated: existing.isHistoryHydrated,
       pendingMessageText: existing.pendingMessageText,
       sendError: existing.sendError,
+      streaming: existing.streaming,
     });
   });
 
@@ -270,7 +277,6 @@ export default function App() {
   );
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [loadingChatIds, setLoadingChatIds] = useState<string[]>([]);
-  const [animatedMessageId, setAnimatedMessageId] = useState<string | null>(null);
   const [pendingDeleteChatId, setPendingDeleteChatId] = useState<string | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(
     () => initialAuthStateRef.current.token
@@ -397,8 +403,7 @@ export default function App() {
       setActiveChatId(null);
       replaceChatRoute(null);
       setLoadingChatIds([]);
-      setAnimatedMessageId(null);
-      setIsSidebarOpen(false);
+        setIsSidebarOpen(false);
       setIsSettingsModalOpen(false);
       setIsUserAgreementOpen(false);
       setSberAuthError("");
@@ -439,8 +444,7 @@ export default function App() {
         replaceChatRoute(null);
         return null;
       });
-      setAnimatedMessageId(null);
-      updateChatListOffset(Math.max(chatListOffsetRef.current - 1, 0));
+        updateChatListOffset(Math.max(chatListOffsetRef.current - 1, 0));
     },
     [releaseController, updateChatListOffset]
   );
@@ -754,8 +758,7 @@ export default function App() {
       setActiveChatId(null);
       replaceChatRoute(null);
       setLoadingChatIds([]);
-      setAnimatedMessageId(null);
-      updateChatListOffset(0);
+        updateChatListOffset(0);
       setChatListStatus("idle");
       setChatListError(null);
       setHasMoreChats(false);
@@ -766,7 +769,6 @@ export default function App() {
 
     setChats([]);
     setLoadingChatIds([]);
-    setAnimatedMessageId(null);
     updateChatListOffset(0);
     void loadChatsPage("reset");
   }, [isAuthenticated, loadChatsPage, updateChatListOffset]);
@@ -779,8 +781,7 @@ export default function App() {
     const handlePopState = () => {
       const nextChatId = parseChatIdFromLocation();
       setActiveChatId(nextChatId);
-      setAnimatedMessageId(null);
-    };
+      };
 
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
@@ -886,6 +887,77 @@ export default function App() {
   useEffect(() => {
     preloadSberAuthParams();
   }, []);
+
+  const hasStreamingChat = useMemo(
+    () => chats.some((chat) => hasActiveTypewriter(chat)),
+    [chats]
+  );
+
+  useEffect(() => {
+    if (!hasStreamingChat) return;
+    if (typeof window === "undefined") return;
+
+    let cancelled = false;
+    let timeoutId: number | null = null;
+
+    const advance = () => {
+      if (cancelled) return;
+      const hidden =
+        typeof document !== "undefined" && document.visibilityState === "hidden";
+
+      setChats((prev) => {
+        let changed = false;
+        const finalized: Array<{ chatId: string; message: Message }> = [];
+
+        const next = prev.map((chat) => {
+          if (!chat.streaming) return chat;
+          const step = advanceTypewriterChat(chat, hidden);
+          if (step.finalized) {
+            finalized.push({ chatId: chat.id, message: step.finalized });
+            changed = true;
+            return {
+              ...step.chat,
+              streaming: null,
+              messages: mergeUniqueMessages(step.chat.messages, [step.finalized]),
+              updatedAt: step.finalized.timestamp,
+            };
+          }
+          if (step.chat !== chat) {
+            changed = true;
+          }
+          return step.chat;
+        });
+
+        if (finalized.length > 0) {
+          setLoadingChatIds((ids) =>
+            ids.filter((id) => !finalized.some((f) => f.chatId === id))
+          );
+        }
+
+        return changed ? sortChats(next) : prev;
+      });
+
+      timeoutId = window.setTimeout(advance, TYPEWRITER_INTERVAL_MS);
+    };
+
+    const onVisibilityChange = () => {
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+      advance();
+    };
+
+    advance();
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [hasStreamingChat]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -1011,9 +1083,11 @@ export default function App() {
       };
 
       let shouldReloadHistoryAfterSend = false;
+      let finalUserMsg: Message | null = null;
+      let finalAssistantMsg: Message | null = null;
+      let streamSucceeded = false;
 
       registerController(controllerKey, controller);
-      setAnimatedMessageId(null);
 
       try {
         if (!targetChatId) {
@@ -1036,6 +1110,7 @@ export default function App() {
             messagesOffset: 1,
             pendingMessageText: null,
             sendError: null,
+            streaming: createStreaming(),
           };
 
           setChats((prev) => sortChats([nextChat, ...prev]));
@@ -1072,15 +1147,63 @@ export default function App() {
                     pendingMessageText: null,
                     sendError: null,
                     messages: [...chat.messages, optimisticUserMsg],
+                    streaming: createStreaming(),
                   }
                 : chat
             )
           );
         }
 
-        const { userMsg, assistantMsg, contextCompressed } = await sendMessageToChat(
+        const applyToChat = (mutate: (chat: Chat) => Chat) => {
+          setChats((prev) =>
+            prev.map((chat) => (chat.id === targetChatId ? mutate(chat) : chat))
+          );
+        };
+
+        await streamMessageToChat(
           targetChatId,
           text,
+          {
+            onEvent: (event) => {
+              if (!isRequestCurrent(requestEpoch)) return;
+
+              if (event.type === "error") {
+                throw new ApiError(500, event.detail);
+              }
+
+              applyToChat((chat) => reduceStream(chat, event));
+            },
+            onUserMessage: (msg) => {
+              finalUserMsg = msg;
+              applyToChat((chat) => ({
+                ...chat,
+                messages: chat.messages.map((m) =>
+                  m.id === optimisticUserMsg.id ? msg : m
+                ),
+              }));
+            },
+            onAssistantMessage: (msg) => {
+              finalAssistantMsg = msg;
+              applyToChat((chat) => {
+                const streaming = chat.streaming;
+                if (!streaming) return chat;
+                return {
+                  ...chat,
+                  streaming: {
+                    ...streaming,
+                    buffer: msg.content,
+                    streamComplete: true,
+                    finalMessage: {
+                      id: msg.id,
+                      role: "assistant",
+                      content: msg.content,
+                      timestamp: msg.timestamp,
+                    },
+                  },
+                };
+              });
+            },
+          },
           controller.signal
         );
 
@@ -1088,57 +1211,53 @@ export default function App() {
           return false;
         }
 
-        const newMessages: Message[] = [userMsg];
-
-        if (contextCompressed) {
-          newMessages.push({
-            id: `system-compress-${Date.now()}`,
-            role: "system",
-            content:
-              "Контекст предыдущих сообщений был сжат для оптимизации. Я помню основные темы нашего разговора.",
-            timestamp: assistantMsg.timestamp - 1,
-          });
+        if (!finalAssistantMsg) {
+          throw new ApiError(500, "Сервер не вернул ответ помощника");
         }
 
-        newMessages.push(assistantMsg);
+        const userMsg: Message = finalUserMsg ?? {
+          ...optimisticUserMsg,
+          id: `user-${Date.now()}`,
+          timestamp: Date.now(),
+        };
 
         setChats((prev) =>
-          sortChats(
-            prev.map((chat) => {
-              if (chat.id !== targetChatId) {
-                return chat;
-              }
+          prev.map((chat) => {
+            if (chat.id !== targetChatId) {
+              return chat;
+            }
 
-              const withoutOptimistic = chat.messages.filter(
-                (message) => message.id !== optimisticUserMsg.id
-              );
-              const mergedMessages = mergeUniqueMessages(withoutOptimistic, newMessages);
+            const withoutOptimistic = chat.messages.filter(
+              (message) => message.id !== optimisticUserMsg.id
+            );
+            const mergedMessages = mergeUniqueMessages(
+              withoutOptimistic,
+              [userMsg]
+            );
 
-              return {
-                ...chat,
-                updatedAt: assistantMsg.timestamp,
-                messages: mergedMessages,
-                messagesOffset: Math.max(chat.messagesOffset, mergedMessages.length),
-                historyStatus: shouldReloadHistoryAfterSend
-                  ? "idle"
-                  : chat.historyStatus,
-                historyError: shouldReloadHistoryAfterSend
-                  ? null
-                  : chat.historyError,
-                hasOlderMessages: shouldReloadHistoryAfterSend
-                  ? true
-                  : chat.hasOlderMessages,
-                isHistoryHydrated: shouldReloadHistoryAfterSend
-                  ? false
-                  : chat.isHistoryHydrated,
-                pendingMessageText: null,
-                sendError: null,
-              };
-            })
-          )
+            return {
+              ...chat,
+              messages: mergedMessages,
+              messagesOffset: Math.max(chat.messagesOffset, mergedMessages.length),
+              historyStatus: shouldReloadHistoryAfterSend
+                ? "idle"
+                : chat.historyStatus,
+              historyError: shouldReloadHistoryAfterSend
+                ? null
+                : chat.historyError,
+              hasOlderMessages: shouldReloadHistoryAfterSend
+                ? true
+                : chat.hasOlderMessages,
+              isHistoryHydrated: shouldReloadHistoryAfterSend
+                ? false
+                : chat.isHistoryHydrated,
+              pendingMessageText: null,
+              sendError: null,
+            };
+          })
         );
-        setAnimatedMessageId(assistantMsg.id);
 
+        streamSucceeded = true;
         return true;
       } catch (error) {
         if (error instanceof UnauthorizedError) {
@@ -1172,6 +1291,7 @@ export default function App() {
                     messages: chat.messages.filter(
                       (message) => message.id !== optimisticUserMsg.id
                     ),
+                    streaming: null,
                   }
                 : chat
             )
@@ -1186,8 +1306,15 @@ export default function App() {
       } finally {
         if (targetChatId) {
           releaseController(getSendControllerKey(targetChatId), controller);
-          if (isRequestCurrent(requestEpoch)) {
+          if (isRequestCurrent(requestEpoch) && !streamSucceeded) {
             setLoadingChatIds((prev) => prev.filter((id) => id !== targetChatId));
+            setChats((prev) =>
+              prev.map((chat) =>
+                chat.id === targetChatId && chat.streaming
+                  ? { ...chat, streaming: null }
+                  : chat
+              )
+            );
           }
         } else {
           releaseController(NEW_CHAT_CONTROLLER_KEY, controller);
@@ -1205,6 +1332,7 @@ export default function App() {
       handleOpenAuth,
       handleSessionExpired,
       hydrateChatHistory,
+      isRequestCurrent,
       registerController,
       releaseController,
       removeChatFromState,
@@ -1219,7 +1347,6 @@ export default function App() {
       }
       return chatId;
     });
-    setAnimatedMessageId(null);
   }, []);
 
   const handleNewChat = useCallback(() => {
@@ -1229,7 +1356,6 @@ export default function App() {
       }
       return null;
     });
-    setAnimatedMessageId(null);
   }, []);
 
   const handleRenameChat = useCallback(
@@ -1334,8 +1460,7 @@ export default function App() {
       if (wasActive) {
         replaceChatRoute(null);
       }
-      setAnimatedMessageId(null);
-      updateChatListOffset(Math.max(chatListOffsetRef.current - 1, 0));
+        updateChatListOffset(Math.max(chatListOffsetRef.current - 1, 0));
 
       try {
         await deleteChatApi(chatId, controller.signal);
@@ -1497,7 +1622,6 @@ export default function App() {
                 <ChatView
                   chat={activeChat}
                   isLoading={isCurrentChatLoading}
-                  animatedMessageId={animatedMessageId}
                   onRetryHistory={handleRetryHistory}
                   onRetryPendingMessage={handleRetryPendingMessage}
                 />

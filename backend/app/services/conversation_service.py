@@ -1,9 +1,10 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, AsyncIterator
 import logging
 
 from app.models.message_model import MessageRole
-from app.schemas.message_schemas import ConversationResult
+from app.schemas.message_schemas import ConversationResult, MessageWithChatIdOut
+from app.schemas.stream_events import StreamEvent, StreamEventType
 
 if TYPE_CHECKING:
     from . import (
@@ -67,3 +68,46 @@ class ConversationService:
             user_message=user_msg,
             assistant_message=assistant_msg,
         )
+
+    async def send_message_stream(
+        self, chat: ChatModel, content: str
+    ) -> AsyncIterator[StreamEvent]:
+        user_msg = await self._message_service.send_message(
+            chat_id=chat.id, message=content, role=MessageRole.USER
+        )
+        yield {
+            "type": StreamEventType.USER_MESSAGE.value,
+            "message": MessageWithChatIdOut.model_validate(user_msg).model_dump(
+                mode="json"
+            ),
+        }
+
+        final_text = ""
+        try:
+            async for event in self._agent_service.run_stream(
+                chat_id=chat.id, user=chat.user, content=content
+            ):
+                if event["type"] == StreamEventType.ASSISTANT_MESSAGE.value:
+                    final_text = event["content"]
+                    continue
+                yield event
+        except Exception:
+            logger.exception("Streaming agent run failed")
+            yield {
+                "type": StreamEventType.ERROR.value,
+                "detail": "AI service unavailable",
+            }
+            return
+
+        assistant_msg = await self._message_service.send_message(
+            chat_id=chat.id, message=final_text, role=MessageRole.ASSISTANT
+        )
+        await self._chat_service.update_chat(chat)
+
+        yield {
+            "type": StreamEventType.ASSISTANT_MESSAGE.value,
+            "message": MessageWithChatIdOut.model_validate(assistant_msg).model_dump(
+                mode="json"
+            ),
+        }
+        yield {"type": StreamEventType.DONE.value}

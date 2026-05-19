@@ -2,13 +2,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import ChatMessage from "@/components/ChatMessage";
 import LoadingDots from "@/components/LoadingDots";
+import AgentActivityList from "@/components/AgentActivity";
 
-import type { Chat } from "@/types";
+import type { Chat, Message } from "@/types";
+import { cn } from "@/utils/cn";
 
 interface ChatViewProps {
   chat: Chat;
   isLoading: boolean;
-  animatedMessageId: string | null;
   onRetryHistory: () => void;
   onRetryPendingMessage: () => void;
 }
@@ -18,6 +19,9 @@ const SHOW_SCROLL_BUTTON_THRESHOLD = 240;
 const UNLOCK_AUTO_SCROLL_THRESHOLD = 8;
 const PROGRAMMATIC_SCROLL_TIMEOUT_MS = 420;
 
+const STREAMING_PLACEHOLDER_ID = "__streaming__";
+const ROLE_LABEL = "Помощник";
+
 function getDistanceFromBottom(node: HTMLDivElement): number {
   return node.scrollHeight - node.scrollTop - node.clientHeight;
 }
@@ -26,10 +30,56 @@ function isNearBottom(node: HTMLDivElement): boolean {
   return getDistanceFromBottom(node) <= AUTO_SCROLL_THRESHOLD;
 }
 
+function StreamingMessage({ chat }: { chat: Chat }) {
+  const streaming = chat.streaming;
+  if (!streaming) return null;
+
+  const placeholder: Message = {
+    id: STREAMING_PLACEHOLDER_ID,
+    role: "assistant",
+    content: streaming.content,
+    timestamp: Date.now(),
+    activities: streaming.activities,
+  };
+
+  const hasContent = streaming.content.length > 0;
+  const hasActivities = streaming.activities.length > 0;
+
+  if (!hasContent && !hasActivities) {
+    return <LoadingDots chatId={chat.id} />;
+  }
+
+  if (!hasContent) {
+    return (
+      <div className="fade-in-up flex w-full justify-start">
+        <div className="flex max-w-[92%] min-w-0 items-start md:max-w-[82%]">
+          <div className="min-w-0">
+            <div className="rounded-[24px] rounded-bl-[8px] border border-white/80 bg-white/78 px-4 py-3.5 text-slate-800 shadow-[0_10px_30px_rgba(15,23,42,0.05)] backdrop-blur-2xl">
+              <div className="mb-1.5 text-sm font-semibold tracking-[0.08em] text-emerald-600 md:text-[15px]">
+                {ROLE_LABEL}
+              </div>
+              <AgentActivityList
+                activities={streaming.activities}
+                isStreaming
+              />
+              <div className="mt-1 flex items-center gap-1.5 py-0.5">
+                <span className="loading-dot" />
+                <span className="loading-dot" style={{ animationDelay: "140ms" }} />
+                <span className="loading-dot" style={{ animationDelay: "280ms" }} />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return <ChatMessage message={placeholder} isStreaming />;
+}
+
 export default function ChatView({
   chat,
   isLoading,
-  animatedMessageId,
   onRetryHistory,
   onRetryPendingMessage,
 }: ChatViewProps) {
@@ -82,15 +132,11 @@ export default function ChatView({
   }, []);
 
   useEffect(() => {
-    const frameId = window.requestAnimationFrame(() => {
-      shouldAutoScrollRef.current = true;
-      manualScrollLockRef.current = false;
-      setShowScrollToBottom(false);
-      scrollToBottom("auto");
-    });
-
-    return () => window.cancelAnimationFrame(frameId);
-  }, [chat.id]);
+    shouldAutoScrollRef.current = true;
+    manualScrollLockRef.current = false;
+    setShowScrollToBottom(false);
+    scrollToBottom("auto");
+  }, [chat.id, scrollToBottom]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -161,7 +207,7 @@ export default function ChatView({
     if (!shouldAutoScrollRef.current) return;
 
     scrollToBottom(chat.messages.length > 0 ? "smooth" : "auto");
-  }, [chat.messages.length, isLoading, animatedMessageId, scrollToBottom]);
+  }, [chat.messages.length, chat.streaming?.content, isLoading, scrollToBottom]);
 
   useEffect(() => {
     return () => {
@@ -171,11 +217,17 @@ export default function ChatView({
     };
   }, []);
 
+  const showStreaming = !!chat.streaming;
+  const showLoadingDots =
+    isLoading && !showStreaming && chat.messages[chat.messages.length - 1]?.role !== "assistant";
+
   return (
     <div className="relative h-full min-h-0 overflow-hidden">
       <div
         ref={containerRef}
-        className="custom-scrollbar h-full min-h-0 overflow-y-auto overscroll-contain px-3 pb-28 pt-24 md:px-5 md:pb-32 md:pt-28"
+        className={cn(
+          "custom-scrollbar h-full min-h-0 overflow-y-auto overscroll-contain px-3 pb-28 pt-24 md:px-5 md:pb-32 md:pt-28"
+        )}
         style={{ scrollPaddingBottom: "9rem" }}
       >
         <div ref={contentRef} className="mx-auto flex w-full max-w-4xl flex-col gap-4">
@@ -226,14 +278,11 @@ export default function ChatView({
           )}
 
           {chat.messages.map((message) => (
-            <ChatMessage
-              key={message.id}
-              message={message}
-              shouldAnimate={message.id === animatedMessageId}
-            />
+            <ChatMessage key={message.id} message={message} />
           ))}
 
-          {isLoading && <LoadingDots chatId={chat.id} />}
+          {showStreaming && <StreamingMessage chat={chat} />}
+          {showLoadingDots && <LoadingDots chatId={chat.id} />}
         </div>
       </div>
 

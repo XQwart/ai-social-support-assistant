@@ -1,4 +1,9 @@
+import json
+import logging
+from typing import AsyncIterator
+
 from fastapi import APIRouter, Query, status
+from fastapi.responses import StreamingResponse
 
 from app.dependencies.chat import OwnerChatDep
 from app.dependencies.services import MessageServiceDep, ConversationServiceDep
@@ -9,6 +14,12 @@ from app.schemas.message_schemas import (
     MessageWithChatIdOut,
     SendMessageResponse,
 )
+from app.schemas.stream_events import StreamEvent, StreamEventType
+from app.services.conversation_service import ConversationService
+from app.models import ChatModel
+
+
+logger = logging.getLogger(__name__)
 
 
 router = APIRouter(prefix="/chats", tags=["Messages"])
@@ -36,10 +47,49 @@ async def send_message(
     conversation_service: ConversationServiceDep,
     message: MessageCreate,
 ) -> SendMessageResponse:
-
     result = await conversation_service.send_message(chat=chat, content=message.content)
 
     return SendMessageResponse(
         user_message=MessageWithChatIdOut.model_validate(result.user_message),
         assistant_message=MessageWithChatIdOut.model_validate(result.assistant_message),
     )
+
+
+@router.post("/{chat_id}/messages/stream")
+async def stream_message(
+    chat: OwnerChatDep,
+    conversation_service: ConversationServiceDep,
+    message: MessageCreate,
+) -> StreamingResponse:
+    generator = _stream_ndjson(conversation_service, chat, message.content)
+
+    return StreamingResponse(
+        generator,
+        media_type="application/x-ndjson",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
+
+
+async def _stream_ndjson(
+    conversation_service: ConversationService,
+    chat: ChatModel,
+    content: str,
+) -> AsyncIterator[bytes]:
+    try:
+        async for event in conversation_service.send_message_stream(
+            chat=chat, content=content
+        ):
+            yield _serialize_event(event)
+    except Exception:
+        logger.exception("Failed to stream conversation")
+        yield _serialize_event(
+            {"type": StreamEventType.ERROR.value, "detail": "Internal error"}
+        )
+
+
+def _serialize_event(event: StreamEvent) -> bytes:
+    return (json.dumps(event, ensure_ascii=False) + "\n").encode("utf-8")
