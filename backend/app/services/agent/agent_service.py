@@ -29,14 +29,9 @@ if TYPE_CHECKING:
 
     from app.core.config import Config
     from app.models import UserModel
-    from app.services import (
-        RegionService,
-        RAGService,
-        UserService,
-        WebSearchService,
-        PageFetchService,
-    )
+
     from app.services.prompt_service import PromptService
+    from app.services.agent import AgentToolsScopeFactory
 
 
 logger = logging.getLogger(__name__)
@@ -45,11 +40,7 @@ logger = logging.getLogger(__name__)
 class AgentService:
     _chat_llm: BaseChatModel
     _compress_llm: BaseChatModel
-    _region_service: RegionService
-    _rag_service: RAGService
-    _user_service: UserService
-    _web_search_service: WebSearchService
-    _page_fetch_service: PageFetchService
+    _scope_factory: AgentToolsScopeFactory
     _checkpointer: BaseCheckpointSaver
     _config: Config
     _prompt_service: PromptService
@@ -58,22 +49,14 @@ class AgentService:
         self,
         chat_llm: BaseChatModel,
         compress_llm: BaseChatModel,
-        region_service: RegionService,
-        rag_service: RAGService,
-        user_service: UserService,
-        web_search_service: WebSearchService,
-        page_fetch_service: PageFetchService,
+        scope_factory: AgentToolsScopeFactory,
         checkpointer: BaseCheckpointSaver,
         config: Config,
         prompt_service: PromptService,
     ) -> None:
         self._chat_llm = chat_llm
         self._compress_llm = compress_llm
-        self._region_service = region_service
-        self._rag_service = rag_service
-        self._user_service = user_service
-        self._web_search_service = web_search_service
-        self._page_fetch_service = page_fetch_service
+        self._scope_factory = scope_factory
         self._checkpointer = checkpointer
         self._config = config
         self._prompt_service = prompt_service
@@ -126,9 +109,7 @@ class AgentService:
                 ),
                 version="v2",
             ):
-                async for out in self._translate_event(
-                    event, phase_run_buffers
-                ):
+                async for out in self._translate_event(event, phase_run_buffers):
                     if out["type"] == StreamEventType.PHASE_END.value:
                         if out["role"] == "final":
                             final_message = phase_run_buffers.pop(out["phase_id"], "")
@@ -279,15 +260,7 @@ class AgentService:
         return not (lowered.startswith("error") or "не удалось" in lowered)
 
     def _create_graph(self, user: UserModel):
-        tools = create_user_tools(
-            user,
-            self._user_service,
-            self._rag_service,
-            self._region_service,
-            self._web_search_service,
-            self._page_fetch_service,
-            self._config,
-        )
+        tools = create_user_tools(user, self._scope_factory, self._config)
 
         middleware = [
             ToolBudgetMiddleware(self._config.agent_max_tool_calls),

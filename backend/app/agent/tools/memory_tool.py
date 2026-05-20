@@ -6,13 +6,15 @@ from langchain.tools import BaseTool, tool
 
 if TYPE_CHECKING:
     from app.models import UserModel
-    from app.services import UserService
+    from app.services.agent import AgentToolsScopeFactory
 
 
 logger = logging.getLogger(__name__)
 
 
-def make_memory_tool(user: UserModel, user_service: UserService) -> BaseTool:
+def make_memory_tool(
+    user: UserModel, scope_factory: AgentToolsScopeFactory
+) -> BaseTool:
 
     @tool
     async def save_user_facts(
@@ -61,9 +63,10 @@ def make_memory_tool(user: UserModel, user_service: UserService) -> BaseTool:
             )
 
         try:
-            await user_service.update_user_memory(user, **updates)
+            async with scope_factory.scope() as s:
+                await s.user_service.update_user_memory(user, **updates)
         except Exception:
-            logger.warning("Failed to update user memory", exc_info=True)
+            logger.exception("Failed to update user memory", exc_info=True)
             return "error: сохранение не выполнено"
 
         return "saved"
