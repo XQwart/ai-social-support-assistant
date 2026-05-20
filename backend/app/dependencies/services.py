@@ -7,7 +7,7 @@ from app.dependencies.ai import (
     CompressLLMClientDep,
     EmbeddingClientDep,
 )
-from app.dependencies.agent import CheckpointerDep
+from app.dependencies.agent import CheckpointerDep, AgentToolsScopeFactoryDep
 from app.dependencies.config import ConfigDep
 from app.dependencies.repositories import (
     UserRepoDep,
@@ -104,23 +104,15 @@ def get_conversation_service(
 def get_agent_service(
     chat_llm: ChatLLMClientDep,
     compress_llm: CompressLLMClientDep,
-    region_service: "RegionServiceDep",
-    rag_service: "RAGServiceDep",
-    user_service: "UserServiceDep",
+    scope_factory: AgentToolsScopeFactoryDep,
     checkpointer: CheckpointerDep,
-    web_search_service: "WebSearchServiceDep",
-    page_fetch_service: "PageFetchServiceDep",
     config: ConfigDep,
     prompt_service: PromptServiceDep,
 ) -> AgentService:
     return AgentService(
         chat_llm,
         compress_llm,
-        region_service,
-        rag_service,
-        user_service,
-        web_search_service,
-        page_fetch_service,
+        scope_factory,
         checkpointer,
         config,
         prompt_service,

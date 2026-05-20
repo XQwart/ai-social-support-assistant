@@ -8,7 +8,7 @@ from app.utils import text_utils
 
 if TYPE_CHECKING:
     from app.models import UserModel
-    from app.services import RegionService, RAGService
+    from app.services.agent import AgentToolsScopeFactory
     from app.schemas.rag_schemas import RetrievedChunk
     from app.core.config import Config
 
@@ -17,10 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 def make_retrive_tool(
-    user: UserModel,
-    rag_service: RAGService,
-    region_service: RegionService,
-    config: Config,
+    user: UserModel, scope_factory: AgentToolsScopeFactory, config: Config
 ) -> BaseTool:
     citation_char_limit = config.rag_citation_char_limit
     chunk_text_char_limit = config.rag_chunk_text_char_limit
@@ -74,27 +71,34 @@ def make_retrive_tool(
                          None, только если регион реально неизвестен.
         """
 
-        region_code = await region_service.get_code_by_name(region_name=region_name)
+        try:
+            async with scope_factory.scope() as s:
+                region_code = await s.region_service.get_code_by_name(
+                    region_name=region_name
+                )
 
-        response = await rag_service.retrieve(
-            query, region=region_code, place_of_work=user.place_of_work
-        )
+                response = await s.rag_service.retrieve(
+                    query, region=region_code, place_of_work=user.place_of_work
+                )
 
-        public_chunks = [c for c in response if not c.is_internal]
-        internal_chunks = (
-            [c for c in response if c.is_internal] if user.is_sber_employee else []
-        )
-
-        if not public_chunks and not internal_chunks:
-            logger.info("RAG: релевантные документы не найдены для query=%r", query)
-            return (
-                "Релевантных документов в базе не найдено. "
-                "Не придумывай факты: скажи пользователю, что точной "
-                "информации по запросу в базе нет, и предложи проверить "
-                "на gosuslugi.ru или sfr.gov.ru."
+            public_chunks = [c for c in response if not c.is_internal]
+            internal_chunks = (
+                [c for c in response if c.is_internal] if user.is_sber_employee else []
             )
 
-        return _format_chunks(public_chunks, internal_chunks, region_name)
+            if not public_chunks and not internal_chunks:
+                logger.info("RAG: релевантные документы не найдены для query=%r", query)
+                return (
+                    "Релевантных документов в базе не найдено. "
+                    "Не придумывай факты: скажи пользователю, что точной "
+                    "информации по запросу в базе нет, и предложи проверить "
+                    "на gosuslugi.ru или sfr.gov.ru."
+                )
+
+            return _format_chunks(public_chunks, internal_chunks, region_name)
+        except Exception:
+            logger.exception("RAG search failed for query %r", query, exc_info=True)
+            return "Поиск по базе знаний сейчас не доступен"
 
     def _format_chunks(
         public: list[RetrievedChunk],

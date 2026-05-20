@@ -5,7 +5,7 @@ from fastapi import FastAPI
 
 from app.services.prompt_service import PromptService
 
-from .checkpointer import create_checkpointer
+from .agent import create_checkpointer, create_agent_tools_scope_factory
 from .config import get_config
 from .database import create_engine, create_session_maker
 from .redis import create_redis
@@ -13,6 +13,7 @@ from .logger import setup_logging
 from .http import create_sber_http_client, create_fetch_client, create_http_client
 from .llm import create_llm_clients, create_embedding_client
 from .qdrant import create_qdrant_client, ensure_collection
+from shared.utils.pdf_extractor import PdfTextExtractor
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,8 @@ async def lifespan(app: FastAPI):
     config = get_config()
 
     setup_logging(level=config.log_level)
+
+    pdf_extractor = PdfTextExtractor()
 
     engine = create_engine(config)
     session_maker = create_session_maker(engine)
@@ -42,6 +45,16 @@ async def lifespan(app: FastAPI):
         distance=config.rag_distance,
     )
 
+    agent_tools_scope_factory = create_agent_tools_scope_factory(
+        session_maker=session_maker,
+        search_client=web_search_client,
+        fetch_client=fetch_client,
+        pdf_extractor=pdf_extractor,
+        embedding_client=embedding_client,
+        qdrant=qdrant,
+        config=config,
+    )
+
     prompt_service = PromptService(session_maker=session_maker, redis=redis)
     await prompt_service.start()
 
@@ -57,6 +70,8 @@ async def lifespan(app: FastAPI):
     app.state.compress_llm_client = compress_llm_client
     app.state.embedding_client = embedding_client
     app.state.qdrant = qdrant
+    app.state.agent_tools_scope_factory = agent_tools_scope_factory
+    app.state.pdf_extractor = pdf_extractor
     app.state.prompt_service = prompt_service
 
     logger.info("Application started successfully")
