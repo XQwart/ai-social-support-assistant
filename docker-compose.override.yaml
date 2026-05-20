@@ -18,7 +18,7 @@ services:
 
     searxng:
         ports:
-        - "8088:8080" 
+            - "8088:8080"
 
     admin:
         command: uvicorn admin_service.main:admin_app --host 0.0.0.0 --port 8001
@@ -85,6 +85,9 @@ services:
     db:
         ports:
             - "${POSTGRES_PORT}:5432"
+    redis:
+        ports:
+            - "${REDIS_PORT}:6379"
     qdrant:
         ports:
             - "${QDRANT_PORT}:6333"
