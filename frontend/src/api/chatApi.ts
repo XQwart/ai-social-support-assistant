@@ -1,61 +1,9 @@
 import { getApiBase } from "@/api/base";
 import type { Chat, Message } from "@/types";
 import { ApiError } from "@/api/errors";
-import { AUTH_TOKEN_KEY, refreshRequest } from "@/api/authApi";
+import { authFetch } from "@/api/http";
 
 const API_BASE = getApiBase();
-
-let refreshPromise: Promise<string> | null = null;
-
-function mergeAuthHeaders(initHeaders?: HeadersInit): Headers {
-  const headers = new Headers(initHeaders || {});
-  const token = localStorage.getItem(AUTH_TOKEN_KEY);
-
-  headers.set("Content-Type", "application/json");
-
-  if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
-  }
-
-  return headers;
-}
-
-async function getFreshAccessToken(): Promise<string> {
-  if (!refreshPromise) {
-    refreshPromise = refreshRequest()
-      .then((session) => session.token)
-      .finally(() => {
-        refreshPromise = null;
-      });
-  }
-  return refreshPromise;
-}
-
-async function authFetch(
-  input: RequestInfo | URL,
-  init: RequestInit = {}
-): Promise<Response> {
-  const res = await fetch(input, {
-    ...init,
-    headers: mergeAuthHeaders(init.headers),
-    credentials: "include",
-  });
-
-  if (res.status !== 401 && res.status !== 403) {
-    return res;
-  }
-
-  const newToken = await getFreshAccessToken();
-
-  const headers = mergeAuthHeaders(init.headers);
-  headers.set("Authorization", `Bearer ${newToken}`);
-
-  return fetch(input, {
-    ...init,
-    headers,
-    credentials: "include",
-  });
-}
 
 function ts(dateStr: string): number {
   return new Date(dateStr).getTime();
@@ -110,6 +58,45 @@ export interface MessagesPage {
   limit: number;
   offset: number;
   hasMore: boolean;
+}
+
+export type Personality = "default" | "professional" | "friendly";
+
+export async function sendMessageToChat(
+  chatId: string,
+  content: string,
+  personality?: Personality,
+  signal?: AbortSignal
+): Promise<{ userMsg: Message; assistantMsg: Message; contextCompressed: boolean }> {
+  const res = await authFetch(`${API_BASE}/chats/${encodeURIComponent(chatId)}/messages`, {
+    method: "POST",
+    body: JSON.stringify(personality ? { content, personality } : { content }),
+    signal,
+  });
+
+  await ensureOk(res, "Не удалось отправить сообщение");
+
+  const data = await res.json();
+
+  const userMsg: Message = {
+    id: String(data.user_message.id),
+    role: "user",
+    content: data.user_message.content,
+    timestamp: ts(data.user_message.created_at),
+  };
+
+  const assistantMsg: Message = {
+    id: String(data.assistant_message.id),
+    role: "assistant",
+    content: data.assistant_message.content,
+    timestamp: ts(data.assistant_message.created_at),
+  };
+
+  return {
+    userMsg,
+    assistantMsg,
+    contextCompressed: data.context_compressed ?? false,
+  };
 }
 
 export async function createChat(
@@ -258,13 +245,14 @@ export async function streamMessageToChat(
   chatId: string,
   content: string,
   callbacks: StreamCallbacks,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  personality?: Personality
 ): Promise<void> {
   const res = await authFetch(
     `${API_BASE}/chats/${encodeURIComponent(chatId)}/messages/stream`,
     {
       method: "POST",
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ content, personality: personality ?? "default" }),
       signal,
     }
   );
@@ -348,6 +336,18 @@ export async function renameChat(
 
   const data = await res.json();
   return createChatState(data);
+}
+
+export async function deleteMessagesFrom(
+  chatId: string,
+  messageId: string,
+  signal?: AbortSignal
+): Promise<void> {
+  const res = await authFetch(
+    `${API_BASE}/chats/${encodeURIComponent(chatId)}/messages/from/${encodeURIComponent(messageId)}`,
+    { method: "DELETE", signal }
+  );
+  await ensureOk(res, "Не удалось удалить сообщения");
 }
 
 export async function deleteChat(

@@ -54,6 +54,7 @@ def build_dunamic_prompt(prompt_provider: PromptProvider):
             is_sber_employee=ctx.is_sber_employee,
             is_new_dialog=ctx.is_new_dialog,
             prompt_provider=prompt_provider,
+            personality=ctx.personality,
         )
 
     return _middleware

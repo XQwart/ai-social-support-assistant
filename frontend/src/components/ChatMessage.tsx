@@ -1,14 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 
 import AgentActivityList from "@/components/AgentActivity";
 
+import type { Personality } from "@/api/chatApi";
 import type { Message } from "@/types";
 import { cn } from "@/utils/cn";
 
 interface ChatMessageProps {
   message: Message;
   isStreaming?: boolean;
+  personality?: Personality;
+  onEdit?: (messageId: string, newText: string) => Promise<void>;
 }
 
 const ROLE_LABEL = "Помощник";
@@ -133,11 +136,15 @@ function MessageFooter({
   content,
   align = "start",
   showFeedback = false,
+  isStreaming = false,
+  onEdit,
 }: {
   timestamp: number;
   content: string;
   align?: FooterAlign;
   showFeedback?: boolean;
+  isStreaming?: boolean;
+  onEdit?: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   const [feedback, setFeedback] = useState<FeedbackState>(null);
@@ -172,38 +179,83 @@ function MessageFooter({
     >
       <span className="text-[11px] text-slate-400">{formatTimestamp(timestamp)}</span>
 
-      <div className="flex items-center gap-0.5">
-        <IconActionButton
-          label={copied ? "Скопировано" : "Копировать"}
-          active={copied}
-          onClick={() => void handleCopy()}
-        >
-          <CopyIcon className="h-[19px] w-[19px]" />
-        </IconActionButton>
+      {!isStreaming && (
+        <div className="flex items-center gap-0.5">
+          <IconActionButton
+            label={copied ? "Скопировано" : "Копировать"}
+            active={copied}
+            onClick={() => void handleCopy()}
+          >
+            <CopyIcon className="h-[19px] w-[19px]" />
+          </IconActionButton>
 
-        {showFeedback && (
-          <>
-            <IconActionButton
-              label="Нравится"
-              tone="positive"
-              active={feedback === "like"}
-              onClick={() => handleFeedbackToggle("like")}
-            >
-              <ThumbUpIcon className="h-[19px] w-[19px]" />
+          {onEdit && (
+            <IconActionButton label="Редактировать" onClick={onEdit}>
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
             </IconActionButton>
+          )}
 
-            <IconActionButton
-              label="Не нравится"
-              tone="negative"
-              active={feedback === "dislike"}
-              onClick={() => handleFeedbackToggle("dislike")}
-            >
-              <ThumbDownIcon className="h-[19px] w-[19px]" />
-            </IconActionButton>
-          </>
-        )}
-      </div>
+          {showFeedback && (
+            <>
+              <IconActionButton
+                label="Нравится"
+                tone="positive"
+                active={feedback === "like"}
+                onClick={() => handleFeedbackToggle("like")}
+              >
+                <ThumbUpIcon className="h-[19px] w-[19px]" />
+              </IconActionButton>
+
+              <IconActionButton
+                label="Не нравится"
+                tone="negative"
+                active={feedback === "dislike"}
+                onClick={() => handleFeedbackToggle("dislike")}
+              >
+                <ThumbDownIcon className="h-[19px] w-[19px]" />
+              </IconActionButton>
+            </>
+          )}
+        </div>
+      )}
     </div>
+  );
+}
+
+const SAFE_PROTOCOLS = ["https:", "http:", "mailto:", "tel:"];
+
+function LinkChip({ href }: { href: string }) {
+  const [imgError, setImgError] = useState(false);
+
+  let hostname = "";
+  try {
+    hostname = new URL(href).hostname.replace(/^www\./, "");
+  } catch {
+    return null;
+  }
+
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="link-chip">
+      {!imgError ? (
+        <img
+          src={`https://icons.duckduckgo.com/ip3/${hostname}.ico`}
+          alt=""
+          width={13}
+          height={13}
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M2 12h20" />
+          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+        </svg>
+      )}
+      <span>{hostname}</span>
+    </a>
   );
 }
 
@@ -261,8 +313,7 @@ function MarkdownContent({
               {children}
             </blockquote>
           ),
-          a: ({ href, children }) => {
-            const SAFE_PROTOCOLS = ["https:", "http:", "mailto:", "tel:"];
+          a: ({ href }) => {
             let safeHref: string | undefined;
             try {
               const parsed = new URL(href ?? "");
@@ -270,16 +321,8 @@ function MarkdownContent({
             } catch {
               safeHref = undefined;
             }
-            return (
-              <a
-                href={safeHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-emerald-600 underline decoration-emerald-300 underline-offset-2 hover:text-emerald-700"
-              >
-                {children}
-              </a>
-            );
+            if (!safeHref) return null;
+            return <LinkChip href={safeHref} />;
           },
         }}
       >
@@ -318,18 +361,75 @@ function SystemMessage({ message }: { message: Message }) {
   );
 }
 
+const PERSONALITY_HEADER: Record<NonNullable<Personality>, string> = {
+  default: "text-emerald-600",
+  friendly: "text-teal-500",
+  professional: "text-blue-600",
+};
+
+const PERSONALITY_BORDER: Record<NonNullable<Personality>, string> = {
+  default: "border-white/80",
+  friendly: "border-teal-200/60",
+  professional: "border-slate-300/60",
+};
+
 export default function ChatMessage({
   message,
   isStreaming = false,
+  personality = "default",
+  onEdit,
 }: ChatMessageProps) {
   const isUser = message.role === "user";
   const isError = message.error === true;
   const showFeedback = !isUser && !isError;
   const activities = message.activities ?? [];
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(message.content);
+  const [editMinHeight, setEditMinHeight] = useState<number | undefined>();
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const textContentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isEditing || !editTextareaRef.current) return;
+    const el = editTextareaRef.current;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+  }, [isEditing]);
+
+  useEffect(() => {
+    if (!isEditing) return;
+    const el = editTextareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [editValue, isEditing]);
+
+  const handleEditSubmit = async () => {
+    const trimmed = editValue.trim();
+    if (!trimmed || isSubmittingEdit || !onEdit) return;
+    setIsSubmittingEdit(true);
+    try {
+      await onEdit(message.id, trimmed);
+      setIsEditing(false);
+    } finally {
+      setIsSubmittingEdit(false);
+    }
+  };
+
+  const handleEditCancel = () => {
+    setEditValue(message.content);
+    setIsEditing(false);
+  };
 
   if (message.role === "system") {
     return <SystemMessage message={message} />;
   }
+
+  const headerColor = isError ? "text-rose-400" : PERSONALITY_HEADER[personality];
+  const bubbleBorder = isError ? "border-rose-100/80" : PERSONALITY_BORDER[personality];
 
   return (
     <div
@@ -340,8 +440,8 @@ export default function ChatMessage({
     >
       <div
         className={cn(
-          "max-w-[92%] min-w-0 md:max-w-[82%]",
-          !isUser && "flex items-start"
+          "min-w-0",
+          isUser ? "max-w-[92%] md:max-w-[82%]" : "w-full max-w-[92%] md:max-w-[82%]"
         )}
       >
         <div className="min-w-0">
@@ -350,16 +450,14 @@ export default function ChatMessage({
               "rounded-[24px] px-4 py-3.5 shadow-[0_10px_30px_rgba(15,23,42,0.05)]",
               isUser
                 ? "rounded-br-[8px] bg-[linear-gradient(135deg,#14b883_0%,#0ea5a4_100%)] text-white"
-                : isError
-                ? "rounded-bl-[8px] border border-rose-100/80 bg-white/82 text-slate-800 backdrop-blur-2xl"
-                : "rounded-bl-[8px] border border-white/80 bg-white/78 text-slate-800 backdrop-blur-2xl"
+                : cn("rounded-bl-[8px] border bg-white/78 text-slate-800 backdrop-blur-2xl", bubbleBorder)
             )}
           >
             {!isUser && (
               <div
                 className={cn(
                   "mb-1.5 text-sm font-semibold tracking-[0.08em] md:text-[15px]",
-                  isError ? "text-rose-400" : "text-emerald-600"
+                  headerColor
                 )}
               >
                 {isError ? ERROR_LABEL : ROLE_LABEL}
@@ -370,18 +468,63 @@ export default function ChatMessage({
               <AgentActivityList activities={activities} isStreaming={isStreaming} />
             )}
 
-            <div
-              className={cn(
-                "break-words text-[15px] leading-7",
-                isUser ? "whitespace-pre-wrap text-white/98" : "text-slate-800"
-              )}
-            >
-              {isUser || isError ? (
-                message.content
-              ) : (
-                <MarkdownContent content={message.content} isStreaming={isStreaming} />
-              )}
-            </div>
+            {isUser && isEditing ? (
+              <div className="flex flex-col gap-2">
+                <textarea
+                  ref={editTextareaRef}
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      void handleEditSubmit();
+                    }
+                    if (e.key === "Escape") handleEditCancel();
+                  }}
+                  disabled={isSubmittingEdit}
+                  rows={1}
+                  style={{ minHeight: editMinHeight !== undefined ? `${editMinHeight}px` : undefined }}
+                  className="w-full resize-none bg-transparent text-[15px] leading-7 text-white/98 outline-none placeholder:text-white/50"
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={handleEditCancel}
+                    className="rounded-lg px-3 py-1 text-[13px] font-medium text-white/70 transition-colors hover:text-white/95"
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleEditSubmit()}
+                    disabled={isSubmittingEdit || !editValue.trim()}
+                    className="rounded-lg bg-white/20 px-3 py-1 text-[13px] font-semibold text-white transition-all hover:bg-white/30 disabled:opacity-50"
+                  >
+                    Отправить
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div
+                ref={isUser ? textContentRef : undefined}
+                className={cn(
+                  "break-words text-[15px] leading-7",
+                  isUser ? "whitespace-pre-wrap text-white/98" : "text-slate-800"
+                )}
+              >
+                {isUser || isError ? (
+                  message.content
+                ) : message.content ? (
+                  <MarkdownContent content={message.content} isStreaming={isStreaming} />
+                ) : isStreaming ? (
+                  <div className="mt-1 flex items-center gap-1.5 py-0.5">
+                    <span className="loading-dot" />
+                    <span className="loading-dot" style={{ animationDelay: "140ms" }} />
+                    <span className="loading-dot" style={{ animationDelay: "280ms" }} />
+                  </div>
+                ) : null}
+              </div>
+            )}
           </div>
 
           <MessageFooter
@@ -389,6 +532,12 @@ export default function ChatMessage({
             content={message.content}
             align={isUser ? "end" : "start"}
             showFeedback={showFeedback && !isStreaming}
+            isStreaming={isStreaming}
+            onEdit={isUser && onEdit && !isEditing ? () => {
+              setEditValue(message.content);
+              setEditMinHeight(textContentRef.current?.offsetHeight);
+              setIsEditing(true);
+            } : undefined}
           />
         </div>
       </div>

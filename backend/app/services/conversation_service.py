@@ -49,13 +49,13 @@ class ConversationService:
         self._region_service = region_service
         self._config = config
 
-    async def send_message(self, chat: ChatModel, content: str) -> ConversationResult:
+    async def send_message(self, chat: ChatModel, content: str, personality: str = "default") -> ConversationResult:
         user_msg = await self._message_service.send_message(
             chat_id=chat.id, message=content, role=MessageRole.USER
         )
 
         response = await self._agent_service.run(
-            chat_id=chat.id, user=chat.user, content=content
+            chat_id=chat.id, user=chat.user, content=content, personality=personality
         )
 
         assistant_msg = await self._message_service.send_message(
@@ -70,7 +70,7 @@ class ConversationService:
         )
 
     async def send_message_stream(
-        self, chat: ChatModel, content: str
+        self, chat: ChatModel, content: str, personality: str = "default"
     ) -> AsyncIterator[StreamEvent]:
         user_msg = await self._message_service.send_message(
             chat_id=chat.id, message=content, role=MessageRole.USER
@@ -85,7 +85,7 @@ class ConversationService:
         final_text = ""
         try:
             async for event in self._agent_service.run_stream(
-                chat_id=chat.id, user=chat.user, content=content
+                chat_id=chat.id, user=chat.user, content=content, personality=personality
             ):
                 if event["type"] == StreamEventType.ASSISTANT_MESSAGE.value:
                     final_text = event["content"]

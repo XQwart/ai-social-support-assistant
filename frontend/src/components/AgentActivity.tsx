@@ -18,7 +18,7 @@ const KIND_LABEL: Record<AgentActivity["kind"], string> = {
   rag: "Поиск в базе знаний",
   web_search: "Поиск в интернете",
   fetch_page: "Чтение страниц",
-  memory: "Сохранение факта",
+  memory: "Обновление профиля",
 };
 
 const KIND_DONE_LABEL: Record<AgentActivity["kind"], string> = {
@@ -26,7 +26,7 @@ const KIND_DONE_LABEL: Record<AgentActivity["kind"], string> = {
   rag: "Поиск в базе знаний",
   web_search: "Поиск в интернете",
   fetch_page: "Чтение страниц",
-  memory: "Факт сохранён",
+  memory: "Профиль обновлён",
 };
 
 function ThinkingIcon() {
@@ -71,7 +71,8 @@ function FetchPageIcon() {
 function MemoryIcon() {
   return (
     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M12 21s-7-4.5-7-10.5A4.5 4.5 0 0 1 12 6a4.5 4.5 0 0 1 7 4.5C19 16.5 12 21 12 21Z" />
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 20c0-4 3.58-7 8-7s8 3 8 7" />
     </svg>
   );
 }

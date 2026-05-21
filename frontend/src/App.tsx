@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createChat,
   deleteChat as deleteChatApi,
+  deleteMessagesFrom,
   fetchChat,
   fetchChats,
   fetchMessages,
   renameChat as renameChatApi,
   streamMessageToChat,
+  type Personality,
 } from "@/api/chatApi";
 import { createStreaming, reduceStream } from "@/utils/streamReducer";
 import {
@@ -38,7 +40,7 @@ import AuthModal from "@/components/AuthModal";
 import ChatInput from "@/components/ChatInput";
 import ChatView from "@/components/ChatView";
 import HomePage from "@/components/HomePage";
-import SettingsModal from "@/components/SettingsModal";
+import SettingsModal, { type SettingsTab } from "@/components/SettingsModal";
 import Sidebar, { type ChatSortMode } from "@/components/Sidebar";
 import TopBar from "@/components/TopBar";
 import UserAgreementModal from "@/components/UserAgreementModal";
@@ -286,6 +288,7 @@ export default function App() {
   );
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>("privacy");
   const [isUserAgreementOpen, setIsUserAgreementOpen] = useState(false);
   const [sberAuthError, setSberAuthError] = useState("");
   const [isFinalizingSberAuth, setIsFinalizingSberAuth] = useState(false);
@@ -300,6 +303,7 @@ export default function App() {
   const [chatSortMode, setChatSortMode] = useState<ChatSortMode>(() =>
     readStoredChatSortMode()
   );
+  const [personality, setPersonality] = useState<Personality>("default");
 
   const isAuthenticated = !!authToken;
   const isDarkTheme = theme === "dark";
@@ -1204,7 +1208,8 @@ export default function App() {
               });
             },
           },
-          controller.signal
+          controller.signal,
+          personality
         );
 
         if (controller.signal.aborted || !isRequestCurrent(requestEpoch)) {
@@ -1333,11 +1338,70 @@ export default function App() {
       handleSessionExpired,
       hydrateChatHistory,
       isRequestCurrent,
+      personality,
       registerController,
       releaseController,
       removeChatFromState,
       updateChatListOffset,
     ]
+  );
+
+  const handleCancelSend = useCallback(() => {
+    if (!activeChatId) return;
+    const key = getSendControllerKey(activeChatId);
+    const controller = controllersRef.current.get(key);
+    if (!controller) return;
+
+    controller.abort();
+    releaseController(key, controller);
+
+    setLoadingChatIds((prev) => prev.filter((id) => id !== activeChatId));
+    setChats((prev) =>
+      prev.map((chat) =>
+        chat.id === activeChatId
+          ? {
+              ...chat,
+              streaming: null,
+              messages: chat.messages.filter((m) => !m.id.startsWith("optimistic-")),
+            }
+          : chat
+      )
+    );
+
+    void hydrateChatHistory(activeChatId);
+  }, [activeChatId, hydrateChatHistory, releaseController]);
+
+  const handleEditMessage = useCallback(
+    async (messageId: string, newText: string): Promise<void> => {
+      if (!activeChatId || !authToken) return;
+
+      const sendKey = getSendControllerKey(activeChatId);
+      controllersRef.current.get(sendKey)?.abort();
+      releaseController(sendKey);
+
+      setChats((prev) =>
+        prev.map((chat) => {
+          if (chat.id !== activeChatId) return chat;
+          const idx = chat.messages.findIndex((m) => m.id === messageId);
+          if (idx === -1) return chat;
+          return {
+            ...chat,
+            messages: chat.messages.slice(0, idx),
+            streaming: null,
+            pendingMessageText: null,
+            sendError: null,
+          };
+        })
+      );
+
+      try {
+        await deleteMessagesFrom(activeChatId, messageId);
+      } catch {
+      }
+
+      void handleSend(newText);
+    },
+    [activeChatId, authToken, handleSend, releaseController]
   );
 
   const handleSelectChat = useCallback((chatId: string) => {
@@ -1536,7 +1600,10 @@ export default function App() {
   );
   const handleCloseSidebar = useCallback(() => setIsSidebarOpen(false), []);
   const handleCloseSettings = useCallback(() => setIsSettingsModalOpen(false), []);
-  const handleOpenSettings = useCallback(() => setIsSettingsModalOpen(true), []);
+  const handleOpenSettings = useCallback((tab: SettingsTab = "privacy") => {
+    setSettingsTab(tab);
+    setIsSettingsModalOpen(true);
+  }, []);
   const handleOpenUserAgreement = useCallback(() => setIsUserAgreementOpen(true), []);
   const handleCloseUserAgreement = useCallback(() => setIsUserAgreementOpen(false), []);
 
@@ -1576,6 +1643,8 @@ export default function App() {
         userFullName={userFullName}
         isAuthenticated={isAuthenticated}
         onLoginClick={handleOpenAuth}
+        onOpenSettings={handleOpenSettings}
+        onLogout={handleLogout}
         isLoadingChats={chatListStatus === "loading" && chats.length === 0}
         isLoadingMoreChats={isLoadingMoreChats}
         hasMoreChats={hasMoreChats}
@@ -1587,8 +1656,8 @@ export default function App() {
 
       <TopBar
         onToggleSidebar={handleToggleSidebar}
-        onSettingsClick={handleOpenSettings}
-        onProfileClick={handleOpenSettings}
+        onSettingsClick={() => handleOpenSettings("privacy")}
+        onProfileClick={() => handleOpenSettings("privacy")}
         onLoginClick={handleOpenAuth}
         isAuthenticated={isAuthenticated}
         userInitial={userInitial}
@@ -1624,6 +1693,8 @@ export default function App() {
                   isLoading={isCurrentChatLoading}
                   onRetryHistory={handleRetryHistory}
                   onRetryPendingMessage={handleRetryPendingMessage}
+                  onEditMessage={handleEditMessage}
+                  personality={personality}
                 />
               ) : isResolvingActiveChat ? (
                 <div
@@ -1642,28 +1713,29 @@ export default function App() {
             </div>
 
             <div
-              className="sticky bottom-0 z-20 shrink-0 border-t shadow-[0_-18px_48px_rgba(15,23,42,0.08)] backdrop-blur-2xl"
+              className="pointer-events-none sticky bottom-0 z-20 shrink-0"
               style={{
-                borderColor: isDarkTheme ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.35)",
                 background: isDarkTheme
-                  ? "linear-gradient(180deg, rgba(7,19,17,0.12), rgba(7,19,17,0.92))"
-                  : "linear-gradient(180deg, rgba(239,248,243,0.22), rgba(239,248,243,0.92))",
-                boxShadow: isDarkTheme
-                  ? "0 -18px 48px rgba(0,0,0,0.22)"
-                  : "0 -18px 48px rgba(15,23,42,0.08)",
+                  ? "linear-gradient(180deg, rgba(6,17,15,0) 0%, rgba(6,17,15,0.86) 40%, rgba(6,17,15,0.96) 100%)"
+                  : "linear-gradient(180deg, rgba(238,248,241,0) 0%, rgba(238,248,241,0.86) 40%, rgba(238,248,241,0.96) 100%)",
               }}
             >
-              <ChatInput
-                onSend={handleSend}
-                isLoading={isCurrentChatLoading}
-                placeholder="Опишите ситуацию или задайте вопрос"
-                mode="dock"
-                isAuthenticated={isAuthenticated}
-                onAuthRequired={handleOpenAuth}
-                theme={theme}
-              />
+              <div className="pointer-events-auto">
+                <ChatInput
+                  onSend={handleSend}
+                  onCancel={handleCancelSend}
+                  isLoading={isCurrentChatLoading}
+                  placeholder="Опишите ситуацию или задайте вопрос"
+                  mode="dock"
+                  isAuthenticated={isAuthenticated}
+                  onAuthRequired={handleOpenAuth}
+                  theme={theme}
+                />
 
-              <AppDisclaimer className="px-4 pb-4" />
+                <div className="px-3 md:px-5">
+                  <AppDisclaimer className="max-w-4xl pb-4" />
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -1817,7 +1889,10 @@ export default function App() {
         onLogout={handleLogout}
         theme={theme}
         onThemeChange={setTheme}
+        personality={personality}
+        onPersonalityChange={setPersonality}
         onAgreementClick={handleOpenUserAgreement}
+        initialTab={settingsTab}
       />
 
       <UserAgreementModal

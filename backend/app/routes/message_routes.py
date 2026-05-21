@@ -41,13 +41,24 @@ async def get_all_chat_messages(
     )
 
 
+@router.delete("/{chat_id}/messages/from/{message_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_messages_from(
+    chat: OwnerChatDep,
+    message_service: MessageServiceDep,
+    message_id: int,
+) -> None:
+    await message_service.delete_messages_from(chat_id=chat.id, message_id=int(message_id))
+
+
 @router.post("/{chat_id}/messages", status_code=status.HTTP_201_CREATED)
 async def send_message(
     chat: OwnerChatDep,
     conversation_service: ConversationServiceDep,
     message: MessageCreate,
 ) -> SendMessageResponse:
-    result = await conversation_service.send_message(chat=chat, content=message.content)
+    result = await conversation_service.send_message(
+        chat=chat, content=message.content, personality=message.personality
+    )
 
     return SendMessageResponse(
         user_message=MessageWithChatIdOut.model_validate(result.user_message),
@@ -61,7 +72,7 @@ async def stream_message(
     conversation_service: ConversationServiceDep,
     message: MessageCreate,
 ) -> StreamingResponse:
-    generator = _stream_ndjson(conversation_service, chat, message.content)
+    generator = _stream_ndjson(conversation_service, chat, message.content, message.personality)
 
     return StreamingResponse(
         generator,
@@ -78,10 +89,11 @@ async def _stream_ndjson(
     conversation_service: ConversationService,
     chat: ChatModel,
     content: str,
+    personality: str = "default",
 ) -> AsyncIterator[bytes]:
     try:
         async for event in conversation_service.send_message_stream(
-            chat=chat, content=content
+            chat=chat, content=content, personality=personality
         ):
             yield _serialize_event(event)
     except Exception:

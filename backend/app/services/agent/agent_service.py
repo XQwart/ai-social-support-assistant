@@ -61,16 +61,16 @@ class AgentService:
         self._config = config
         self._prompt_service = prompt_service
 
-    async def run(self, chat_id: int, user: UserModel, content: str) -> str:
+    async def run(self, chat_id: int, user: UserModel, content: str, personality: str = "default") -> str:
         final_message = ""
-        async for event in self.run_stream(chat_id=chat_id, user=user, content=content):
+        async for event in self.run_stream(chat_id=chat_id, user=user, content=content, personality=personality):
             if event["type"] == StreamEventType.ASSISTANT_MESSAGE.value:
                 final_message = event["content"]
 
         return final_message
 
     async def run_stream(
-        self, chat_id: int, user: UserModel, content: str
+        self, chat_id: int, user: UserModel, content: str, personality: str = "default"
     ) -> AsyncIterator[StreamEvent]:
         graph = self._create_graph(user)
         config = {
@@ -106,6 +106,7 @@ class AgentService:
                     region_reg=user.region_reg,
                     is_sber_employee=user.is_sber_employee,
                     is_new_dialog=is_new_dialog,
+                    personality=personality,
                 ),
                 version="v2",
             ):

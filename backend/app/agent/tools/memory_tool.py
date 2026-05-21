@@ -12,6 +12,20 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def merge_persistent_memory(existing: str | None, addition: str | None) -> str:
+    existing = (existing or "").strip().rstrip(";").strip()
+    addition = (addition or "").strip()
+
+    if not addition:
+        return existing
+    if not existing:
+        return addition
+    if addition.lower() in existing.lower():
+        return existing
+
+    return f"{existing}; {addition}"
+
+
 def make_memory_tool(
     user: UserModel, scope_factory: AgentToolsScopeFactory
 ) -> BaseTool:
@@ -44,8 +58,9 @@ def make_memory_tool(
             region: Субъект РФ, если пользователь ВПЕРВЫЕ назвал место жительства.
                     Город → субъект: "Казань" → "Республика Татарстан".
                     None, если регион не упоминался или уже известен из профиля.
-            memory: Все факты о пользователе одной строкой (старые + новый).
-                    Пример: "трое детей 3, 7, 12 лет, не работает, снимает жильё".
+            memory: ТОЛЬКО новый факт о пользователе одной короткой строкой. Не
+                    повторяй уже известные факты — бэкенд сам добавит новый факт к
+                    существующей памяти. Пример: "ещё один ребёнок 5 лет".
                     None, если новых фактов нет.
         """
 
@@ -53,7 +68,9 @@ def make_memory_tool(
         if region:
             updates["region_current"] = region
         if memory:
-            updates["persistent_memory"] = memory
+            updates["persistent_memory"] = merge_persistent_memory(
+                user.persistent_memory, memory
+            )
 
         if not updates:
             return (

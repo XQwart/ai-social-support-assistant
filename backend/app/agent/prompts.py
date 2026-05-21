@@ -242,6 +242,23 @@ def _user_profile_section(
     return profile
 
 
+PERSONALITY_STYLES: dict[str, str] = {
+    "professional": (
+        "<style>\n"
+        "Тон: строго профессиональный. Отвечай лаконично и официально. "
+        "Без лишних эмоций и разговорных оборотов, только точные формулировки. "
+        "Эмодзи запрещены.\n"
+        "</style>"
+    ),
+    "friendly": (
+        "<style>\n"
+        "Тон: дружелюбный и тёплый. Используй разговорные обороты и эмодзи умеренно "
+        "(не чаще 1–2 раз в ответе). Подбадривай пользователя.\n"
+        "</style>"
+    ),
+}
+
+
 def build_system_prompt(
     first_name: str,
     effective_region: str | None,
@@ -250,6 +267,7 @@ def build_system_prompt(
     is_sber_employee: bool,
     is_new_dialog: bool,
     prompt_provider=None,
+    personality: str = "default",
 ) -> str:
     resolve = prompt_provider or (lambda key: DEFAULT_PROMPTS.get(key, ""))
 
@@ -260,6 +278,13 @@ def build_system_prompt(
     sections = [
         CURRENT_DATE.format(date=dt.date.today().strftime("%d.%m.%Y")),
         resolve("SYSTEM_PROMPT_ROLE"),
+    ]
+
+    style_section = PERSONALITY_STYLES.get(personality, "")
+    if style_section:
+        sections.append(style_section)
+
+    sections += [
         _user_profile_section(
             first_name,
             effective_region,

@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import ChatMessage from "@/components/ChatMessage";
 import LoadingDots from "@/components/LoadingDots";
-import AgentActivityList from "@/components/AgentActivity";
 
+import type { Personality } from "@/api/chatApi";
 import type { Chat, Message } from "@/types";
 import { cn } from "@/utils/cn";
 
@@ -12,15 +12,16 @@ interface ChatViewProps {
   isLoading: boolean;
   onRetryHistory: () => void;
   onRetryPendingMessage: () => void;
+  onEditMessage?: (messageId: string, newText: string) => Promise<void>;
+  personality?: Personality;
 }
 
 const AUTO_SCROLL_THRESHOLD = 120;
 const SHOW_SCROLL_BUTTON_THRESHOLD = 240;
 const UNLOCK_AUTO_SCROLL_THRESHOLD = 8;
-const PROGRAMMATIC_SCROLL_TIMEOUT_MS = 420;
+const PROGRAMMATIC_SCROLL_TIMEOUT_MS = 1000;
 
 const STREAMING_PLACEHOLDER_ID = "__streaming__";
-const ROLE_LABEL = "Помощник";
 
 function getDistanceFromBottom(node: HTMLDivElement): number {
   return node.scrollHeight - node.scrollTop - node.clientHeight;
@@ -30,17 +31,9 @@ function isNearBottom(node: HTMLDivElement): boolean {
   return getDistanceFromBottom(node) <= AUTO_SCROLL_THRESHOLD;
 }
 
-function StreamingMessage({ chat }: { chat: Chat }) {
+function StreamingMessage({ chat, personality }: { chat: Chat; personality?: Personality }) {
   const streaming = chat.streaming;
   if (!streaming) return null;
-
-  const placeholder: Message = {
-    id: STREAMING_PLACEHOLDER_ID,
-    role: "assistant",
-    content: streaming.content,
-    timestamp: Date.now(),
-    activities: streaming.activities,
-  };
 
   const hasContent = streaming.content.length > 0;
   const hasActivities = streaming.activities.length > 0;
@@ -49,32 +42,15 @@ function StreamingMessage({ chat }: { chat: Chat }) {
     return <LoadingDots chatId={chat.id} />;
   }
 
-  if (!hasContent) {
-    return (
-      <div className="fade-in-up flex w-full justify-start">
-        <div className="flex max-w-[92%] min-w-0 items-start md:max-w-[82%]">
-          <div className="min-w-0">
-            <div className="rounded-[24px] rounded-bl-[8px] border border-white/80 bg-white/78 px-4 py-3.5 text-slate-800 shadow-[0_10px_30px_rgba(15,23,42,0.05)] backdrop-blur-2xl">
-              <div className="mb-1.5 text-sm font-semibold tracking-[0.08em] text-emerald-600 md:text-[15px]">
-                {ROLE_LABEL}
-              </div>
-              <AgentActivityList
-                activities={streaming.activities}
-                isStreaming
-              />
-              <div className="mt-1 flex items-center gap-1.5 py-0.5">
-                <span className="loading-dot" />
-                <span className="loading-dot" style={{ animationDelay: "140ms" }} />
-                <span className="loading-dot" style={{ animationDelay: "280ms" }} />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const placeholder: Message = {
+    id: STREAMING_PLACEHOLDER_ID,
+    role: "assistant",
+    content: streaming.content,
+    timestamp: Date.now(),
+    activities: streaming.content.length > 0 ? [] : streaming.activities,
+  };
 
-  return <ChatMessage message={placeholder} isStreaming />;
+  return <ChatMessage message={placeholder} isStreaming personality={personality} />;
 }
 
 export default function ChatView({
@@ -82,6 +58,8 @@ export default function ChatView({
   isLoading,
   onRetryHistory,
   onRetryPendingMessage,
+  onEditMessage,
+  personality,
 }: ChatViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -127,7 +105,10 @@ export default function ChatView({
       shouldAutoScrollRef.current = true;
     }
 
-    setShowScrollToBottom(distanceFromBottom > SHOW_SCROLL_BUTTON_THRESHOLD);
+    setShowScrollToBottom(
+      !programmaticScrollRef.current &&
+        distanceFromBottom > SHOW_SCROLL_BUTTON_THRESHOLD
+    );
     lastScrollTopRef.current = container.scrollTop;
   }, []);
 
@@ -165,11 +146,19 @@ export default function ChatView({
       if (atBottom) {
         manualScrollLockRef.current = false;
         shouldAutoScrollRef.current = true;
+        programmaticScrollRef.current = false;
+        if (programmaticTimeoutRef.current !== null) {
+          window.clearTimeout(programmaticTimeoutRef.current);
+          programmaticTimeoutRef.current = null;
+        }
       } else if (!manualScrollLockRef.current && isNearBottom(container)) {
         shouldAutoScrollRef.current = true;
       }
 
-      setShowScrollToBottom(distanceFromBottom > SHOW_SCROLL_BUTTON_THRESHOLD);
+      setShowScrollToBottom(
+        !programmaticScrollRef.current &&
+          distanceFromBottom > SHOW_SCROLL_BUTTON_THRESHOLD
+      );
       lastScrollTopRef.current = currentScrollTop;
     };
 
@@ -232,7 +221,7 @@ export default function ChatView({
       >
         <div ref={contentRef} className="mx-auto flex w-full max-w-4xl flex-col gap-4">
           {chat.historyStatus === "loading" && (
-            <div className="mx-auto flex w-full max-w-2xl items-center justify-between gap-3 rounded-3xl border border-white/80 bg-white/78 px-5 py-4 text-sm text-slate-600 shadow-[0_18px_44px_rgba(15,23,42,0.08)] backdrop-blur-2xl">
+            <div className="flex w-full items-center justify-between gap-3 rounded-3xl border border-white/80 bg-white/78 px-5 py-4 text-sm text-slate-600 shadow-[0_18px_44px_rgba(15,23,42,0.08)] backdrop-blur-2xl">
               <span>Загружаем полную историю диалога...</span>
               <span className="inline-flex items-center gap-1.5 text-emerald-600">
                 <span className="loading-dot" />
@@ -243,7 +232,7 @@ export default function ChatView({
           )}
 
           {chat.historyError && (
-            <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 rounded-3xl border border-amber-200/80 bg-amber-50/90 px-5 py-4 text-slate-700 shadow-[0_18px_44px_rgba(15,23,42,0.06)] backdrop-blur-2xl">
+            <div className="flex w-full flex-col gap-3 rounded-3xl border border-amber-200/80 bg-amber-50/90 px-5 py-4 text-slate-700 shadow-[0_18px_44px_rgba(15,23,42,0.06)] backdrop-blur-2xl">
               <div className="text-sm font-medium">
                 Не удалось загрузить историю: {chat.historyError}
               </div>
@@ -260,7 +249,7 @@ export default function ChatView({
           )}
 
           {chat.sendError && chat.pendingMessageText && (
-            <div className="mx-auto flex w-full max-w-2xl flex-col gap-3 rounded-3xl border border-rose-200/80 bg-rose-50/90 px-5 py-4 text-slate-700 shadow-[0_18px_44px_rgba(15,23,42,0.06)] backdrop-blur-2xl">
+            <div className="flex w-full flex-col gap-3 rounded-3xl border border-rose-200/80 bg-rose-50/90 px-5 py-4 text-slate-700 shadow-[0_18px_44px_rgba(15,23,42,0.06)] backdrop-blur-2xl">
               <div className="text-sm font-medium">{chat.sendError}</div>
               <div className="rounded-2xl bg-white/70 px-4 py-3 text-sm text-slate-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]">
                 {chat.pendingMessageText}
@@ -278,44 +267,56 @@ export default function ChatView({
           )}
 
           {chat.messages.map((message) => (
-            <ChatMessage key={message.id} message={message} />
+            <ChatMessage
+              key={message.id}
+              message={message}
+              personality={personality}
+              onEdit={onEditMessage}
+            />
           ))}
 
-          {showStreaming && <StreamingMessage chat={chat} />}
+          {showStreaming && <StreamingMessage chat={chat} personality={personality} />}
           {showLoadingDots && <LoadingDots chatId={chat.id} />}
         </div>
       </div>
 
-      {showScrollToBottom && (
-        <div className="pointer-events-none absolute bottom-4 left-1/2 z-20 -translate-x-1/2 md:bottom-5">
-          <button
-            type="button"
-            onClick={() => {
-              manualScrollLockRef.current = false;
-              shouldAutoScrollRef.current = true;
-              setShowScrollToBottom(false);
-              scrollToBottom("smooth");
-            }}
-            className="pointer-events-auto inline-flex h-14 w-14 items-center justify-center rounded-full border border-white/80 bg-white text-slate-800 shadow-[0_18px_40px_rgba(15,23,42,0.22)] backdrop-blur-2xl transition-all hover:-translate-y-0.5 hover:shadow-[0_22px_46px_rgba(15,23,42,0.26)] active:translate-y-0"
-            aria-label="Перейти к последнему сообщению"
-            title="К последнему сообщению"
+      <div
+        className={cn(
+          "absolute bottom-4 left-1/2 z-20 -translate-x-1/2 transition-all duration-300 ease-out md:bottom-5",
+          showScrollToBottom
+            ? "translate-y-0 opacity-100"
+            : "pointer-events-none translate-y-3 opacity-0"
+        )}
+        aria-hidden={!showScrollToBottom}
+      >
+        <button
+          type="button"
+          tabIndex={showScrollToBottom ? 0 : -1}
+          onClick={() => {
+            manualScrollLockRef.current = false;
+            shouldAutoScrollRef.current = true;
+            setShowScrollToBottom(false);
+            scrollToBottom("smooth");
+          }}
+          className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-white/80 bg-white text-slate-800 shadow-[0_18px_40px_rgba(15,23,42,0.22)] backdrop-blur-2xl transition-all hover:-translate-y-0.5 hover:shadow-[0_22px_46px_rgba(15,23,42,0.26)] active:translate-y-0"
+          aria-label="Перейти к последнему сообщению"
+          title="К последнему сообщению"
+        >
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           >
-            <svg
-              width="22"
-              height="22"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M12 5v14" />
-              <path d="m19 12-7 7-7-7" />
-            </svg>
-          </button>
-        </div>
-      )}
+            <path d="M12 5v14" />
+            <path d="m19 12-7 7-7-7" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }

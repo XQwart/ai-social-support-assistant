@@ -18,3 +18,10 @@ class UserOut(BaseModel):
     @property
     def is_sber_employee(self) -> bool:
         return is_sber_employee_place_of_work(self.place_of_work)
+
+
+class UserMemoryOut(BaseModel):
+    region_current: str | None
+    persistent_memory: str | None
+
+    model_config = ConfigDict(from_attributes=True)

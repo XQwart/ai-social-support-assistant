@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TypedDict
 
 from langchain.agents import AgentState
@@ -19,3 +19,4 @@ class UserContext:
     region_reg: str | None
     is_sber_employee: bool
     is_new_dialog: bool
+    personality: str = field(default="default")

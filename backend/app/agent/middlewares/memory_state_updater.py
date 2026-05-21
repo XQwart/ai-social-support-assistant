@@ -5,6 +5,8 @@ from langchain.agents.middleware import AgentMiddleware, ToolCallRequest
 from langchain_core.messages import ToolMessage
 from langgraph.types import Command
 
+from app.agent.tools.memory_tool import merge_persistent_memory
+
 
 class MemoryToolStateMiddleware(AgentMiddleware):
     async def awrap_tool_call(
@@ -18,17 +20,20 @@ class MemoryToolStateMiddleware(AgentMiddleware):
             return result
 
         args = request.tool_call.get("args", {})
-        state_update: dict[str, Any] = {}
-        if region := args.get("region"):
-            state_update["region_current"] = region
-        if memory := args.get("memory"):
-            state_update["persistent_memory"] = memory
-
-        if not state_update:
-            return result
-
         current_profile = dict(request.state.get("user_profile", {}))
-        current_profile.update(state_update)
+
+        changed = False
+        if region := args.get("region"):
+            current_profile["region_current"] = region
+            changed = True
+        if memory := args.get("memory"):
+            current_profile["persistent_memory"] = merge_persistent_memory(
+                current_profile.get("persistent_memory"), memory
+            )
+            changed = True
+
+        if not changed:
+            return result
 
         if isinstance(result, Command):
             merged = {**(result.update or {}), "user_profile": current_profile}
