@@ -69,6 +69,7 @@ class Config(BaseSettings):
     sber_authorize_url: str = "https://id-ift.sber.ru/CSAFront/oidc/authorize.do"
     sber_redirect_uri: str = ""
     sber_userinfo_url: str = ""
+    sber_completed_auth_url: str = ""
     client_id: str = ""
     client_secret: str = ""
     sber_scopes: str = "openid name place_of_work"
