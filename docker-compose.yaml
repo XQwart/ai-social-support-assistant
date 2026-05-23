@@ -62,7 +62,7 @@ services:
       - .env
     working_dir: /code
     command: >
-      celery -A worker.celery_app worker -l info -c 2 -Ofair
+      celery -A worker.celery_app worker -l info -c 1 -Ofair
       --prefetch-multiplier=1 --max-tasks-per-child=20
       --max-memory-per-child=700000
     volumes:
