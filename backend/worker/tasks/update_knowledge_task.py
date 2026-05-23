@@ -28,20 +28,33 @@ async def _run_update_knowledge(source: dict) -> dict:
                 await source_service.mark_failed(source_id, error="empty")
                 return {"source_id": source_id, "status": "skipped"}
 
-            resp = await deps.http_client.post(
-                f"{deps.processing_url}/api/v1/source",
-                json=document.model_dump(),
-            )
-            resp.raise_for_status()
-            result = resp.json()
+            payload = document.model_dump()
+            del document
+
+            try:
+                resp = await deps.http_client.post(
+                    f"{deps.processing_url}/api/v1/source",
+                    json=payload,
+                )
+                resp.raise_for_status()
+            finally:
+                del payload
 
             await source_service.mark_success(source_id)
-            return result
+
+            return {
+                "source_id": source_id,
+                "status": "success",
+            }
 
         except Exception as e:
             logger.exception("Ошибка source_id=%s", source_id)
             await source_service.mark_failed(source_id, error=str(e))
-            return {"source_id": source_id, "status": "failed", "error": str(e)}
+            return {
+                "source_id": source_id,
+                "status": "failed",
+                "error": str(e),
+            }
 
 
 @app.task(bind=True, name="worker.tasks.update_knowledge.update_knowledge")
