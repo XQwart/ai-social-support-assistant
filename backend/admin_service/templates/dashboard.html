@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Обзор — {{ app_name }}{% endblock %}
+
+{% block content %}
+<section class="card">
+    <h1>Здравствуйте, {{ admin.username }}.</h1>
+    <p>Добро пожаловать в админ-панель ИИ-помощника по социальной поддержке.</p>
+</section>
+
+<section class="card">
+    <h2>Журнал последних действий</h2>
+    {% if audit_entries %}
+    <table class="data-table">
+        <thead>
+        <tr>
+            <th>Время</th>
+            <th>Админ ID</th>
+            <th>Действие</th>
+            <th>Объект</th>
+            <th>IP</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for entry in audit_entries %}
+        <tr>
+            <td>{{ entry.created_at.strftime("%Y-%m-%d %H:%M:%S") }}</td>
+            <td>{{ entry.admin_id or "—" }}</td>
+            <td>{{ entry.action }}</td>
+            <td>
+                {% if entry.target_type %}
+                {{ entry.target_type }}{% if entry.target_id %} #{{ entry.target_id }}{% endif %}
+                {% else %}
+                —
+                {% endif %}
+            </td>
+            <td>{{ entry.ip_address or "—" }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>Записей пока нет.</p>
+    {% endif %}
+</section>
+{% endblock %}

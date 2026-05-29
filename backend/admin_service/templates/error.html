@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} — {{ app_name }}{% endblock %}
+
+{% block content %}
+<section class="card error-card">
+    <h1>{{ title }}</h1>
+    {% if status_code %}
+    <p class="status-code">Код ошибки: {{ status_code }}</p>
+    {% endif %}
+    <p>{{ message }}</p>
+    <p><a href="{{ base_path }}/">Вернуться на главную</a></p>
+</section>
+{% endblock %}

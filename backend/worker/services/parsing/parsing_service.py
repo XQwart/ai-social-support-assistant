@@ -5,7 +5,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from worker.schemas.document import ParsedDocument
-from worker.services.parsing.pdf_extractor import PdfTextExtractor
+from shared.utils.pdf_extractor import PdfTextExtractor
 from worker.services.parsing.text_extractor import HtmlTextExtractor
 from worker.services.parsing.web_fetcher import WebPageFetcher
 
@@ -23,21 +23,22 @@ class DocumentParsingService:
         self._text_extractor = text_extractor
         self._pdf_extractor = pdf_extractor
 
-    def parse_source(
+    async def parse_source(
         self,
         source_id: int,
         url: str,
         name: str | None,
         document_type: str,
+        place_of_work: str | None = None,
     ) -> ParsedDocument | None:
         if not url:
             logger.warning("Source %d: пустой URL", source_id)
             return None
 
         if document_type == "pdf":
-            text = self._parse_pdf(url)
+            text = await self._parse_pdf(url)
         else:
-            text = self._parse_html(url)
+            text = await self._parse_html(url)
 
         if not text:
             return None
@@ -47,14 +48,15 @@ class DocumentParsingService:
             source_url=url,
             source_name=name,
             text=text,
+            place_of_work=place_of_work,
         )
 
-    def close(self) -> None:
-        self._fetcher.close()
+    async def aclose(self) -> None:
+        await self._fetcher.aclose()
 
-    def _parse_pdf(self, url: str) -> str | None:
+    async def _parse_pdf(self, url: str) -> str | None:
         if self._is_web_url(url):
-            pdf_bytes = self._fetcher.get_bytes(url)
+            pdf_bytes = await self._fetcher.get_bytes(url)
             if not pdf_bytes:
                 return None
 
@@ -73,8 +75,8 @@ class DocumentParsingService:
 
         return self._pdf_extractor.extract_text(pdf_bytes, str(file_path))
 
-    def _parse_html(self, url: str) -> str | None:
-        html = self._fetcher.get_html(url)
+    async def _parse_html(self, url: str) -> str | None:
+        html = await self._fetcher.get_html(url)
         if not html:
             return None
 

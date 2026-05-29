@@ -3,9 +3,9 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import cast
 
-from sqlalchemy import select, update, or_
+from sqlalchemy import or_, select, update
 from sqlalchemy.engine import CursorResult
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from worker.core.constants import DEFAULT_CRAWL_INTERVAL
 from worker.models.source import Source
@@ -13,10 +13,10 @@ from shared.models.regions import Region, SourceRegion
 
 
 class SourceCrawlRepository:
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    def claim_due_sources(self, now: datetime, limit: int) -> list[Source]:
+    async def claim_due_sources(self, now: datetime, limit: int) -> list[Source]:
         stmt = (
             select(Source)
             .where(
@@ -33,16 +33,17 @@ class SourceCrawlRepository:
             .with_for_update(skip_locked=True)
         )
 
-        sources = list(self._session.scalars(stmt).all())
+        result = await self._session.execute(stmt)
+        sources = list(result.scalars().all())
 
         for source in sources:
             source.is_locked = True
             source.locked_at = now
 
-        self._session.flush()
+        await self._session.flush()
         return sources
 
-    def release_stale_locks(self, threshold: datetime) -> int:
+    async def release_stale_locks(self, threshold: datetime) -> int:
         stmt = (
             update(Source)
             .where(
@@ -56,11 +57,11 @@ class SourceCrawlRepository:
             )
         )
 
-        result = cast(CursorResult, self._session.execute(stmt))
-        self._session.flush()
-        return result.rowcount
+        result = cast(CursorResult, await self._session.execute(stmt))
+        await self._session.flush()
+        return result.rowcount or 0
 
-    def mark_success(self, source_id: int) -> None:
+    async def mark_success(self, source_id: int) -> None:
         now = datetime.now(timezone.utc)
 
         stmt = (
@@ -74,10 +75,11 @@ class SourceCrawlRepository:
                 next_crawl_at=now + DEFAULT_CRAWL_INTERVAL,
             )
         )
-        self._session.execute(stmt)
-        self._session.flush()
 
-    def mark_failed(self, source_id: int, error: str) -> None:
+        await self._session.execute(stmt)
+        await self._session.flush()
+
+    async def mark_failed(self, source_id: int, error: str) -> None:
         stmt = (
             update(Source)
             .where(Source.id == source_id)
@@ -87,14 +89,17 @@ class SourceCrawlRepository:
                 last_error=error[:1000],
             )
         )
-        self._session.execute(stmt)
-        self._session.flush()
 
-    def get_region_codes_by_source_id(self, source_id: int) -> list[str]:
+        await self._session.execute(stmt)
+        await self._session.flush()
+
+    async def get_region_codes_by_source_id(self, source_id: int) -> list[str]:
         stmt = (
             select(Region.code)
             .join(SourceRegion, SourceRegion.region_id == Region.id)
             .where(SourceRegion.source_id == source_id)
             .order_by(Region.code.asc())
         )
-        return list(self._session.scalars(stmt).all())
+
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())

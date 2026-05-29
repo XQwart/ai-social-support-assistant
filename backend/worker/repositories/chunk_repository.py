@@ -1,21 +1,22 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from uuid import uuid4
 
-from sqlalchemy import delete, select
-from sqlalchemy.orm import Session
+from sqlalchemy import delete, select, update, func
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from shared.models import DocumentChunk
 from worker.schemas.document import DocumentChunkCreate, StoredDocumentChunk
 
 
 class ChunkRepository:
-    _session: Session
+    _session: AsyncSession
 
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    def create_many(
+    async def create_many(
         self,
         chunks: Sequence[DocumentChunkCreate],
     ) -> list[StoredDocumentChunk]:
@@ -31,11 +32,12 @@ class ChunkRepository:
                 source_name=chunk.source_name,
                 chunk_index=chunk.chunk_index,
                 text=chunk.text,
+                qdrant_point_id=uuid4(),
             )
             self._session.add(row)
             rows.append(row)
 
-        self._session.flush()
+        await self._session.flush()
 
         return [
             StoredDocumentChunk(
@@ -45,22 +47,26 @@ class ChunkRepository:
                 source_name=row.source_name,
                 chunk_index=row.chunk_index,
                 text=row.text,
+                qdrant_point_id=row.qdrant_point_id,
             )
             for row in rows
         ]
 
-    def delete_by_source_id(self, source_id: int) -> int:
+    async def delete_by_source_id(self, source_id: int) -> int:
         stmt = (
             delete(DocumentChunk)
             .where(DocumentChunk.source_id == source_id)
             .returning(DocumentChunk.id)
         )
 
-        result = self._session.execute(stmt)
+        result = await self._session.execute(stmt)
         deleted_ids = result.scalars().all()
         return len(deleted_ids)
 
-    def get_by_ids(self, chunk_ids: Sequence[int]) -> list[StoredDocumentChunk]:
+    async def get_by_ids(
+        self,
+        chunk_ids: Sequence[int],
+    ) -> list[StoredDocumentChunk]:
         if not chunk_ids:
             return []
 
@@ -70,7 +76,8 @@ class ChunkRepository:
             .order_by(DocumentChunk.id.asc())
         )
 
-        rows = list(self._session.scalars(stmt).all())
+        result = await self._session.execute(stmt)
+        rows = list(result.scalars().all())
 
         return [
             StoredDocumentChunk(
@@ -80,18 +87,20 @@ class ChunkRepository:
                 source_name=row.source_name,
                 chunk_index=row.chunk_index,
                 text=row.text,
+                qdrant_point_id=row.qdrant_point_id,
             )
             for row in rows
         ]
 
-    def get_by_source_id(self, source_id: int) -> list[StoredDocumentChunk]:
+    async def get_by_source_id(self, source_id: int) -> list[StoredDocumentChunk]:
         stmt = (
             select(DocumentChunk)
             .where(DocumentChunk.source_id == source_id)
             .order_by(DocumentChunk.chunk_index.asc())
         )
 
-        rows = list(self._session.scalars(stmt).all())
+        result = await self._session.execute(stmt)
+        rows = list(result.scalars().all())
 
         return [
             StoredDocumentChunk(
@@ -101,6 +110,66 @@ class ChunkRepository:
                 source_name=row.source_name,
                 chunk_index=row.chunk_index,
                 text=row.text,
+                qdrant_point_id=row.qdrant_point_id,
             )
             for row in rows
         ]
+
+    async def get_next_chunk_index(
+        self,
+        source_id: int,
+    ) -> int:
+        stmt = select(func.max(DocumentChunk.chunk_index)).where(
+            DocumentChunk.source_id == source_id
+        )
+
+        result = await self._session.execute(stmt)
+        max_index = result.scalar_one_or_none()
+
+        if max_index is None:
+            return 0
+
+        return int(max_index) + 1
+
+    async def update_text(
+        self,
+        *,
+        chunk_id: int,
+        text: str,
+    ) -> StoredDocumentChunk:
+        stmt = (
+            update(DocumentChunk)
+            .where(DocumentChunk.id == chunk_id)
+            .values(text=text)
+            .returning(DocumentChunk)
+        )
+
+        result = await self._session.execute(stmt)
+        row = result.scalar_one_or_none()
+
+        if row is None:
+            raise RuntimeError(f"Chunk not found: {chunk_id}")
+
+        return StoredDocumentChunk(
+            id=row.id,
+            source_id=row.source_id,
+            source_url=row.source_url,
+            source_name=row.source_name,
+            chunk_index=row.chunk_index,
+            text=row.text,
+        )
+
+    async def delete_by_id(
+        self,
+        chunk_id: int,
+    ) -> int:
+        stmt = (
+            delete(DocumentChunk)
+            .where(DocumentChunk.id == chunk_id)
+            .returning(DocumentChunk.id)
+        )
+
+        result = await self._session.execute(stmt)
+        deleted_ids = result.scalars().all()
+
+        return len(deleted_ids)

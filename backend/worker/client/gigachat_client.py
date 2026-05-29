@@ -14,3 +14,4 @@ def build_gigachat_client(config: Config) -> GigaChat:
         scope=config.gigachat_scope,
         ca_bundle_file=config.rus_root_ca_cert_path,
     )
+

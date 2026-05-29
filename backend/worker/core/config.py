@@ -31,7 +31,7 @@ class Config(BaseSettings):
     @property
     def database_url(self) -> str:
         return (
-            f"postgresql+psycopg2://{self.postgres_user}:{self.postgres_password}"
+            f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
 
@@ -57,9 +57,13 @@ class Config(BaseSettings):
     default_timeout: int = 5
     rus_root_ca_cert_path: str = str(CERT_DIR / "russian_trusted_root_ca.cer")
     gigachat_api_key: str = ""
+    gigachat_quest_model: str = "GigaChat-2"
     gigachat_embedding_model: str = "EmbeddingsGigaR"
     gigachat_vector_size: int = 2560
     gigachat_scope: str = "GIGACHAT_API_B2B"
+
+    llm_timeout: float = 15.0
+    processing_service_url: str = "http://chunk-api:8002"
 
     def _get_redis_url(self, database_num: int) -> str:
         return f"redis://{self.redis_host}:{self.redis_port}/{database_num}"

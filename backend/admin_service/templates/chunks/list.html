@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Чанки — {{ app_name }}{% endblock %}
+
+{% block content %}
+<section class="card">
+    <h1>База знаний (чанки)</h1>
+
+    {% if request.query_params.get("created") %}
+    <div class="alert alert-success">Текст отправлен в индексацию. Возможно создание нескольких чанков.</div>
+    {% endif %}
+
+    <form method="get" action="{{ base_path }}/chunks" class="filters">
+        <label class="filter-select-wrap">
+            Источник
+            <div class="csel-remote"
+                 data-csel-remote
+                 data-submit-on-change="1"
+                 data-endpoint="{{ base_path }}/chunks/sources/search"
+                 data-name="source_id"
+                 data-allow-empty="1"
+                 data-empty-label="— все —"
+                 data-placeholder="— все —"
+                 {% if selected_source %}
+                 data-selected-id="{{ selected_source.id }}"
+                 data-selected-label="{{ selected_source.name }}"
+                 {% endif %}></div>
+        </label>
+        <label class="filter-search-wrap">
+            Поиск
+            <input type="search" name="search" value="{{ search }}" placeholder="Текст или название">
+        </label>
+        <button type="submit" class="btn btn-secondary">Найти</button>
+        <a class="btn btn-primary" href="{{ base_path }}/chunks/new{% if selected_source_id %}?source_id={{ selected_source_id }}{% endif %}">+ Новый чанк</a>
+    </form>
+
+    <p class="muted">Найдено: {{ total }}</p>
+
+    <table class="data-table striped">
+        <thead>
+        <tr>
+            <th style="width:64px">ID</th>
+            <th style="width:160px">Источник</th>
+            <th style="width:64px; text-align:center">Индекс</th>
+            <th>Текст</th>
+            <th style="width:140px">Qdrant point</th>
+            <th style="width:72px"></th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for chunk in chunks %}
+        <tr>
+            <td><span class="chunk-id-badge">#{{ chunk.id }}</span></td>
+            <td class="chunk-source-cell" title="{{ chunk.source_name or chunk.source_url or '—' }}">
+                {{ chunk.source_name or chunk.source_url or "—" }}
+            </td>
+            <td class="chunk-index-cell">{{ chunk.chunk_index }}</td>
+            <td>
+                <div class="chunk-text-preview">{{ chunk.text }}</div>
+            </td>
+            <td>
+                {% if chunk.qdrant_point_id %}
+                <span class="qdrant-status-ok">
+                    <span class="qdrant-id">{{ chunk.qdrant_point_id }}</span>
+                </span>
+                {% else %}
+                <span class="qdrant-status-missing">не загружен</span>
+                {% endif %}
+            </td>
+            <td><a href="{{ base_path }}/chunks/{{ chunk.id }}">Открыть</a></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    {% if total_pages > 1 %}
+    <nav class="pagination">
+        {% if page > 1 %}
+        <a href="?page={{ page - 1 }}{% if selected_source_id %}&source_id={{ selected_source_id }}{% endif %}{% if search %}&search={{ search }}{% endif %}">← Назад</a>
+        {% endif %}
+        <span>Страница {{ page }} из {{ total_pages }}</span>
+        {% if page < total_pages %}
+        <a href="?page={{ page + 1 }}{% if selected_source_id %}&source_id={{ selected_source_id }}{% endif %}{% if search %}&search={{ search }}{% endif %}">Вперёд →</a>
+        {% endif %}
+    </nav>
+    {% endif %}
+</section>
+{% endblock %}

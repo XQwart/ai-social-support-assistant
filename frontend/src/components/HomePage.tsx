@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import AppDisclaimer from "@/components/AppDisclaimer";
 import ChatInput from "@/components/ChatInput";
+import FlowerField from "@/components/FlowerField";
 
 interface HomePageProps {
   onSend: (message: string) => Promise<boolean>;
@@ -72,6 +73,10 @@ export default function HomePage({
         <div className="hero-aurora hero-aurora-one" />
         <div className="hero-aurora hero-aurora-two" />
         <div className="hero-aurora hero-aurora-three" />
+      </div>
+
+      <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden="true">
+        <FlowerField theme={theme} />
       </div>
 
       <div className="relative z-10 flex flex-1 flex-col items-center sm:justify-center">

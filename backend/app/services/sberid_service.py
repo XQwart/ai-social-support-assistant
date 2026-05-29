@@ -29,11 +29,13 @@ class SberIdService:
         await self._validate_id_token(
             token_data.id_token, nonce, self._config.client_id
         )
+        user_info = await self._fetch_userinfo(token_data.access_token)
+        await self._complete_auth(token_data.access_token)
 
-        return await self._fetch_userinfo(token_data.access_token)
+        return user_info
 
     async def _exchange_code_for_token(self, code: str) -> SberTokenData:
-        rquid = uuid.uuid4().hex
+        rquid = self._generate_rquid()
 
         res = await self._client.post(
             self._config.sber_token_url,
@@ -75,7 +77,7 @@ class SberIdService:
         logger.debug("id_token validated successfully")
 
     async def _fetch_userinfo(self, bank_access_token: str) -> SberUserInfo:
-        rquid = uuid.uuid4().hex
+        rquid = self._generate_rquid()
 
         res = await self._client.get(
             self._config.sber_userinfo_url,
@@ -85,3 +87,25 @@ class SberIdService:
             },
         )
         return SberUserInfo(**res.json())
+
+    async def _complete_auth(self, bank_access_token: str) -> None:
+        rquid = self._generate_rquid()
+
+        res = await self._client.get(
+            self._config.sber_completed_auth_url,
+            headers={
+                "Authorization": f"Bearer {bank_access_token}",
+                "x-introspect-rquid": rquid,
+            },
+        )
+        if res.status_code >= 400:
+            logger.error(
+                "Sber token exchange failed | rquid=%s | status=%s | body=%s",
+                rquid,
+                res.status_code,
+                res.text,
+            )
+            raise ExternalServiceError("Authorization confirmation failed")
+
+    def _generate_rquid(self) -> str:
+        return uuid.uuid4().hex

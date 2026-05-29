@@ -48,12 +48,11 @@ class UserRepository:
         )
         await self._session.commit()
 
-    async def update_user_memory(self, user: UserModel, **fields) -> None:
-        for field, value in fields.items():
-            setattr(user, field, value)
-
+    async def update_user_memory(self, user_id: int, **fields) -> None:
+        await self._session.execute(
+            update(UserModel).where(UserModel.id == user_id).values(**fields)
+        )
         await self._session.commit()
-        await self._session.refresh(user)
 
     async def delete(self, user_id: int) -> bool:
         stmt = delete(UserModel).where(UserModel.id == user_id)

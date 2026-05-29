@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -8,6 +9,7 @@ from app.models.message_model import MessageRole, MessageModel
 
 class MessageCreate(BaseModel):
     content: str = Field(..., min_length=1)
+    personality: Literal["default", "professional", "friendly"] = "default"
 
 
 class MessageOut(BaseModel):
@@ -31,11 +33,9 @@ class ChatMessageResponse(BaseModel):
 class SendMessageResponse(BaseModel):
     user_message: MessageWithChatIdOut
     assistant_message: MessageWithChatIdOut
-    context_compressed: bool = False
 
 
 @dataclass(slots=False)
 class ConversationResult:
     user_message: MessageModel
     assistant_message: MessageModel
-    context_compressed: bool

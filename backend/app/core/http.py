@@ -4,6 +4,8 @@ import ssl
 
 import httpx
 
+from .ssrf_transport import SSRFGuardTransport
+
 if TYPE_CHECKING:
     from app.core.config import Config
 
@@ -15,4 +17,20 @@ def create_sber_http_client(config: Config) -> httpx.AsyncClient:
         keyfile=config.sber_client_key_path,
     )
 
-    return httpx.AsyncClient(verify=ssl_ctx)
+    return create_http_client(config, verify=ssl_ctx)
+
+
+def create_fetch_client(config: Config) -> httpx.AsyncClient:
+    transport = SSRFGuardTransport(verify=True, retries=0)
+
+    return create_http_client(config, transport=transport)
+
+
+def create_http_client(
+    config: Config, headers: dict | None = None, *args, **kwargs
+) -> httpx.AsyncClient:
+    headers = headers or {}
+
+    return httpx.AsyncClient(
+        *args, **kwargs, headers={"User-Agent": config.http_user_agent, **headers}
+    )

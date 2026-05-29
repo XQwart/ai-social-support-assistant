@@ -10,10 +10,18 @@ class BaseEmbeddingProvider(ABC):
     def vector_size(self) -> int:
         raise NotImplementedError
 
+    @property
     @abstractmethod
-    def embed_texts(self, texts: Sequence[str]) -> list[list[float]]:
+    def model(self) -> str:
         raise NotImplementedError
 
     @abstractmethod
-    def close(self):
+    async def embed_texts(
+        self,
+        texts: Sequence[str],
+    ) -> list[list[float]]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def aclose(self) -> None:
         raise NotImplementedError

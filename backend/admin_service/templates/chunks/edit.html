@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Чанк #{{ chunk.id }} — {{ app_name }}{% endblock %}
+
+{% block content %}
+<section class="card">
+    <p><a href="{{ base_path }}/chunks">← Все чанки</a></p>
+    <h1>Чанк #{{ chunk.id }}</h1>
+
+    <div class="chunk-meta-bar">
+        <span><strong>Документ:</strong> {{ chunk.source_name or chunk.source_url or "— без источника —" }}</span>
+        <span><strong>Индекс:</strong> {{ chunk.chunk_index }}</span>
+        {% if chunk.qdrant_point_id %}
+        <span class="qdrant-status-ok">
+            <strong>Qdrant:</strong>&nbsp;<span class="qdrant-id">{{ chunk.qdrant_point_id }}</span>
+        </span>
+        {% else %}
+        <span class="qdrant-status-missing">не загружен в Qdrant</span>
+        {% endif %}
+    </div>
+
+    {% if request.query_params.get("saved") %}
+    <div class="alert alert-success">Сохранено и переиндексировано.</div>
+    {% endif %}
+    {% if request.query_params.get("delete_failed") %}
+    <div class="alert alert-error">Не удалось удалить чанк. Проверьте логи и состояние Qdrant.</div>
+    {% endif %}
+    {% if error %}
+    <div class="alert alert-error">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="{{ base_path }}/chunks/{{ chunk.id }}" class="chunk-form">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+        <input type="hidden" name="place_of_work_set" value="1">
+
+        <label>
+            Источник (ссылка)
+            <input type="url" value="{{ chunk.source_url or '' }}" disabled>
+            <small class="muted">URL наследуется от документа и не редактируется через API.</small>
+        </label>
+
+        <label>
+            Регион
+            <input type="text" value="{{ chunk.region_code or '— наследуется у документа —' }}" disabled>
+            <small class="muted">Регион наследуется от документа и не редактируется через API.</small>
+        </label>
+
+        <label>
+            Место работы
+            {% set current_place = draft_place_of_work if draft_place_of_work is defined else chunk.place_of_work %}
+            <select name="place_of_work" class="select-enhanced">
+                <option value="" {% if not current_place %}selected{% endif %}>— None (доступно всем) —</option>
+                {% for place in places_of_work %}
+                <option value="{{ place }}" {% if current_place == place %}selected{% endif %}>{{ place }}</option>
+                {% endfor %}
+            </select>
+            <small class="muted">None — чанк виден без ограничений по работодателю.</small>
+        </label>
+
+        <div></div>
+
+        <label class="col-full">
+            Текст чанка
+            <textarea name="text" rows="16" required minlength="50">{% if draft_text is defined %}{{ draft_text }}{% else %}{{ chunk.text }}{% endif %}</textarea>
+            <small class="muted">Минимум 50 символов.</small>
+        </label>
+
+        <div class="form-actions col-full">
+            <button type="submit" class="btn btn-primary">Сохранить и переиндексировать</button>
+        </div>
+    </form>
+
+    <hr>
+
+    <form method="post" action="{{ base_path }}/chunks/{{ chunk.id }}/delete" class="danger-zone"
+          onsubmit="return confirm('Удалить чанк #{{ chunk.id }} безвозвратно?');">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+        <button type="submit" class="btn btn-danger">Удалить чанк</button>
+    </form>
+</section>
+{% endblock %}

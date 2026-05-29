@@ -1,61 +1,54 @@
 from __future__ import annotations
 
 import logging
-from redis import Redis
-from threading import Lock
-from qdrant_client.models import VectorParams, Distance
-from contextlib import contextmanager
-from worker.core.config import get_config, Config
-from worker.services.embedding.build import build_embedding_provider
-from worker.db.qdrant import create_qdrant
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
+import httpx
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from worker.core.config import Config, get_config
 from worker.db.session import create_session
 from worker.repositories import (
-    ChunkRepository,
-    VectorRepository,
-    SourceRegistrationRepository,
     SourceCrawlRepository,
+    SourceRegistrationRepository,
     RegionRepository,
 )
+from shared.utils.pdf_extractor import PdfTextExtractor
 from worker.services.parsing import (
     DocumentParsingService,
     HtmlLinkExtractor,
     HtmlTextExtractor,
-    PdfTextExtractor,
     WebPageFetcher,
 )
-from worker.services.source import (
-    SourceRegistrationService,
-    SourceCrawlService,
-    RegionService,
-)
-from worker.services.embedding.embedding_service import EmbeddingService
-from worker.services.document_service import DocumentService
-from worker.services.chunk_service import ChunkingService
-from worker.services.processing_service import SourceProcessingService
+
 from worker.services.discovery_service import LinkDiscoveryService
 from worker.services.region_import_service import RegionSourceImportService
-from worker.services.runtime_state_service import RuntimeStateService
+from worker.services.source import (
+    RegionService,
+    SourceCrawlService,
+    SourceRegistrationService,
+)
 
 logger = logging.getLogger(__name__)
-_lock = Lock()
 
 
 class WorkerDependencies:
-    _instance: WorkerDependencies | None = None
-
     def __init__(self, config: Config) -> None:
         self._config = config
 
-        self._provider = build_embedding_provider(config=config)
-        self._qdrant = create_qdrant(url=config.qdrant_url)
+    @classmethod
+    async def create(cls, config: Config | None = None) -> "WorkerDependencies":
+        instance = cls(config or get_config())
+        await instance._ainit()
+        return instance
 
-        self._redis = Redis.from_url(config.redis_celery_url, decode_responses=True)
-        self._runtime_state_service = RuntimeStateService(redis_client=self._redis)
+    async def _ainit(self) -> None:
+        self._sessionmaker = create_session(self._config.database_url)
 
-        self.ensure_collection(self._provider.vector_size)
-
-        self._sessionmaker = create_session(config.database_url)
-        self._fetcher = WebPageFetcher(default_timeout=config.default_timeout)
+        self._fetcher = WebPageFetcher(
+            default_timeout=self._config.default_timeout,
+        )
         self._text_extractor = HtmlTextExtractor()
         self._link_extractor = HtmlLinkExtractor()
         self._pdf_extractor = PdfTextExtractor()
@@ -66,76 +59,64 @@ class WorkerDependencies:
             pdf_extractor=self._pdf_extractor,
         )
 
-        self._chunking_service = ChunkingService(
-            embedding_model=config.polza_ai_embedding_model,
-        )
-        self._embedding_service = EmbeddingService(
-            provider=self._provider,
-            model=config.polza_ai_embedding_model,
+        self._http_client = httpx.AsyncClient(
+            timeout=300.0,
         )
 
-        logger.info("WorkerDependencies инициализированы")
+        logger.info("WorkerDependencies initialized")
 
-    @contextmanager
-    def session_scope(self):
+    @asynccontextmanager
+    async def session_scope(self) -> AsyncIterator[AsyncSession]:
         session = self._sessionmaker()
         try:
             yield session
-            session.commit()
+            await session.commit()
         except Exception:
-            session.rollback()
+            await session.rollback()
             raise
         finally:
-            session.close()
-
-    @classmethod
-    def get(cls) -> WorkerDependencies:
-        if cls._instance is None:
-            with _lock:
-                if cls._instance is None:
-                    config = get_config()
-                    cls._instance = cls(config)
-        return cls._instance
-
-    @classmethod
-    def reset(cls) -> None:
-        with _lock:
-            if cls._instance is not None:
-                cls._instance._close()
-                cls._instance = None
+            session.expunge_all()
+            await session.close()
 
     @property
-    def runtime_state_service(self) -> RuntimeStateService:
-        return self._runtime_state_service
+    def parsing_service(self) -> DocumentParsingService:
+        return self._parsing_service
 
-    def build_processing_service(self, session) -> SourceProcessingService:
+    @property
+    def http_client(self) -> httpx.AsyncClient:
+        return self._http_client
 
-        vector_rep = VectorRepository(
-            client=self._qdrant,
-            collection_name=self._config.qdrant_collection,
-        )
-        chunk_rep = ChunkRepository(session=session)
-        document_service = DocumentService(
-            vector_rep=vector_rep,
-            chunk_rep=chunk_rep,
-        )
-        source_rep = SourceCrawlRepository(session=session)
-        source_service = SourceCrawlService(source_repository=source_rep)
+    @property
+    def processing_url(self) -> str:
+        return self._config.processing_service_url
 
-        return SourceProcessingService(
-            parsing_service=self._parsing_service,
-            embedding_service=self._embedding_service,
-            document_service=document_service,
-            chunking_service=self._chunking_service,
-            source_service=source_service,
-        )
+    def build_source_crawl_service(
+        self,
+        session: AsyncSession,
+    ) -> SourceCrawlService:
+        repo = SourceCrawlRepository(session=session)
+        return SourceCrawlService(source_repository=repo)
 
-    def build_region_source_import_service(self, session):
-        region_rep = RegionRepository(session=session)
-        region_service = RegionService(region_repository=region_rep)
+    def build_source_registration_service(
+        self,
+        session: AsyncSession,
+    ) -> SourceRegistrationService:
+        repo = SourceRegistrationRepository(session=session)
+        return SourceRegistrationService(source_repository=repo)
 
-        source_repository = SourceRegistrationRepository(session=session)
-        source_service = SourceRegistrationService(source_repository=source_repository)
+    def build_region_service(
+        self,
+        session: AsyncSession,
+    ) -> RegionService:
+        repo = RegionRepository(session=session)
+        return RegionService(region_repository=repo)
+
+    def build_region_source_import_service(
+        self,
+        session: AsyncSession,
+    ) -> RegionSourceImportService:
+        region_service = self.build_region_service(session)
+        source_service = self.build_source_registration_service(session)
 
         link_service = LinkDiscoveryService(
             fetcher=self._fetcher,
@@ -149,27 +130,22 @@ class WorkerDependencies:
             link_discovery_service=link_service,
         )
 
-    def ensure_collection(self, vector_size: int) -> None:
-        if not self._qdrant.collection_exists(self._config.qdrant_collection):
-            self._qdrant.create_collection(
-                collection_name=self._config.qdrant_collection,
-                vectors_config=VectorParams(
-                    size=vector_size,
-                    distance=Distance.COSINE,
-                ),
-            )
+    async def aclose(self) -> None:
+        try:
+            await self._parsing_service.aclose()
+        except Exception:
+            logger.exception("Failed to close parsing service")
 
-    def _close(self) -> None:
         try:
-            self._parsing_service.close()
+            await self._http_client.aclose()
         except Exception:
-            pass
+            logger.exception("Failed to close http client")
+
         try:
-            self._qdrant.close()
+            engine = self._sessionmaker.kw.get("bind")
+            if engine:
+                await engine.dispose()
         except Exception:
-            pass
-        try:
-            self._provider.close()
-        except Exception:
-            pass
-        logger.info("WorkerDependencies закрыты")
+            logger.exception("Failed to dispose SQLAlchemy engine")
+
+        logger.info("WorkerDependencies closed")

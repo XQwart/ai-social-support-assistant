@@ -27,6 +27,8 @@ class Config(BaseSettings):
     postgres_db: str
     postgres_port: int
 
+    checkpointer_pool_max_conn: int = 20
+
     @property
     def database_url(self) -> str:
         return (
@@ -49,16 +51,25 @@ class Config(BaseSettings):
         return f"http://{self.qdrant_host}:{self.qdrant_port}"
 
     qdrant_collection: str = "chunk_collection"
+    qdrant_vector_chunk: str = "chunk"
+    qdrant_vector_questions: str = "questions"
+    qdrant_min_per_category: int = 2
+
+    searxng_url: str = "http://searxng:8080"
+    web_search_timeout: float = 8.0
+    web_search_max_results: int = 8
+    web_search_citation_char_limit: int = 220
 
     rag_distance: Distance = Distance.COSINE
-    rag_top_k: int = 6
-    rag_min_per_category: int = 2
     rag_score_threshold: float = 0.65
+    rag_citation_char_limit: int = 220
+    rag_chunk_text_char_limit: int = 1400
 
     sber_token_url: str = ""
     sber_authorize_url: str = "https://id-ift.sber.ru/CSAFront/oidc/authorize.do"
     sber_redirect_uri: str = ""
     sber_userinfo_url: str = ""
+    sber_completed_auth_url: str = ""
     client_id: str = ""
     client_secret: str = ""
     sber_scopes: str = "openid name place_of_work"
@@ -69,6 +80,10 @@ class Config(BaseSettings):
     sber_client_cert_path: str = str(CERT_DIR / "sber_client_cert.crt")
     sber_client_key_path: str = str(CERT_DIR / "private.key")
 
+    http_user_agent: str = "soc-assistant/1.0"
+    fetch_body_bytes_limit: int = 4 * 1024 * 1024
+    fetch_max_output: int = 6000
+
     frontend_auth_redirect_url: str = ""
 
     jwt_access_secret: str
@@ -78,7 +93,16 @@ class Config(BaseSettings):
     code_ttl: timedelta = timedelta(seconds=30)
     oauth_ttl: timedelta = timedelta(minutes=10)
 
-    ai_provider: AIProvider = AIProvider.GIGACHAT
+    llm_provider: AIProvider = AIProvider.GIGACHAT
+    embedding_provider: AIProvider = AIProvider.GIGACHAT
+
+    agent_recursion_limit: int = 15
+    agent_max_tool_calls: int = 10
+    agent_max_rag_per_turn: int = 2
+    agent_max_web_search_per_turn: int = 1
+    agent_max_page_fetch_per_turn: int = 2
+    agent_page_fetch_max_urls_tool: int = 3
+    
 
     polza_ai_api_key: str = ""
     polza_ai_base_url: str = "https://polza.ai/api/v1"
@@ -106,6 +130,11 @@ class Config(BaseSettings):
 
     context_size: int = 64
     summary_limit: int = 10
+
+    llm_summarization_tokens_trigger: int = 24000
+    llm_summarization_messages_trigger: int = 60
+
+    llm_summarization_tokens_keep: int = 8000
 
     llm_context_window_tokens: int = 128000
     llm_summary_trigger_ratio: float = 0.8

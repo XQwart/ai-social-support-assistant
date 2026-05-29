@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode, type TouchEvent } from "react";
 import type { Chat } from "@/types";
+import type { SettingsTab } from "@/components/SettingsModal";
 import { cn } from "@/utils/cn";
 
 export type ChatSortMode = "updated" | "created";
@@ -266,6 +267,8 @@ interface SidebarProps {
   userFullName: string;
   isAuthenticated: boolean;
   onLoginClick: () => void;
+  onOpenSettings: (tab: SettingsTab) => void;
+  onLogout: () => void;
   isLoadingChats: boolean;
   isLoadingMoreChats: boolean;
   hasMoreChats: boolean;
@@ -414,7 +417,7 @@ function ChatItem({ chat, isActive, isDark, showDate, timestampForDisplay, onSel
   }, [isMenuOpen]);
 
   return (
-    <div className="group relative">
+    <div className={cn("group relative", isMenuOpen && "z-50")}>
       {isActive && (
         <span
           aria-hidden="true"
@@ -488,7 +491,7 @@ function ChatItem({ chat, isActive, isDark, showDate, timestampForDisplay, onSel
               e.stopPropagation();
             }}
             className={cn(
-              "flex h-9 w-9 cursor-pointer items-center justify-center rounded-[14px] border backdrop-blur-xl transition-all duration-200 active:scale-95",
+              "relative z-0 flex h-9 w-9 cursor-pointer items-center justify-center rounded-[14px] border backdrop-blur-xl transition-all duration-200 active:scale-95",
               isDark
                 ? "border-white/12 bg-white/10 text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] hover:border-white/18 hover:bg-white/14"
                 : "border-white/80 bg-white/82 text-slate-600 shadow-[0_8px_20px_rgba(15,23,42,0.10),inset_0_1px_0_rgba(255,255,255,0.78)] hover:bg-white/92"
@@ -514,7 +517,7 @@ function ChatItem({ chat, isActive, isDark, showDate, timestampForDisplay, onSel
             <div
               role="menu"
               className={cn(
-                "absolute right-0 top-[calc(100%+6px)] flex w-[160px] flex-col overflow-hidden rounded-2xl border backdrop-blur-2xl",
+                "absolute right-0 top-[calc(100%+6px)] z-10 flex w-[160px] flex-col overflow-hidden rounded-2xl border backdrop-blur-2xl",
                 isDark
                   ? "border-white/12 bg-[rgba(14,32,28,0.96)] shadow-[0_18px_42px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.05)]"
                   : "border-white/80 bg-white/96 shadow-[0_18px_42px_rgba(15,23,42,0.18),inset_0_1px_0_rgba(255,255,255,0.85)]"
@@ -608,6 +611,8 @@ export default function Sidebar({
   userFullName,
   isAuthenticated,
   onLoginClick,
+  onOpenSettings,
+  onLogout,
   isLoadingChats,
   isLoadingMoreChats,
   hasMoreChats,
@@ -617,7 +622,9 @@ export default function Sidebar({
   onSortModeChange,
 }: SidebarProps) {
   const [search, setSearch] = useState("");
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
   const isDark = theme === "dark";
 
   const getSortTimestamp = (chat: Chat): number =>
@@ -648,6 +655,30 @@ export default function Sidebar({
       document.body.style.overflow = previousOverflow;
     };
   }, [isOpen, onClose]);
+
+  useEffect(() => {
+    if (!isProfileMenuOpen) return;
+
+    function handlePointer(event: Event) {
+      const target = event.target as Node | null;
+      if (target && profileRef.current && !profileRef.current.contains(target)) {
+        setIsProfileMenuOpen(false);
+      }
+    }
+
+    function handleKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setIsProfileMenuOpen(false);
+    }
+
+    document.addEventListener("mousedown", handlePointer);
+    document.addEventListener("touchstart", handlePointer);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handlePointer);
+      document.removeEventListener("touchstart", handlePointer);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [isProfileMenuOpen]);
 
   const filteredChats = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -868,24 +899,125 @@ export default function Sidebar({
             </div>
 
             <div className={cn("relative z-10 border-t px-4 py-4", isDark ? "border-white/10" : "border-white/55")}>
-              <div
-                className="flex items-center gap-3 rounded-2xl p-3 shadow-[0_10px_25px_rgba(15,23,42,0.04)] backdrop-blur-xl"
-                style={{
-                  border: isDark ? "1px solid rgba(255,255,255,0.10)" : "1px solid rgba(255,255,255,0.70)",
-                  background: isDark ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.58)",
-                }}
-              >
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,#34d399_0%,#14b8a6_100%)] text-sm font-bold text-white shadow-[0_10px_24px_rgba(16,185,129,0.24)]">
-                  {userInitial}
-                </div>
-                <div className="min-w-0">
-                  <div className={isDark ? "truncate text-sm font-semibold text-slate-50" : "truncate text-sm font-semibold text-slate-800"}>
-                    {userFullName}
+              <div ref={profileRef} className="relative">
+                {isProfileMenuOpen && (
+                  <div
+                    role="menu"
+                    aria-label="Меню профиля"
+                    className={cn(
+                      "absolute bottom-[calc(100%+8px)] left-0 right-0 z-30 overflow-hidden rounded-2xl border backdrop-blur-2xl",
+                      isDark
+                        ? "border-white/12 bg-[rgba(14,32,28,0.97)] shadow-[0_18px_42px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.05)]"
+                        : "border-white/85 bg-white/97 shadow-[0_18px_42px_rgba(15,23,42,0.18),inset_0_1px_0_rgba(255,255,255,0.85)]"
+                    )}
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setIsProfileMenuOpen(false);
+                        onOpenSettings("about");
+                        onClose();
+                      }}
+                      className={cn(
+                        "flex h-[52px] w-full cursor-pointer items-center gap-3 overflow-hidden px-4 text-left text-[13px] font-medium transition-colors",
+                        isDark ? "text-slate-100 hover:bg-white/8" : "text-slate-700 hover:bg-emerald-500/10"
+                      )}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="12" y1="16" x2="12" y2="12" />
+                        <line x1="12" y1="8" x2="12.01" y2="8" />
+                      </svg>
+                      <span className="truncate">О приложении</span>
+                    </button>
+
+                    <div className={isDark ? "h-px bg-white/8" : "h-px bg-slate-200/80"} />
+
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setIsProfileMenuOpen(false);
+                        onOpenSettings("privacy");
+                        onClose();
+                      }}
+                      className={cn(
+                        "flex h-[52px] w-full cursor-pointer items-center gap-3 overflow-hidden px-4 text-left text-[13px] font-medium transition-colors",
+                        isDark ? "text-slate-100 hover:bg-white/8" : "text-slate-700 hover:bg-emerald-500/10"
+                      )}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                        <path d="M12 3l7 4v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V7l7-4Z" />
+                      </svg>
+                      <span className="truncate">Данные и конфиденциальность</span>
+                    </button>
+
+                    <div className={isDark ? "h-px bg-white/8" : "h-px bg-slate-200/80"} />
+
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setIsProfileMenuOpen(false);
+                        onLogout();
+                      }}
+                      className={cn(
+                        "flex h-[52px] w-full cursor-pointer items-center gap-3 overflow-hidden px-4 text-left text-[13px] font-medium transition-colors",
+                        isDark ? "text-rose-300 hover:bg-rose-500/14" : "text-rose-600 hover:bg-rose-500/10"
+                      )}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                        <polyline points="16 17 21 12 16 7" />
+                        <line x1="21" y1="12" x2="9" y2="12" />
+                      </svg>
+                      <span className="truncate">Выйти из аккаунта</span>
+                    </button>
                   </div>
-                  <div className={isDark ? "truncate text-xs text-slate-400" : "truncate text-xs text-slate-500"}>
-                    Пользователь системы
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setIsProfileMenuOpen((prev) => !prev)}
+                  aria-haspopup="menu"
+                  aria-expanded={isProfileMenuOpen}
+                  className={cn(
+                    "flex w-full cursor-pointer items-center gap-3 rounded-2xl p-3 text-left shadow-[0_10px_25px_rgba(15,23,42,0.04)] backdrop-blur-xl transition-all hover:-translate-y-0.5",
+                    isDark
+                      ? "border border-white/10 bg-white/6 hover:border-white/16 hover:bg-white/10"
+                      : "border border-white/70 bg-white/58 hover:border-white/90 hover:bg-white/80"
+                  )}
+                >
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,#34d399_0%,#14b8a6_100%)] text-sm font-bold text-white shadow-[0_10px_24px_rgba(16,185,129,0.24)]">
+                    {userInitial}
                   </div>
-                </div>
+                  <div className="min-w-0 flex-1">
+                    <div className={isDark ? "truncate text-sm font-semibold text-slate-50" : "truncate text-sm font-semibold text-slate-800"}>
+                      {userFullName}
+                    </div>
+                    <div className={isDark ? "truncate text-xs text-slate-400" : "truncate text-xs text-slate-500"}>
+                      Управление аккаунтом
+                    </div>
+                  </div>
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={cn(
+                      "shrink-0 transition-transform duration-200",
+                      isDark ? "text-slate-400" : "text-slate-400",
+                      isProfileMenuOpen && "rotate-180"
+                    )}
+                  >
+                    <path d="m6 9 6 6 6-6" />
+                  </svg>
+                </button>
               </div>
             </div>
           </>

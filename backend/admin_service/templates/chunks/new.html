@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Новый чанк — {{ app_name }}{% endblock %}
+
+{% block content %}
+<section class="card">
+    <p><a href="{{ base_path }}/chunks">← Все чанки</a></p>
+    <h1>Новый чанк</h1>
+    <p class="muted">Текст разрезается на чанки и индексируется сразу после сохранения.</p>
+
+    {% if error %}
+    <div class="alert alert-error">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="{{ base_path }}/chunks" class="chunk-form">
+        <input type="hidden" name="csrf_token" value="{{ request.state.csrf_token }}">
+        <input type="hidden" name="place_of_work_set" value="1">
+
+        <label class="col-full">
+            Документ-источник
+            <div class="csel-remote"
+                 data-csel-remote
+                 data-endpoint="{{ base_path }}/chunks/sources/search"
+                 data-name="source_id"
+                 data-allow-empty="1"
+                 data-empty-label="— без источника —"
+                 data-placeholder="— без источника —"
+                 {% if selected_source %}
+                 data-selected-id="{{ selected_source.id }}"
+                 data-selected-label="{{ selected_source.name }}"
+                 {% endif %}></div>
+            <small class="muted">Можно выбрать существующий документ или указать только URL — источник создастся автоматически.</small>
+        </label>
+
+        <label>
+            Источник (ссылка)
+            <input type="url" name="source_url" value="{{ draft_source_url or '' }}" placeholder="https://...">
+            <small class="muted">Если документ выбран — наследует его URL. Иначе укажите URL вручную.</small>
+        </label>
+
+        <label>
+            Регион
+            <select name="region_code" class="select-enhanced">
+                <option value="">— наследовать у документа —</option>
+                {% for region in regions %}
+                <option value="{{ region.code }}" {% if draft_region_code == region.code %}selected{% endif %}>
+                    {{ region.name }} ({{ region.code }})
+                </option>
+                {% endfor %}
+            </select>
+        </label>
+
+        <label>
+            Место работы
+            <select name="place_of_work" class="select-enhanced">
+                <option value="" {% if not draft_place_of_work %}selected{% endif %}>— None (доступно всем) —</option>
+                {% for place in places_of_work %}
+                <option value="{{ place }}" {% if draft_place_of_work == place %}selected{% endif %}>{{ place }}</option>
+                {% endfor %}
+            </select>
+            <small class="muted">По умолчанию — значение документа. None — без ограничений по работодателю.</small>
+        </label>
+
+        <div></div>
+
+        <label class="col-full">
+            Текст чанка
+            <textarea name="text" rows="16" required minlength="50">{{ draft_text }}</textarea>
+            <small class="muted">Минимум 50 символов. Длинный текст автоматически разделится на несколько чанков.</small>
+        </label>
+
+        <div class="form-actions col-full">
+            <button type="submit" class="btn btn-primary">Создать и проиндексировать</button>
+            <a class="btn btn-secondary" href="{{ base_path }}/chunks">Отмена</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

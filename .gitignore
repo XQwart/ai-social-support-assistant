@@ -8,6 +8,12 @@ frontend/dist/
 *.key
 *client_cert*
 *.old*
-ssl/*
+nginx/ssl/*
 volumes/*
 data
+*tests/
+dev
+backend/celerybeat-schedule.db
+nginx/admin.htpasswd
+nginx/conf.d/prod.conf
+searxng/settings.yml

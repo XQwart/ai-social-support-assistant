@@ -70,9 +70,9 @@ textarea {
 .app-bg-spot {
   position: absolute;
   border-radius: 9999px;
-  filter: blur(110px);
-  opacity: 0.34;
-  animation: floatBlob 22s ease-in-out infinite;
+  filter: blur(120px);
+  opacity: 0.5;
+  will-change: transform, opacity;
 }
 
 .sberid-btn-container {
@@ -107,44 +107,77 @@ textarea {
 }
 
 .app-bg-spot-one {
-  left: -8%;
-  top: 18%;
-  width: 22rem;
-  height: 22rem;
+  left: -10%;
+  top: 2%;
+  width: 30rem;
+  height: 30rem;
   background: radial-gradient(
     circle,
-    rgba(186, 230, 253, 0.35) 0%,
-    rgba(186, 230, 253, 0.12) 44%,
-    transparent 74%
+    rgba(45, 212, 191, 0.42) 0%,
+    rgba(45, 212, 191, 0.14) 45%,
+    transparent 72%
   );
+  animation: driftGlowA 28s ease-in-out infinite;
 }
 
 .app-bg-spot-two {
-  right: -8%;
-  top: 20%;
-  width: 20rem;
-  height: 20rem;
+  right: -12%;
+  top: 8%;
+  width: 26rem;
+  height: 26rem;
   background: radial-gradient(
     circle,
-    rgba(125, 211, 252, 0.28) 0%,
-    rgba(125, 211, 252, 0.08) 44%,
+    rgba(56, 189, 248, 0.34) 0%,
+    rgba(56, 189, 248, 0.1) 46%,
     transparent 74%
   );
-  animation-delay: -6s;
+  animation: driftGlowB 32s ease-in-out infinite;
 }
 
 .app-bg-spot-three {
-  left: 22%;
-  bottom: -10%;
-  width: 28rem;
-  height: 18rem;
+  left: 26%;
+  bottom: -16%;
+  width: 34rem;
+  height: 24rem;
   background: radial-gradient(
     circle,
-    rgba(190, 242, 100, 0.18) 0%,
-    rgba(190, 242, 100, 0.06) 46%,
+    rgba(132, 204, 22, 0.26) 0%,
+    rgba(163, 230, 53, 0.08) 48%,
     transparent 78%
   );
-  animation-delay: -10s;
+  animation: driftGlowC 36s ease-in-out infinite;
+}
+
+[data-theme="dark"] .app-bg-spot {
+  opacity: 0.55;
+  filter: blur(130px);
+}
+
+[data-theme="dark"] .app-bg-spot-one {
+  background: radial-gradient(
+    circle,
+    rgba(16, 185, 129, 0.5) 0%,
+    rgba(16, 185, 129, 0.16) 45%,
+    transparent 72%
+  );
+}
+
+[data-theme="dark"] .app-bg-spot-two {
+  background: radial-gradient(
+    circle,
+    rgba(34, 211, 238, 0.42) 0%,
+    rgba(34, 211, 238, 0.12) 46%,
+    transparent 74%
+  );
+}
+
+[data-theme="dark"] .app-bg-spot-three {
+  background: radial-gradient(
+    circle,
+    rgba(132, 204, 22, 0.3) 0%,
+    rgba(132, 204, 22, 0.1) 48%,
+    transparent 78%
+  );
 }
 
 .hero-aurora-wrap {
@@ -253,20 +286,225 @@ textarea {
   color: transparent !important;
 }
 
-.typing-cursor {
+.typing-cursor,
+.markdown-content.is-streaming > *:last-child:not(ul):not(ol):not(blockquote):not(pre)::after,
+.markdown-content.is-streaming > ul:last-child > li:last-child::after,
+.markdown-content.is-streaming > ol:last-child > li:last-child::after,
+.markdown-content.is-streaming > blockquote:last-child > *:last-child::after,
+.markdown-content.is-streaming > pre:last-child > code::after,
+.markdown-content.is-streaming:empty::after {
+  content: "";
   display: inline-block;
-  width: 4px;
-  height: 1.2em;
-  margin-left: 3px;
+  width: 8px;
+  height: 1.15em;
+  margin-left: 2px;
   vertical-align: text-bottom;
   border-radius: 1px;
-  background: linear-gradient(
-    180deg,
-    rgba(16, 185, 129, 0.95) 0%,
-    rgba(5, 150, 105, 0.98) 100%
-  );
-  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.35);
+  background: #10b981;
   animation: blinkCursor 0.85s steps(1) infinite;
+}
+
+.typing-cursor {
+  height: 1.2em;
+}
+
+.link-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 10px 2px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.06);
+  color: #059669;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.6;
+  text-decoration: none;
+  vertical-align: middle;
+  white-space: nowrap;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    transform 0.15s;
+}
+
+.link-chip:hover {
+  background: rgba(16, 185, 129, 0.13);
+  border-color: rgba(16, 185, 129, 0.5);
+  transform: translateY(-1px);
+}
+
+.link-chip img {
+  width: 13px;
+  height: 13px;
+  object-fit: contain;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .link-chip {
+  border-color: rgba(52, 211, 153, 0.22);
+  background: rgba(52, 211, 153, 0.07);
+  color: #34d399;
+}
+
+[data-theme="dark"] .link-chip:hover {
+  background: rgba(52, 211, 153, 0.15);
+  border-color: rgba(52, 211, 153, 0.4);
+}
+
+.agent-activity-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid transparent;
+  padding: 8px 14px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #475569;
+  background: rgba(255, 255, 255, 0.65);
+  transition:
+    border-color 0.35s ease,
+    background 0.35s ease,
+    box-shadow 0.35s ease,
+    color 0.35s ease;
+  animation: activityIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.agent-activity-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.agent-activity-running {
+  border-color: rgba(16, 185, 129, 0.34);
+  background: linear-gradient(
+    120deg,
+    rgba(16, 185, 129, 0.12) 0%,
+    rgba(45, 212, 191, 0.08) 100%
+  );
+  color: #047857;
+  box-shadow:
+    0 0 0 1px rgba(16, 185, 129, 0.1),
+    0 10px 28px rgba(16, 185, 129, 0.16);
+}
+
+.agent-activity-running::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 25%,
+    rgba(52, 211, 153, 0.18) 50%,
+    transparent 75%
+  );
+  transform: translateX(-100%);
+  animation: activitySheen 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.agent-activity-running .agent-activity-icon {
+  animation: iconPulse 1.7s ease-in-out infinite;
+}
+
+.agent-activity-done {
+  border-color: rgba(148, 163, 184, 0.32);
+  background: rgba(255, 255, 255, 0.55);
+  color: #475569;
+}
+
+.agent-activity-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.agent-activity-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  background: rgba(148, 163, 184, 0.16);
+  color: currentColor;
+}
+
+.agent-activity-running .agent-activity-icon {
+  background: rgba(16, 185, 129, 0.18);
+}
+
+.agent-activity-label {
+  color: currentColor;
+}
+
+.agent-activity-detail {
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: rgba(71, 85, 105, 0.85);
+  word-break: break-word;
+}
+
+.agent-activity-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: currentColor;
+  opacity: 0.7;
+}
+
+.agent-activity-thought {
+  margin-top: 6px;
+  white-space: pre-wrap;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: rgba(71, 85, 105, 0.85);
+}
+
+.agent-activity-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+[data-theme="dark"] .agent-activity-card {
+  background: rgba(255, 255, 255, 0.04);
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .agent-activity-running {
+  border-color: rgba(52, 211, 153, 0.38);
+  background: linear-gradient(
+    120deg,
+    rgba(16, 185, 129, 0.22) 0%,
+    rgba(45, 212, 191, 0.14) 100%
+  );
+  color: #6ee7b7;
+  box-shadow:
+    0 0 0 1px rgba(52, 211, 153, 0.12),
+    0 10px 30px rgba(16, 185, 129, 0.22);
+}
+
+[data-theme="dark"] .agent-activity-icon {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .agent-activity-running .agent-activity-icon {
+  background: rgba(52, 211, 153, 0.2);
+}
+
+[data-theme="dark"] .agent-activity-done {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .agent-activity-detail,
+[data-theme="dark"] .agent-activity-thought {
+  color: rgba(203, 213, 225, 0.7);
 }
 
 .loading-dot {
@@ -300,9 +538,59 @@ textarea {
   color: #94a3a0 !important;
 }
 
+/* Remap light-theme white surfaces in dark mode */
 [data-theme="dark"] .bg-white,
 [data-theme="dark"] [class*="bg-white/"] {
   background-color: rgba(10, 24, 20, 0.84) !important;
+}
+
+/* Chips / top bar — translucent, not flat gray from raw bg-white/64 */
+[data-theme="dark"] [class*="bg-white/64"],
+[data-theme="dark"] [class*="bg-white/58"],
+[data-theme="dark"] [class*="bg-white/45"] {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Sort trigger, menu icon, etc. */
+[data-theme="dark"] [class*="bg-white/[0.04]"],
+[data-theme="dark"] [class*=" bg-white/10"],
+[data-theme="dark"] [class*=" bg-white/8"] {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+/*
+ * Broad [class*="bg-white/"] also matches hover:bg-white/… tokens in the
+ * class attribute. For controls that only use hover:bg-white (rename, sort
+ * options), reset the false positive when not hovered.
+ */
+[data-theme="dark"] [class*="hover:bg-white"]:not([class*=" bg-white/"]):not(
+    [class^="bg-white/"]
+  ):not(:hover) {
+  background-color: transparent !important;
+}
+
+/* Sidebar menu + sort list hovers (rename, filter options, chat rows) */
+[data-theme="dark"] [class*="hover:bg-white"]:not([class*=" bg-white/"]):not(
+    [class^="bg-white/"]
+  ):hover {
+  background-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+[data-theme="dark"] [class*="hover:bg-white/[0.07]"]:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] [class*="hover:bg-white/14"]:hover,
+[data-theme="dark"] [class*="hover:bg-white/18"]:hover {
+  background-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+[data-theme="dark"] [class*="hover:bg-white/70"]:hover,
+[data-theme="dark"] [class*="hover:bg-white/75"]:hover,
+[data-theme="dark"] [class*="hover:bg-white/78"]:hover,
+[data-theme="dark"] [class*="hover:bg-white/82"]:hover,
+[data-theme="dark"] [class*="hover:bg-white/92"]:hover {
+  background-color: rgba(255, 255, 255, 0.16) !important;
 }
 
 [data-theme="dark"] .bg-slate-50,
@@ -314,6 +602,11 @@ textarea {
 [data-theme="dark"] .border-white,
 [data-theme="dark"] [class*="border-white/"] {
   border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] [class*="hover:border-white/15"]:hover,
+[data-theme="dark"] [class*="hover:border-white/18"]:hover {
+  border-color: rgba(255, 255, 255, 0.18) !important;
 }
 
 [data-theme="dark"] .border-slate-100,
@@ -401,13 +694,84 @@ textarea {
   }
 }
 
-@keyframes floatBlob {
+@keyframes activityIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes activitySheen {
+  0% {
+    transform: translateX(-100%);
+  }
+  60%,
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes iconPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.14);
+    opacity: 1;
+  }
+}
+
+@keyframes driftGlowA {
   0%,
   100% {
     transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.5;
   }
-  50% {
-    transform: translate3d(10px, -14px, 0) scale(1.02);
+  33% {
+    transform: translate3d(120px, 60px, 0) scale(1.12);
+    opacity: 0.62;
+  }
+  66% {
+    transform: translate3d(60px, 130px, 0) scale(0.95);
+    opacity: 0.44;
+  }
+}
+
+@keyframes driftGlowB {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.46;
+  }
+  33% {
+    transform: translate3d(-110px, 70px, 0) scale(1.08);
+    opacity: 0.58;
+  }
+  66% {
+    transform: translate3d(-50px, -60px, 0) scale(1.16);
+    opacity: 0.4;
+  }
+}
+
+@keyframes driftGlowC {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.5;
+  }
+  33% {
+    transform: translate3d(90px, -80px, 0) scale(1.1);
+    opacity: 0.6;
+  }
+  66% {
+    transform: translate3d(-120px, -40px, 0) scale(0.94);
+    opacity: 0.42;
   }
 }
 
@@ -448,6 +812,19 @@ textarea {
 
   .hero-aurora {
     filter: blur(44px);
+  }
+
+  .app-bg-spot {
+    filter: blur(90px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-bg-spot,
+  .hero-aurora,
+  .agent-activity-running::before,
+  .agent-activity-running .agent-activity-icon {
+    animation: none !important;
   }
 }
 
@@ -510,4 +887,12 @@ textarea {
 
 [data-theme="dark"] .carousel-scroll-thumb {
   background: rgba(148, 163, 184, 0.5);
+}
+
+[data-theme="dark"] .hover\:bg-slate-900\/5:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .hover\:text-slate-700:hover {
+  color: #e2e8f0 !important;
 }
