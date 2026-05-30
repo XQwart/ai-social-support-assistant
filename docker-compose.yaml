@@ -29,8 +29,8 @@ services:
         condition: service_started
       migrations:
         condition: service_completed_successfully
-      qdrant:
-        condition: service_healthy
+      # qdrant:
+      #   condition: service_healthy
 
   chunk-api:
     init: true
@@ -168,12 +168,12 @@ services:
       - .env
     volumes:
       - ./volumes/qdrant:/qdrant/storage
-    healthcheck:
-      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-    restart: unless-stopped
+    # healthcheck:
+    #   test: ["CMD", "/qdrant/qdrant", "--healthcheck"]
+    #   interval: 5s
+    #   timeout: 3s
+    #   retries: 20
+    # restart: unless-stopped
 
 volumes:
   redis_data:
