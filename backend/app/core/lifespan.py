@@ -37,7 +37,7 @@ async def lifespan(app: FastAPI):
     embedding_client, vector_size = create_embedding_client(config)
 
     checkpointer = await create_checkpointer(config)
-    qdrant = create_qdrant_client(url=config.qdrant_url)
+    qdrant = create_qdrant_client(config)
     await ensure_collection(
         qdrant,
         collection_name=config.qdrant_collection,

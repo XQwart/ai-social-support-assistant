@@ -54,6 +54,7 @@ class Config(BaseSettings):
     qdrant_vector_chunk: str = "chunk"
     qdrant_vector_questions: str = "questions"
     qdrant_min_per_category: int = 2
+    qdrant_timeout: int = 30
 
     searxng_url: str = "http://searxng:8080"
     web_search_timeout: float = 8.0
@@ -102,7 +103,6 @@ class Config(BaseSettings):
     agent_max_web_search_per_turn: int = 1
     agent_max_page_fetch_per_turn: int = 2
     agent_page_fetch_max_urls_tool: int = 3
-    
 
     polza_ai_api_key: str = ""
     polza_ai_base_url: str = "https://polza.ai/api/v1"
