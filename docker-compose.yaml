@@ -14,6 +14,8 @@ services:
         condition: service_started
       admin:
         condition: service_started
+      qdrant:
+        condition: service_healthy
 
   backend:
     build:
@@ -80,16 +82,16 @@ services:
     image: backend-worker:latest
     pull_policy: never
     env_file:
-        - .env
+      - .env
     working_dir: /code
     command: celery -A worker.celery_app beat -l info
     volumes:
-        - ./backend:/code
+      - ./backend:/code
     depends_on:
-        redis:
-            condition: service_started
-        migrations:
-            condition: service_completed_successfully
+      redis:
+        condition: service_started
+      migrations:
+        condition: service_completed_successfully
     restart: unless-stopped
 
   admin:
@@ -147,7 +149,7 @@ services:
     volumes:
       - ./volumes/postgresql:/var/lib/postgresql
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -165,6 +167,12 @@ services:
       - .env
     volumes:
       - ./volumes/qdrant:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
 
 volumes:
   redis_data:
