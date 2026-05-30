@@ -14,8 +14,7 @@ services:
         condition: service_started
       admin:
         condition: service_started
-      qdrant:
-        condition: service_healthy
+
 
   backend:
     build:
@@ -30,6 +29,8 @@ services:
         condition: service_started
       migrations:
         condition: service_completed_successfully
+      qdrant:
+        condition: service_healthy
 
   chunk-api:
     init: true
