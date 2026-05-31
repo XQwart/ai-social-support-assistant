@@ -87,12 +87,11 @@ def make_search_web_tool(
                 "и ответь по базе знаний или предложи попробовать позже."
             )
 
-        logger.exception(
+        logger.info(
             "%s количество найденых источников: %d; query='%s'",
             _LOG_PREFIX,
             len(response.results),
             query,
-            exc_info=True,
         )
 
         if not response.results:
