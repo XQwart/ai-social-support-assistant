@@ -6,6 +6,7 @@ from langchain.agents import create_agent
 from langchain.agents.middleware import SummarizationMiddleware
 from langchain_core.messages import AIMessageChunk
 from langchain_core.messages.human import HumanMessage
+from langchain_core.runnables.schema import StreamEvent as SteamEvent_
 
 from app.agent.state import SOCAgentState, UserContext
 from app.agent.tools import create_user_tools
@@ -144,7 +145,7 @@ class AgentService:
             }
 
     async def _translate_event(
-        self, event: dict, phase_buffers: dict[str, str]
+        self, event: SteamEvent_, phase_buffers: dict[str, str]
     ) -> AsyncIterator[StreamEvent]:
         kind = event["event"]
         name = event.get("name", "")
@@ -186,6 +187,7 @@ class AgentService:
                 if action_kind is StreamActionKind.OTHER:
                     return
                 tool_input = data.get("input", {}) or {}
+                logger.info("Tool start: name=%s input=%r", name, tool_input)
                 yield {
                     "type": StreamEventType.ACTION_START.value,
                     "action_id": run_id,
@@ -200,6 +202,7 @@ class AgentService:
                     return
                 output = data.get("output")
                 ok = self._tool_succeeded(output)
+                logger.info("Tool end: name=%s status=%s", name, ok)
                 yield {
                     "type": StreamEventType.ACTION_END.value,
                     "action_id": run_id,
