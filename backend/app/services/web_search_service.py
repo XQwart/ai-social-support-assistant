@@ -22,18 +22,28 @@ class WebSearchService:
         self._config = config
 
     async def search(self, query: str) -> WebSearchResult:
-        res = await self._client.get(
-            url=f"{self._config.searxng_url}/search",
-            params={"q": query, "format": "json", "language": "ru"},
-            headers={"Accept": "application/json"},
-        )
-
-        if res.status_code != 200:
-            logger.error(
-                "Search in web failed | status=%s | body=%s",
-                res.status_code,
-                res.text,
+        try:
+            res = await self._client.get(
+                url=f"{self._config.searxng_url}/search",
+                params={"q": query, "format": "json", "language": "ru"},
+                headers={"Accept": "application/json"},
             )
-            raise ExternalServiceError("Web search returned malformed response")
+
+            res.raise_for_status()
+        except httpx.ReadTimeout as exc:
+            raise ExternalServiceError("Поисковый сервис не ответил вовремя") from exc
+        except httpx.ConnectError as exc:
+            raise ExternalServiceError("Поисковый сервис недоступен") from exc
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 429:
+                raise ExternalServiceError(
+                    "Превышен лимит запросов"
+                ) from exc
+            raise ExternalServiceError(
+                f"Поисковый сервис вернул ошибку. "
+                f"status={exc.response.status_code} body={exc.response.text}"
+            ) from exc
+        except httpx.HTTPError as exc:
+            raise ExternalServiceError(f"Ошибка поиска: {exc!r}") from exc
 
         return WebSearchResult(**res.json())
