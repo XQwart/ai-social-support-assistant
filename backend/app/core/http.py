@@ -23,7 +23,7 @@ def create_sber_http_client(config: Config) -> httpx.AsyncClient:
 def create_fetch_client(config: Config) -> httpx.AsyncClient:
     transport = SSRFGuardTransport(verify=True, retries=0)
 
-    return create_http_client(config, transport=transport)
+    return create_http_client(config, transport=transport, timeout=config.fetch_timeout)
 
 
 def create_http_client(

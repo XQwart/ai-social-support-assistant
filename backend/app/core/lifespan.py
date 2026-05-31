@@ -30,7 +30,7 @@ async def lifespan(app: FastAPI):
     session_maker = create_session_maker(engine)
     redis = create_redis(config)
     sber_client = create_sber_http_client(config)
-    web_search_client = create_http_client(config)
+    web_search_client = create_http_client(config, timeout=config.web_search_timeout)
     fetch_client = create_fetch_client(config)
 
     chat_llm_client, compress_llm_client = create_llm_clients(config)

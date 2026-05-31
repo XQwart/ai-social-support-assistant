@@ -6,7 +6,6 @@ from langchain_gigachat import GigaChat, GigaChatEmbeddings
 
 from .config import AIProvider
 
-
 if TYPE_CHECKING:
     from langchain_core.language_models.chat_models import BaseChatModel
     from langchain_core.embeddings.embeddings import Embeddings
@@ -49,8 +48,20 @@ def create_llm_clients(config: Config) -> tuple[BaseChatModel, BaseChatModel]:
 
         case AIProvider.POLZA:
             params = _get_polza_params(config)
+            extra_body = (
+                {
+                    "provider": {
+                        "only": config.polza_ai_providers,
+                        "allow_fallbacks": config.polza_ai_allow_fallbacks,
+                    }
+                }
+                if config.polza_ai_providers
+                else {}
+            )
 
-            chat_client = ChatOpenAI(model=config.polza_ai_model, **params)
+            chat_client = ChatOpenAI(
+                model=config.polza_ai_model, extra_body=extra_body, **params
+            )
             compress_client = (
                 ChatOpenAI(model=config.polza_ai_compress_model, **params)
                 if config.polza_ai_compress_model
