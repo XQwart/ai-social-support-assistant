@@ -54,9 +54,10 @@ class Config(BaseSettings):
     qdrant_vector_chunk: str = "chunk"
     qdrant_vector_questions: str = "questions"
     qdrant_min_per_category: int = 2
+    qdrant_timeout: int = 30
 
     searxng_url: str = "http://searxng:8080"
-    web_search_timeout: float = 8.0
+    web_search_timeout: int = 30
     web_search_max_results: int = 8
     web_search_citation_char_limit: int = 220
 
@@ -83,6 +84,7 @@ class Config(BaseSettings):
     http_user_agent: str = "soc-assistant/1.0"
     fetch_body_bytes_limit: int = 4 * 1024 * 1024
     fetch_max_output: int = 6000
+    fetch_timeout: int = 30
 
     frontend_auth_redirect_url: str = ""
 
@@ -102,8 +104,9 @@ class Config(BaseSettings):
     agent_max_web_search_per_turn: int = 1
     agent_max_page_fetch_per_turn: int = 2
     agent_page_fetch_max_urls_tool: int = 3
-    
 
+    polza_ai_providers: list[str] = []
+    polza_ai_allow_fallbacks: bool = True
     polza_ai_api_key: str = ""
     polza_ai_base_url: str = "https://polza.ai/api/v1"
     polza_ai_model: str = "xiaomi/mimo-v2-flash"

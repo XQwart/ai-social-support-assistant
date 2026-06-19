@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import TYPE_CHECKING
 
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.models import (
@@ -8,9 +9,12 @@ from qdrant_client.models import (
     VectorParams,
 )
 
+if TYPE_CHECKING:
+    from app.core.config import Config
 
-def create_qdrant_client(url: str) -> AsyncQdrantClient:
-    return AsyncQdrantClient(url=url)
+
+def create_qdrant_client(config: Config) -> AsyncQdrantClient:
+    return AsyncQdrantClient(url=config.qdrant_url, timeout=config.qdrant_timeout)
 
 
 async def ensure_collection(

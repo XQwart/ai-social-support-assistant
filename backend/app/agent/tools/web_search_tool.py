@@ -16,6 +16,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_LOG_PREFIX = "search_web:"
+
 
 def make_search_web_tool(
     web_search_service: WebSearchService, config: Config
@@ -73,12 +75,24 @@ def make_search_web_tool(
         try:
             response = await web_search_service.search(query)
         except ExternalServiceError:
-            logger.exception("Web search failed in agent tool")
+            logger.exception(
+                "%s веб-поиск завершился ошибкой query='%s'",
+                _LOG_PREFIX,
+                query,
+                exc_info=True,
+            )
             return (
                 "Онлайн-поиск сейчас недоступен. Скажи пользователю, что "
                 "не удалось проверить актуальную информацию в интернете, "
                 "и ответь по базе знаний или предложи попробовать позже."
             )
+
+        logger.info(
+            "%s количество найденых источников: %d; query='%s'",
+            _LOG_PREFIX,
+            len(response.results),
+            query,
+        )
 
         if not response.results:
             return "Веб-поиск ничего не нашёл по этому запросу."

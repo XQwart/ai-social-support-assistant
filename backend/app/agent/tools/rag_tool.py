@@ -16,6 +16,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+_LOG_PREFIX = "search_knowledge_base:"
+
+
 def make_retrive_tool(
     user: UserModel, scope_factory: AgentToolsScopeFactory, config: Config
 ) -> BaseTool:
@@ -86,8 +89,14 @@ def make_retrive_tool(
                 [c for c in response if c.is_internal] if user.is_sber_employee else []
             )
 
+            logger.info(
+                "%s количество найденных документов: %d; query='%r'",
+                _LOG_PREFIX,
+                len(public_chunks) + len(internal_chunks),
+                query,
+            )
+
             if not public_chunks and not internal_chunks:
-                logger.info("RAG: релевантные документы не найдены для query=%r", query)
                 return (
                     "Релевантных документов в базе не найдено. "
                     "Не придумывай факты: скажи пользователю, что точной "
@@ -97,7 +106,9 @@ def make_retrive_tool(
 
             return _format_chunks(public_chunks, internal_chunks, region_name)
         except Exception:
-            logger.exception("RAG search failed for query %r", query, exc_info=True)
+            logger.exception(
+                "%s ошибка поиска query='%r'", _LOG_PREFIX, query, exc_info=True
+            )
             return "Поиск по базе знаний сейчас не доступен"
 
     def _format_chunks(

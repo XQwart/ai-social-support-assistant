@@ -83,7 +83,7 @@ def make_memory_tool(
             async with scope_factory.scope() as s:
                 await s.user_service.update_user_memory(user.id, **updates)
         except Exception:
-            logger.exception("Failed to update user memory", exc_info=True)
+            logger.exception("save_user_facts: ошибка обновления фактов", exc_info=True)
             return "error: сохранение не выполнено"
 
         return "saved"

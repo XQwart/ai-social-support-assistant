@@ -30,14 +30,14 @@ async def lifespan(app: FastAPI):
     session_maker = create_session_maker(engine)
     redis = create_redis(config)
     sber_client = create_sber_http_client(config)
-    web_search_client = create_http_client(config)
+    web_search_client = create_http_client(config, timeout=config.web_search_timeout)
     fetch_client = create_fetch_client(config)
 
     chat_llm_client, compress_llm_client = create_llm_clients(config)
     embedding_client, vector_size = create_embedding_client(config)
 
     checkpointer = await create_checkpointer(config)
-    qdrant = create_qdrant_client(url=config.qdrant_url)
+    qdrant = create_qdrant_client(config)
     await ensure_collection(
         qdrant,
         collection_name=config.qdrant_collection,

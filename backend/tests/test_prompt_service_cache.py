@@ -11,7 +11,6 @@ Covers:
 from __future__ import annotations
 
 import sys
-from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
@@ -21,11 +20,6 @@ import pytest
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
-
-
-# ---------------------------------------------------------------------------
-# Stubs that imitate the small slice of the real APIs that PromptService uses.
-# ---------------------------------------------------------------------------
 
 
 @dataclass
@@ -90,9 +84,7 @@ def patched_service(monkeypatch, stub_repo):
 
     from app.services import prompt_service as ps_module
 
-    monkeypatch.setattr(
-        ps_module, "PromptRepository", lambda session: stub_repo
-    )
+    monkeypatch.setattr(ps_module, "PromptRepository", lambda session: stub_repo)
 
     service = ps_module.PromptService(session_maker=_StubSessionMaker(), redis=None)  # type: ignore[arg-type]
     return service, stub_repo
